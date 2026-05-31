@@ -179,19 +179,14 @@ export default function Home() {
           <p className="text-zinc-500 text-lg mb-8">
             Join the waitlist today and get <strong>3 months free</strong> when we launch. No strings attached.
           </p>
-          <form className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-            <input 
-              type="email" 
-              placeholder="Enter your email"
-              className="flex-1 px-5 py-3 rounded-full border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
-            />
-            <button 
-              type="submit"
-              className="bg-zinc-900 text-white px-6 py-3 rounded-full text-sm font-medium hover:bg-zinc-800 transition-colors whitespace-nowrap"
-            >
-              Join Waitlist
-            </button>
-          </form>
+                    <a 
+            href="https://tally.so/r/PdkvWP" 
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex bg-zinc-900 text-white px-8 py-4 rounded-full text-base font-medium hover:bg-zinc-800 transition-colors"
+          >
+            Join the Waitlist — It's Free
+          </a>
           <p className="text-xs text-zinc-400 mt-4">
             We hate spam too. Unsubscribe anytime. Launching Q3 2026.
           </p>
