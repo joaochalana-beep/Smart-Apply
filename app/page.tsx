@@ -95,11 +95,13 @@ export default function Home() {
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
-            <FeatureCard 
-              icon="📝"
-              title="AI Resume Builder"
-              description="Paste your experience and let AI craft an ATS-optimized resume tailored to each job description."
-            />
+            <a href="/resume" className="block">
+  <FeatureCard 
+    icon="📝"
+    title="AI Resume Builder"
+    description="Paste your experience and let AI craft an ATS-optimized resume tailored to each job description. Try it now →"
+  />
+</a>
             <FeatureCard 
               icon="✉️"
               title="Cover Letter Writer"
