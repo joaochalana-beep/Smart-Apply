@@ -53,12 +53,8 @@ export default function ResumeBuilder() {
     const contentWidth = pageWidth - margin * 2;
     let y = 20;
 
-    // Color scheme - professional dark blue
-    const primaryColor = [30, 41, 59]; // Dark slate
-    const secondaryColor = [71, 85, 105]; // Slate
-    const accentColor = [15, 23, 42]; // Darker slate
+    const primaryColor = [30, 41, 59];
 
-    // Helper functions
     const addLine = (startY: number) => {
       pdf.setDrawColor(200, 200, 200);
       pdf.setLineWidth(0.3);
@@ -89,33 +85,26 @@ export default function ResumeBuilder() {
       pdf.setFontSize(10);
       pdf.setTextColor(51, 51, 51);
       pdf.setFont("helvetica", "normal");
-
-      // Draw bullet
       pdf.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
       pdf.circle(margin + 1.5, y - 1.2, 0.8, "F");
-
       const lines = pdf.splitTextToSize(text, contentWidth - 8);
       pdf.text(lines, margin + 6, y);
       y += lines.length * 4.5 + 2;
     };
 
-    // HEADER - Name and Contact
     pdf.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
     pdf.rect(0, 0, pageWidth, 40, "F");
     
-    // Name
     pdf.setFontSize(22);
     pdf.setTextColor(255, 255, 255);
     pdf.setFont("helvetica", "bold");
     pdf.text(formData.name || "Your Name", margin, 18);
     
-    // Job Title
     pdf.setFontSize(11);
     pdf.setTextColor(200, 200, 200);
     pdf.setFont("helvetica", "normal");
     pdf.text(formData.jobTitle || "Professional", margin, 26);
     
-    // Contact info bar - using plain text labels
     const contactY = 34;
     pdf.setFontSize(8);
     pdf.setTextColor(220, 220, 220);
@@ -133,10 +122,8 @@ export default function ResumeBuilder() {
 
     y = 55;
 
-    // Parse resume sections
     const lines = resume.split("\n");
-    let currentSection = "";
-
+    
     for (let i = 0; i < lines.length; i++) {
       if (y > 270) {
         pdf.addPage();
@@ -149,15 +136,12 @@ export default function ResumeBuilder() {
         continue;
       }
 
-      // Detect section headers (lines with ** or all caps)
       if (line.startsWith("**") && line.endsWith("**")) {
         const sectionName = line.replace(/\*\*/g, "").trim();
         addSectionHeader(sectionName);
-        currentSection = sectionName;
         continue;
       }
 
-      // Detect section headers by common words
       const sectionKeywords = ["PROFESSIONAL SUMMARY", "WORK EXPERIENCE", "EXPERIENCE", "SKILLS", "EDUCATION", "REFERENCES"];
       const upperLine = line.toUpperCase();
       if (sectionKeywords.some(kw => upperLine.includes(kw)) && line.length < 30) {
@@ -165,13 +149,11 @@ export default function ResumeBuilder() {
         continue;
       }
 
-      // Bullet points
       if (line.startsWith("- ") || line.startsWith("• ")) {
         addBulletPoint(line.replace(/^[-•]\s*/, ""));
         continue;
       }
 
-      // Job title + company + dates pattern
       if (line.includes(" at ") || line.includes(" @ ") || (/\[/.test(line) && /\]/.test(line))) {
         pdf.setFontSize(11);
         pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
@@ -183,11 +165,9 @@ export default function ResumeBuilder() {
         continue;
       }
 
-      // Regular paragraph
       addText(line, 10, [51, 51, 51], false);
     }
 
-    // Footer
     const pageCount = pdf.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       pdf.setPage(i);
@@ -223,7 +203,7 @@ export default function ResumeBuilder() {
                 onChange={handleChange}
                 required
                 className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
-                placeholder="João Chalana"
+                placeholder="John Doe"
               />
             </div>
 
@@ -236,7 +216,7 @@ export default function ResumeBuilder() {
                 onChange={handleChange}
                 required
                 className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
-                placeholder="Customer Service Specialist"
+                placeholder="Software Engineer"
               />
             </div>
 
@@ -248,7 +228,7 @@ export default function ResumeBuilder() {
                 value={formData.email}
                 onChange={handleChange}
                 className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
-                placeholder="joao@email.com"
+                placeholder="john@email.com"
               />
             </div>
 
@@ -260,7 +240,7 @@ export default function ResumeBuilder() {
                 value={formData.phone}
                 onChange={handleChange}
                 className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
-                placeholder="+351 912 345 678"
+                placeholder="+1 555 123 4567"
               />
             </div>
 
@@ -272,7 +252,7 @@ export default function ResumeBuilder() {
                 value={formData.linkedin}
                 onChange={handleChange}
                 className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
-                placeholder="linkedin.com/in/joaochalana"
+                placeholder="linkedin.com/in/johndoe"
               />
             </div>
 
@@ -284,7 +264,7 @@ export default function ResumeBuilder() {
                 value={formData.location}
                 onChange={handleChange}
                 className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
-                placeholder="Lisbon, Portugal"
+                placeholder="New York, USA"
               />
             </div>
           </div>
@@ -298,7 +278,7 @@ export default function ResumeBuilder() {
               required
               rows={3}
               className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
-              placeholder="Bachelor's in Communication Sciences, FCSH NOVA, 2020-2024"
+              placeholder="Bachelor's in Business Administration, NYU, 2020-2024"
             />
           </div>
 
@@ -311,7 +291,7 @@ export default function ResumeBuilder() {
               required
               rows={5}
               className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
-              placeholder="KYC Verification Specialist at Sumsub (2023-Present): Conducted identity verification, managed customer interactions for Binance and Paybis..."
+              placeholder="Customer Service Representative at TechCorp (2022-Present): Handled 50+ customer inquiries daily, resolved complaints with 95% satisfaction rate..."
             />
           </div>
 
@@ -324,7 +304,7 @@ export default function ResumeBuilder() {
               required
               rows={3}
               className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
-              placeholder="Customer Support, KYC Verification, Zendesk, Excel, Fraud Detection, Compliance Operations"
+              placeholder="Customer Service, CRM, Salesforce, Excel, Communication, Problem Solving"
             />
           </div>
 
@@ -356,7 +336,7 @@ export default function ResumeBuilder() {
                 </button>
               </div>
             </div>
-
+            
             <div className="bg-white rounded-2xl p-8 border border-zinc-200 shadow-sm">
               <div className="prose prose-zinc max-w-none whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">
                 {resume}
