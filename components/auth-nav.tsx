@@ -11,7 +11,7 @@ export function AuthNav() {
   return (
     <>
       {isSignedIn ? (
-        <UserButton afterSignOutUrl="/" />
+        <UserButton />
       ) : (
         <Link 
           href="/sign-in"
