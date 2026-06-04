@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AuthNav } from "@/components/auth-nav";
 
 export default function Home() {
   return (
@@ -17,12 +18,7 @@ export default function Home() {
             <a href="#pricing" className="hover:text-zinc-900 transition-colors">Pricing</a>
             <a href="#faq" className="hover:text-zinc-900 transition-colors">FAQ</a>
           </div>
-          <Link 
-            href="#waitlist"
-            className="bg-zinc-900 text-white px-5 py-2 rounded-full text-sm font-medium hover:bg-zinc-800 transition-colors"
-          >
-            Join Waitlist
-          </Link>
+          <AuthNav />
         </div>
       </nav>
 
