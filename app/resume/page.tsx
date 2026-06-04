@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 
 export default function ResumeBuilder() {
   const [formData, setFormData] = useState({
@@ -18,7 +17,6 @@ export default function ResumeBuilder() {
   });
   const [resume, setResume] = useState("");
   const [loading, setLoading] = useState(false);
-  const resumeRef = useRef<HTMLDivElement>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,7 +30,6 @@ export default function ResumeBuilder() {
       });
 
       const data = await response.json();
-      // Clean up markdown formatting
       const cleanResume = data.resume
         .replace(/```plaintext/g, "")
         .replace(/```/g, "")
@@ -49,21 +46,158 @@ export default function ResumeBuilder() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const downloadPDF = async () => {
-    if (!resumeRef.current) return;
-    
-    const canvas = await html2canvas(resumeRef.current, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-    });
-    
-    const imgData = canvas.toDataURL("image/png");
+  const downloadPDF = () => {
     const pdf = new jsPDF("p", "mm", "a4");
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const margin = 20;
+    const contentWidth = pageWidth - margin * 2;
+    let y = 20;
+
+    // Color scheme - professional dark blue
+    const primaryColor = [30, 41, 59]; // Dark slate
+    const secondaryColor = [71, 85, 105]; // Slate
+    const accentColor = [15, 23, 42]; // Darker slate
+
+    // Helper functions
+    const addLine = (startY: number) => {
+      pdf.setDrawColor(200, 200, 200);
+      pdf.setLineWidth(0.3);
+      pdf.line(margin, startY, pageWidth - margin, startY);
+    };
+
+    const addText = (text: string, fontSize: number = 10, color: number[] = [51, 51, 51], isBold: boolean = false) => {
+      pdf.setFontSize(fontSize);
+      pdf.setTextColor(color[0], color[1], color[2]);
+      pdf.setFont("helvetica", isBold ? "bold" : "normal");
+      const lines = pdf.splitTextToSize(text, contentWidth);
+      pdf.text(lines, margin, y);
+      y += lines.length * (fontSize * 0.45) + 2;
+    };
+
+    const addSectionHeader = (text: string) => {
+      y += 4;
+      pdf.setFontSize(13);
+      pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      pdf.setFont("helvetica", "bold");
+      pdf.text(text.toUpperCase(), margin, y);
+      y += 2;
+      addLine(y);
+      y += 6;
+    };
+
+    const addBulletPoint = (text: string) => {
+      pdf.setFontSize(10);
+      pdf.setTextColor(51, 51, 51);
+      pdf.setFont("helvetica", "normal");
+
+      // Draw bullet
+      pdf.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      pdf.circle(margin + 1.5, y - 1.2, 0.8, "F");
+
+      const lines = pdf.splitTextToSize(text, contentWidth - 8);
+      pdf.text(lines, margin + 6, y);
+      y += lines.length * 4.5 + 2;
+    };
+
+    // HEADER - Name and Contact
+    pdf.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    pdf.rect(0, 0, pageWidth, 40, "F");
     
-    pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+    // Name
+    pdf.setFontSize(22);
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFont("helvetica", "bold");
+    pdf.text(formData.name || "Your Name", margin, 18);
+    
+    // Job Title
+    pdf.setFontSize(11);
+    pdf.setTextColor(200, 200, 200);
+    pdf.setFont("helvetica", "normal");
+    pdf.text(formData.jobTitle || "Professional", margin, 26);
+    
+    // Contact info bar - using plain text labels
+    const contactY = 34;
+    pdf.setFontSize(8);
+    pdf.setTextColor(220, 220, 220);
+    
+    const contacts = [];
+    if (formData.email) contacts.push("Email: " + formData.email);
+    if (formData.phone) contacts.push("Phone: " + formData.phone);
+    if (formData.location) contacts.push("Location: " + formData.location);
+    if (formData.linkedin) contacts.push("LinkedIn: " + formData.linkedin);
+    
+    if (contacts.length > 0) {
+      const contactText = contacts.join("  |  ");
+      pdf.text(contactText, margin, contactY);
+    }
+
+    y = 55;
+
+    // Parse resume sections
+    const lines = resume.split("\n");
+    let currentSection = "";
+
+    for (let i = 0; i < lines.length; i++) {
+      if (y > 270) {
+        pdf.addPage();
+        y = 20;
+      }
+
+      const line = lines[i].trim();
+      if (!line) {
+        y += 2;
+        continue;
+      }
+
+      // Detect section headers (lines with ** or all caps)
+      if (line.startsWith("**") && line.endsWith("**")) {
+        const sectionName = line.replace(/\*\*/g, "").trim();
+        addSectionHeader(sectionName);
+        currentSection = sectionName;
+        continue;
+      }
+
+      // Detect section headers by common words
+      const sectionKeywords = ["PROFESSIONAL SUMMARY", "WORK EXPERIENCE", "EXPERIENCE", "SKILLS", "EDUCATION", "REFERENCES"];
+      const upperLine = line.toUpperCase();
+      if (sectionKeywords.some(kw => upperLine.includes(kw)) && line.length < 30) {
+        addSectionHeader(line.replace(/\*\*/g, "").trim());
+        continue;
+      }
+
+      // Bullet points
+      if (line.startsWith("- ") || line.startsWith("• ")) {
+        addBulletPoint(line.replace(/^[-•]\s*/, ""));
+        continue;
+      }
+
+      // Job title + company + dates pattern
+      if (line.includes(" at ") || line.includes(" @ ") || (/\[/.test(line) && /\]/.test(line))) {
+        pdf.setFontSize(11);
+        pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        pdf.setFont("helvetica", "bold");
+        const cleanLine = line.replace(/\[.*?\]/g, "").trim();
+        const jobLines = pdf.splitTextToSize(cleanLine, contentWidth);
+        pdf.text(jobLines, margin, y);
+        y += jobLines.length * 5 + 1;
+        continue;
+      }
+
+      // Regular paragraph
+      addText(line, 10, [51, 51, 51], false);
+    }
+
+    // Footer
+    const pageCount = pdf.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      pdf.setPage(i);
+      pdf.setFontSize(8);
+      pdf.setTextColor(150, 150, 150);
+      pdf.setFont("helvetica", "italic");
+      pdf.text("Generated by ApplyFlow - applyflow.vercel.app", margin, 287);
+      pdf.text(`Page ${i} of ${pageCount}`, pageWidth - margin - 20, 287);
+    }
+
     pdf.save(`${formData.name.replace(/\s+/g, "_")}_Resume.pdf`);
   };
 
@@ -222,24 +356,10 @@ export default function ResumeBuilder() {
                 </button>
               </div>
             </div>
-            
-            <div 
-              ref={resumeRef}
-              className="bg-white rounded-2xl p-8 border border-zinc-200 shadow-sm"
-            >
-              <div className="prose prose-zinc max-w-none">
-                {resume.split("\n").map((line, index) => {
-                  if (line.startsWith("**") && line.endsWith("**")) {
-                    return <h2 key={index} className="text-xl font-bold mt-6 mb-3">{line.replace(/\*\*/g, "")}</h2>;
-                  }
-                  if (line.startsWith("- ")) {
-                    return <li key={index} className="ml-4 mb-1">{line.replace("- ", "")}</li>;
-                  }
-                  if (line.trim() === "") {
-                    return <div key={index} className="h-2"></div>;
-                  }
-                  return <p key={index} className="mb-2 leading-relaxed">{line}</p>;
-                })}
+
+            <div className="bg-white rounded-2xl p-8 border border-zinc-200 shadow-sm">
+              <div className="prose prose-zinc max-w-none whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">
+                {resume}
               </div>
             </div>
           </div>
