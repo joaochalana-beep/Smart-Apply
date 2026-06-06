@@ -10,11 +10,11 @@ export async function GET() {
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
-    .eq("user_id", userId)
-    .single();
+    .eq("user_id", userId);
 
+  // Return null if no profile exists (not an error)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  return NextResponse.json(data?.[0] || null);
 }
 
 export async function POST(req: Request) {
@@ -24,12 +24,31 @@ export async function POST(req: Request) {
   const body = await req.json();
   const supabase = await createClient();
 
-  const { data, error } = await supabase
+  // Check if profile exists first
+  const { data: existing } = await supabase
     .from("profiles")
-    .upsert({ ...body, user_id: userId })
-    .select()
+    .select("id")
+    .eq("user_id", userId)
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  let result;
+  if (existing) {
+    // Update existing
+    result = await supabase
+      .from("profiles")
+      .update({ ...body, updated_at: new Date().toISOString() })
+      .eq("user_id", userId)
+      .select()
+      .single();
+  } else {
+    // Insert new
+    result = await supabase
+      .from("profiles")
+      .insert({ ...body, user_id: userId })
+      .select()
+      .single();
+  }
+
+  if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
+  return NextResponse.json(result.data);
 }
