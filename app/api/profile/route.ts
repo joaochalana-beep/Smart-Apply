@@ -10,9 +10,10 @@ export async function GET() {
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(1);
 
-  // Return null if no profile exists (not an error)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data?.[0] || null);
 }
@@ -24,7 +25,10 @@ export async function POST(req: Request) {
   const body = await req.json();
   const supabase = await createClient();
 
-  // Check if profile exists first
+  // Remove id and user_id from body if present (we set user_id manually)
+  const { id, user_id, ...profileData } = body;
+
+  // Check if profile exists
   const { data: existing } = await supabase
     .from("profiles")
     .select("id")
@@ -36,7 +40,7 @@ export async function POST(req: Request) {
     // Update existing
     result = await supabase
       .from("profiles")
-      .update({ ...body, updated_at: new Date().toISOString() })
+      .update(profileData)
       .eq("user_id", userId)
       .select()
       .single();
@@ -44,7 +48,7 @@ export async function POST(req: Request) {
     // Insert new
     result = await supabase
       .from("profiles")
-      .insert({ ...body, user_id: userId })
+      .insert({ ...profileData, user_id: userId })
       .select()
       .single();
   }
