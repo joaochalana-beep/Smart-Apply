@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import PDFParser from "pdf2json";
+import pdfParse from "pdf-parse";
 
 export async function POST(req: Request) {
   const { userId } = await auth();
@@ -17,22 +17,8 @@ export async function POST(req: Request) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    const pdfParser = new PDFParser();
-    
-    const text = await new Promise<string>((resolve, reject) => {
-      pdfParser.on("pdfParser_dataError", (errData: any) => {
-        reject(new Error(errData.parserError));
-      });
-      
-      pdfParser.on("pdfParser_dataReady", (pdfData: any) => {
-        const rawText = pdfData.Pages.map((page: any) => 
-          page.Texts.map((text: any) => decodeURIComponent(text.R[0].T)).join(" ")
-        ).join("\n");
-        resolve(rawText);
-      });
-
-      pdfParser.parseBuffer(buffer);
-    });
+    const parsed = await pdfParse(buffer);
+    const text = parsed.text;
 
     if (!text || text.trim().length === 0) {
       return NextResponse.json({ error: "PDF contains no extractable text" }, { status: 400 });
