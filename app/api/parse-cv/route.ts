@@ -1,6 +1,9 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import pdfParse from "pdf-parse";
+import * as pdfjs from "pdfjs-dist";
+
+// Use the standard PDF.js worker (no file needed for simple text extraction)
+pdfjs.GlobalWorkerOptions.disableWorker = true;
 
 export async function POST(req: Request) {
   const { userId } = await auth();
@@ -15,16 +18,25 @@ export async function POST(req: Request) {
     }
 
     const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    const uint8Array = new Uint8Array(bytes);
 
-    const parsed = await pdfParse(buffer);
-    const text = parsed.text;
+    const pdf = await pdfjs.getDocument({ data: uint8Array }).promise;
+    
+    let fullText = "";
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(" ");
+      fullText += pageText + "\n";
+    }
 
-    if (!text || text.trim().length === 0) {
+    if (!fullText || fullText.trim().length === 0) {
       return NextResponse.json({ error: "PDF contains no extractable text" }, { status: 400 });
     }
 
-    return NextResponse.json({ rawText: text });
+    return NextResponse.json({ rawText: fullText });
 
   } catch (error: any) {
     console.error("PDF parse error:", error);
