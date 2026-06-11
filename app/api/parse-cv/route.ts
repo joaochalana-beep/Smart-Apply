@@ -1,9 +1,18 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import * as pdfjs from "pdfjs-dist";
+import * as pdfjs from "pdfjs-dist/legacy/build/pdf.js";
 
-// Disable worker for serverless environment
-(pdfjs as any).GlobalWorkerOptions.disableWorker = true;
+// Polyfill for Node.js serverless environment
+if (typeof (globalThis as any).DOMMatrix === "undefined") {
+  (globalThis as any).DOMMatrix = class {
+    constructor() {}
+    multiply() { return this; }
+    translate() { return this; }
+    scale() { return this; }
+    rotate() { return this; }
+    toString() { return "matrix(1, 0, 0, 1, 0, 0)"; }
+  };
+}
 
 export async function POST(req: Request) {
   const { userId } = await auth();
@@ -20,7 +29,7 @@ export async function POST(req: Request) {
     const bytes = await file.arrayBuffer();
     const uint8Array = new Uint8Array(bytes);
 
-    const pdf = await pdfjs.getDocument({ data: uint8Array }).promise;
+    const pdf = await (pdfjs as any).getDocument({ data: uint8Array }).promise;
     
     let fullText = "";
     for (let i = 1; i <= pdf.numPages; i++) {
