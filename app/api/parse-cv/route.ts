@@ -1,18 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import * as pdfjs from "pdfjs-dist/legacy/build/pdf.js";
 
-// Polyfill for Node.js serverless environment
-if (typeof (globalThis as any).DOMMatrix === "undefined") {
-  (globalThis as any).DOMMatrix = class {
-    constructor() {}
-    multiply() { return this; }
-    translate() { return this; }
-    scale() { return this; }
-    rotate() { return this; }
-    toString() { return "matrix(1, 0, 0, 1, 0, 0)"; }
-  };
-}
+// Use require to avoid ESM default export issues
+const pdfParse = require("pdf-parse");
 
 export async function POST(req: Request) {
   const { userId } = await auth();
@@ -27,25 +17,16 @@ export async function POST(req: Request) {
     }
 
     const bytes = await file.arrayBuffer();
-    const uint8Array = new Uint8Array(bytes);
+    const buffer = Buffer.from(bytes);
 
-    const pdf = await (pdfjs as any).getDocument({ data: uint8Array }).promise;
-    
-    let fullText = "";
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
-      const pageText = textContent.items
-        .map((item: any) => item.str)
-        .join(" ");
-      fullText += pageText + "\n";
-    }
+    const parsed = await pdfParse(buffer);
+    const text = parsed.text;
 
-    if (!fullText || fullText.trim().length === 0) {
+    if (!text || text.trim().length === 0) {
       return NextResponse.json({ error: "PDF contains no extractable text" }, { status: 400 });
     }
 
-    return NextResponse.json({ rawText: fullText });
+    return NextResponse.json({ rawText: text });
 
   } catch (error: any) {
     console.error("PDF parse error:", error);
