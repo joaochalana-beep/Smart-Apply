@@ -2,8 +2,8 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import * as pdfjs from "pdfjs-dist";
 
-// Use the standard PDF.js worker (no file needed for simple text extraction)
-pdfjs.GlobalWorkerOptions.disableWorker = true;
+// Disable worker for serverless environment
+(pdfjs as any).GlobalWorkerOptions.disableWorker = true;
 
 export async function POST(req: Request) {
   const { userId } = await auth();
