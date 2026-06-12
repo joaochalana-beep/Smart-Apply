@@ -2,10 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import * as pdfjs from "pdfjs-dist";
-
-// Set worker source for browser
-pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
 
 export default function UploadCVPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -14,6 +10,12 @@ export default function UploadCVPage() {
   const router = useRouter();
 
   async function extractTextFromPDF(file: File): Promise<string> {
+    // Dynamically import pdfjs-dist only in browser
+    const pdfjs = await import("pdfjs-dist");
+    
+    // Set worker source
+    pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
+    
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
     
@@ -35,10 +37,8 @@ export default function UploadCVPage() {
     setLoading(true);
 
     try {
-      // Extract text in the browser
       const rawText = await extractTextFromPDF(file);
       
-      // Send extracted text to AI parser
       const aiRes = await fetch("/api/ai-parse-cv", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
