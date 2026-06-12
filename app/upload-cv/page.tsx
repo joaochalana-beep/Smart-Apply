@@ -17,7 +17,8 @@ export default function UploadCVPage() {
       const formData = new FormData();
       formData.append("cv", file);
 
-      const parseRes = await fetch("/api/parse-cv", {
+      const parseRes = await fetch("/api/parse-cv2", {
+
         method: "POST",
         body: formData,
       });
