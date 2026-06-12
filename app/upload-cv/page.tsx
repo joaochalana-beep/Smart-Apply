@@ -10,11 +10,10 @@ export default function UploadCVPage() {
   const router = useRouter();
 
   async function extractTextFromPDF(file: File): Promise<string> {
-    // Dynamically import pdfjs-dist only in browser
     const pdfjs = await import("pdfjs-dist");
     
-    // Set worker source
-    pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
+    // Disable worker using type assertion
+    (pdfjs as any).GlobalWorkerOptions.disableWorker = true;
     
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
