@@ -17,7 +17,8 @@ export async function POST(req: Request) {
     const buffer = Buffer.from(bytes);
 
     // Dynamic import to avoid ESM issues
-    const pdfParse = (await import("pdf-parse")).default;
+    const pdfParseModule = await import("pdf-parse");
+    const pdfParse = (pdfParseModule as any).default || pdfParseModule;
     const parsed = await pdfParse(buffer);
     const text = parsed.text;
 
