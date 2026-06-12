@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-// pdfjs-dist needs these polyfills in Node.js
+// Polyfills for pdfjs-dist in Node.js
 if (typeof (globalThis as any).DOMMatrix === "undefined") {
   (globalThis as any).DOMMatrix = class {
     a = 1; b = 0; c = 0; d = 1; e = 0; f = 0;
@@ -26,9 +26,6 @@ if (typeof (globalThis as any).ImageData === "undefined") {
   };
 }
 
-// Use the Node.js build of pdfjs-dist
-const pdfjs = require("pdfjs-dist/legacy/build/pdf.js");
-
 export async function POST(req: Request) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -44,6 +41,9 @@ export async function POST(req: Request) {
     const bytes = await file.arrayBuffer();
     const uint8Array = new Uint8Array(bytes);
 
+    // Dynamic import of ESM module
+    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    
     const pdf = await pdfjs.getDocument({ data: uint8Array }).promise;
     
     let fullText = "";
