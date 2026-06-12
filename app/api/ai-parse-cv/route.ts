@@ -28,28 +28,28 @@ export async function POST(req: Request) {
             role: "system",
             content: `You are an expert CV parser. Extract ALL possible information from the provided CV text.
 
+The CV text is extracted from a PDF and may have formatting artifacts. Look carefully for information that might be split across lines or mixed with noise.
+
 Return ONLY a valid JSON object with this exact structure:
 {
-  "full_name": "Full name as it appears on the CV",
-  "email": "Email address found on the CV - look for @ symbol",
-  "phone": "Phone number - any format found",
-  "location": "City, country, or address found",
+  "full_name": "Full name as it appears on the CV header",
+  "email": "Email address - look for text containing @ symbol, often near the top",
+  "phone": "Phone number - look for sequences of digits, + signs, parentheses, dashes. Common formats: +351..., (123) 456-7890, 123-456-7890. Ignore random long digit strings that don't look like phone numbers",
+  "location": "City, country, or address. Look for city names, country names, or 'Based in...' text",
   "linkedin": "LinkedIn URL if found, otherwise empty string",
-  "skills": "ALL skills mentioned, comma-separated. Include technical skills, soft skills, languages, tools, software, certifications",
-  "experience": "JSON array of ALL work experiences with company, role, duration, description",
-  "education": "JSON array of ALL education entries with school, degree, year",
-  "summary": "Professional summary or objective from the CV, or generate a brief one based on experience"
+  "skills": "ALL skills mentioned, comma-separated",
+  "experience": "JSON array of work experiences with company, role, duration, description",
+  "education": "JSON array of education entries with school, degree, year",
+  "summary": "Professional summary or generate one based on experience"
 }
 
 EXTRACTION RULES:
-- Search the ENTIRE text carefully for email addresses (contain @)
-- Search for phone numbers (any format with digits)
-- Search for location/address information
-- Extract ALL skills, not just a few - be comprehensive
-- Include ALL work experiences, even older ones
-- Include ALL education entries
-- If a field is truly not found, use empty string "" not null
-- Fix any obvious text artifacts or duplication from PDF extraction
+- The header of the CV (top section) usually contains: name, email, phone, location, LinkedIn
+- Email always contains @ and a domain like .com, .pt, etc.
+- Phone numbers are usually 7-15 digits with optional +, spaces, dashes, parentheses
+- Location is usually a city name, sometimes with country
+- If you cannot find a field, use empty string ""
+- Clean up any PDF extraction artifacts or duplicated text
 - Return ONLY the JSON object, no markdown, no explanation`
           },
           {
