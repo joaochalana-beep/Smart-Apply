@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import * as pdfjs from "pdfjs-dist";
+
+// Set worker source for browser
+pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
 
 export default function UploadCVPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -9,31 +13,44 @@ export default function UploadCVPage() {
   const [result, setResult] = useState<any>(null);
   const router = useRouter();
 
+  async function extractTextFromPDF(file: File): Promise<string> {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+    
+    let fullText = "";
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(" ");
+      fullText += pageText + "\n";
+    }
+    
+    return fullText;
+  }
+
   async function handleUpload() {
     if (!file) return;
     setLoading(true);
 
     try {
-      const formData = new FormData();
-      formData.append("cv", file);
-
-      const parseRes = await fetch("/api/parse-cv2", {
-
-        method: "POST",
-        body: formData,
-      });
-      const { rawText, error } = await parseRes.json();
-      if (error) throw new Error(error);
-
+      // Extract text in the browser
+      const rawText = await extractTextFromPDF(file);
+      
+      // Send extracted text to AI parser
       const aiRes = await fetch("/api/ai-parse-cv", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rawText }),
       });
+      
       const profile = await aiRes.json();
+      if (profile.error) throw new Error(profile.error);
+      
       setResult(profile);
-    } catch (err) {
-      setResult({ error: String(err) });
+    } catch (err: any) {
+      setResult({ error: err.message });
     }
 
     setLoading(false);
@@ -41,47 +58,50 @@ export default function UploadCVPage() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white p-10">
-      <h1 className="text-3xl font-bold mb-6">Upload Your CV</h1>
-      
-      <div className="max-w-xl">
-        <input
-          type="file"
-          accept=".pdf"
-          onChange={(e) => setFile(e.target.files?.[0] || null)}
-          className="mb-4 block w-full text-sm text-zinc-400
-            file:mr-4 file:py-2 file:px-4
-            file:rounded-full file:border-0
-            file:text-sm file:font-semibold
-            file:bg-zinc-900 file:text-white
-            hover:file:bg-zinc-800"
-        />
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-3xl font-bold mb-8">Upload Your CV</h1>
 
-        <button
-          onClick={handleUpload}
-          disabled={!file || loading}
-          className="bg-white text-zinc-900 px-6 py-3 rounded-full font-medium
-            disabled:opacity-50 disabled:cursor-not-allowed
-            hover:bg-zinc-200 transition"
-        >
-          {loading ? "Processing..." : "Upload & Parse CV"}
-        </button>
+        <div className="space-y-4 mb-8">
+          <input
+            type="file"
+            accept=".pdf"
+            onChange={(e) => setFile(e.target.files?.[0] || null)}
+            className="block w-full text-sm text-zinc-400
+              file:mr-4 file:py-2 file:px-4
+              file:rounded-full file:border-0
+              file:text-sm file:font-medium
+              file:bg-zinc-800 file:text-white
+              hover:file:bg-zinc-700"
+          />
+          {file && <p className="text-zinc-400 text-sm">{file.name}</p>}
+          
+          <button
+            onClick={handleUpload}
+            disabled={loading || !file}
+            className="bg-white text-zinc-900 px-6 py-3 rounded-full font-medium disabled:opacity-50 hover:bg-zinc-200 transition"
+          >
+            {loading ? "Parsing..." : "Upload & Parse CV"}
+          </button>
+        </div>
 
-        {result && (
-          <div className="mt-8">
-            <h2 className="text-xl font-semibold mb-4">Parsed Profile</h2>
-            <pre className="bg-zinc-900 p-4 rounded-lg text-sm overflow-auto max-h-96">
+        {result && !result.error && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold">Parsed Profile</h2>
+            <pre className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 text-sm text-zinc-300 overflow-auto">
               {JSON.stringify(result, null, 2)}
             </pre>
-            
-            {!result.error && (
-              <button
-                onClick={() => router.push("/profile")}
-                className="mt-4 bg-zinc-800 text-white px-4 py-2 rounded-full text-sm
-                  hover:bg-zinc-700 transition"
-              >
-                Review & Edit Profile →
-              </button>
-            )}
+            <button
+              onClick={() => router.push("/profile")}
+              className="bg-white text-zinc-900 px-6 py-3 rounded-full font-medium hover:bg-zinc-200 transition"
+            >
+              Review & Edit Profile →
+            </button>
+          </div>
+        )}
+
+        {result?.error && (
+          <div className="bg-red-900/50 border border-red-800 rounded-lg p-4 text-red-400">
+            Error: {result.error}
           </div>
         )}
       </div>
