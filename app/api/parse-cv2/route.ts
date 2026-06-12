@@ -1,30 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-
-// Polyfills for pdfjs-dist in Node.js
-if (typeof (globalThis as any).DOMMatrix === "undefined") {
-  (globalThis as any).DOMMatrix = class {
-    a = 1; b = 0; c = 0; d = 1; e = 0; f = 0;
-    constructor() {}
-    multiply() { return this; }
-    translate() { return this; }
-    scale() { return this; }
-    rotate() { return this; }
-    toString() { return "matrix(1, 0, 0, 1, 0, 0)"; }
-  };
-}
-
-if (typeof (globalThis as any).Path2D === "undefined") {
-  (globalThis as any).Path2D = class {
-    addPath() {}
-  };
-}
-
-if (typeof (globalThis as any).ImageData === "undefined") {
-  (globalThis as any).ImageData = class {
-    constructor() {}
-  };
-}
+import { PdfReader } from "pdfreader";
 
 export async function POST(req: Request) {
   const { userId } = await auth();
@@ -39,28 +15,26 @@ export async function POST(req: Request) {
     }
 
     const bytes = await file.arrayBuffer();
-    const uint8Array = new Uint8Array(bytes);
+    const buffer = Buffer.from(bytes);
 
-    // Dynamic import of ESM module
-    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-    
-    const pdf = await pdfjs.getDocument({ data: uint8Array }).promise;
-    
-    let fullText = "";
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
-      const pageText = textContent.items
-        .map((item: any) => item.str)
-        .join(" ");
-      fullText += pageText + "\n";
-    }
+    const text = await new Promise<string>((resolve, reject) => {
+      let fullText = "";
+      new PdfReader().parseBuffer(buffer, (err: any, item: any) => {
+        if (err) {
+          reject(err);
+        } else if (!item) {
+          resolve(fullText);
+        } else if (item.text) {
+          fullText += item.text + " ";
+        }
+      });
+    });
 
-    if (!fullText || fullText.trim().length === 0) {
+    if (!text || text.trim().length === 0) {
       return NextResponse.json({ error: "PDF contains no extractable text" }, { status: 400 });
     }
 
-    return NextResponse.json({ rawText: fullText });
+    return NextResponse.json({ rawText: text });
 
   } catch (error: any) {
     console.error("PDF parse error:", error);
