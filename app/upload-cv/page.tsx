@@ -12,8 +12,8 @@ export default function UploadCVPage() {
   async function extractTextFromPDF(file: File): Promise<string> {
     const pdfjs = await import("pdfjs-dist");
     
-    // Disable worker using type assertion
-    (pdfjs as any).GlobalWorkerOptions.disableWorker = true;
+    // Use local worker file
+    pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.mjs";
     
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
