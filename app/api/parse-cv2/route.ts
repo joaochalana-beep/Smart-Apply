@@ -1,70 +1,28 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-function extractTextFromPDF(buffer: Buffer): string {
-  const content = buffer.toString("latin1");
-  
-  // Extract text from BT/ET blocks
-  const btBlocks = content.match(/BT[\s\S]*?ET/g);
-  let text = "";
-  
-  if (btBlocks) {
-    for (const block of btBlocks) {
-      // Extract text from Tj operator
-      const tjMatches = block.match(/\(([^)]{1,1000})\)\s*Tj/g);
-      if (tjMatches) {
-        for (const match of tjMatches) {
-          const textMatch = match.match(/\(([^)]{1,1000})\)/);
-          if (textMatch) {
-            text += textMatch[1] + " ";
-          }
-        }
-      }
-      
-      // Extract text from TJ array
-      const tjArrayMatches = block.match(/\[\s*(?:\([^)]{0,1000}\)\s*)+\]\s*TJ/g);
-      if (tjArrayMatches) {
-        for (const arrMatch of tjArrayMatches) {
-          const innerMatches = arrMatch.match(/\(([^)]{0,1000})\)/g);
-          if (innerMatches) {
-            for (const inner of innerMatches) {
-              const txt = inner.match(/\(([^)]{0,1000})\)/);
-              if (txt) text += txt[1];
-            }
-            text += " ";
-          }
+// Polyfill DOMMatrix for pdf-parse/pdfjs-dist
+if (typeof (globalThis as any).DOMMatrix === "undefined") {
+  (globalThis as any).DOMMatrix = class DOMMatrix {
+    a = 1; b = 0; c = 0; d = 1; e = 0; f = 0;
+    constructor(init?: any) {
+      if (typeof init === 'string') {
+        const parts = init.match(/matrix\(([^)]+)\)/);
+        if (parts) {
+          const vals = parts[1].split(',').map((v: string) => parseFloat(v.trim()));
+          [this.a, this.b, this.c, this.d, this.e, this.f] = vals;
         }
       }
     }
-  }
-  
-  // Fallback: extract from text streams
-  if (!text.trim()) {
-    const streamMatches = content.match(/stream[\s\S]*?endstream/g);
-    if (streamMatches) {
-      for (const stream of streamMatches) {
-        const clean = stream
-          .replace(/stream\s*/, "")
-          .replace(/\s*endstream/, "")
-          .replace(/[^\x20-\x7E\s\n]/g, " ");
-        if (clean.length > 50 && clean.includes(" ")) {
-          text += clean + " ";
-        }
-      }
-    }
-  }
-  
-  // Clean up
-  return text
-    .replace(/\\n/g, "\n")
-    .replace(/\\r/g, " ")
-    .replace(/\\t/g, " ")
-    .replace(/\\\\/g, "\\")
-    .replace(/\x00/g, "")
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+    multiply() { return this; }
+    translate() { return this; }
+    scale() { return this; }
+    rotate() { return this; }
+    toString() { return `matrix(${this.a}, ${this.b}, ${this.c}, ${this.d}, ${this.e}, ${this.f})`; }
+  };
 }
+
+const pdfParse = require("pdf-parse");
 
 export async function POST(req: Request) {
   const { userId } = await auth();
@@ -81,12 +39,11 @@ export async function POST(req: Request) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    const text = extractTextFromPDF(buffer);
+    const parsed = await pdfParse(buffer);
+    const text = parsed.text;
 
     if (!text || text.trim().length === 0) {
-      return NextResponse.json({ 
-        error: "PDF contains no extractable text. If this is a scanned/image PDF, please paste the text manually." 
-      }, { status: 400 });
+      return NextResponse.json({ error: "PDF contains no extractable text" }, { status: 400 });
     }
 
     return NextResponse.json({ rawText: text });

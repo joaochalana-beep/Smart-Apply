@@ -1,0 +1,47 @@
+[33mcommit fd8c6d7036bc0cd1cfd1db452151cf2e109eab3c[m
+Author: João Chalana <joaochalana@gmail.com>
+Date:   Fri Jun 12 01:29:55 2026 +0100
+
+    Rename parse-cv to parse-cv2 to bypass Vercel cache
+
+[33mcommit 62fe10e4b4aa6f5388faf542bd5e6ee53d9acfc5[m
+Author: João Chalana <joaochalana@gmail.com>
+Date:   Fri Jun 12 00:51:10 2026 +0100
+
+    Use zero-dependency PDF text extraction for Vercel
+
+[33mcommit 0d2f75dffa66e6aa95d97126276fe35b0ff72920[m
+Author: João Chalana <joaochalana@gmail.com>
+Date:   Fri Jun 12 00:44:31 2026 +0100
+
+    Use pdf-parse with require for Vercel compatibility
+
+[33mcommit 433261f7bb9edcf87cf6c9d75436961973d06cb0[m
+Author: João Chalana <joaochalana@gmail.com>
+Date:   Fri Jun 12 00:42:21 2026 +0100
+
+    Use pdfjs-dist legacy build with DOMMatrix polyfill
+
+[33mcommit 313dc3ea95c729805ea584e6b0ad6f740b7f6d42[m
+Author: João Chalana <joaochalana@gmail.com>
+Date:   Fri Jun 12 00:40:11 2026 +0100
+
+    Fix pdfjs-dist type issue
+
+[33mcommit 00e590c2f1928c7fc74a85678f5c8de95d07d4f8[m
+Author: João Chalana <joaochalana@gmail.com>
+Date:   Fri Jun 12 00:38:05 2026 +0100
+
+    Use pdfjs-dist for PDF parsing on Vercel
+
+[33mcommit 2d3ac05d07772d8e45ceb54116741e32fe218044[m
+Author: João Chalana <joaochalana@gmail.com>
+Date:   Fri Jun 12 00:36:13 2026 +0100
+
+    Replace pdf2json with pdf-parse for Vercel compatibility
+
+[33mcommit da78d498f35fef8a4bf4da53dc35f817ee0eb8e6[m
+Author: João Chalana <joaochalana@gmail.com>
+Date:   Wed Jun 10 01:27:00 2026 +0100
+
+    Application tracker + labels fix
