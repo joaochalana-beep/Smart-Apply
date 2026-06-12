@@ -19,13 +19,23 @@ export async function POST(req: Request) {
 
     const text = await new Promise<string>((resolve, reject) => {
       let fullText = "";
+      let currentLine = "";
+      let lastY: number | null = null;
+      
       new PdfReader().parseBuffer(buffer, (err: any, item: any) => {
         if (err) {
           reject(err);
         } else if (!item) {
-          resolve(fullText);
+          if (currentLine.trim()) fullText += currentLine.trim() + "\n";
+          resolve(fullText.trim());
         } else if (item.text) {
-          fullText += item.text + " ";
+          if (lastY !== null && Math.abs(item.y - lastY) > 0.5) {
+            if (currentLine.trim()) fullText += currentLine.trim() + "\n";
+            currentLine = item.text;
+          } else {
+            currentLine += " " + item.text;
+          }
+          lastY = item.y;
         }
       });
     });

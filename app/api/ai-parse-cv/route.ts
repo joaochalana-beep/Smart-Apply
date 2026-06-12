@@ -13,7 +13,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No text provided" }, { status: 400 });
     }
 
-    // Truncate if too long (OpenAI has token limits)
     const truncatedText = rawText.slice(0, 8000);
 
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -27,24 +26,30 @@ export async function POST(req: Request) {
         messages: [
           {
             role: "system",
-            content: `You are a CV parser. The input text may have formatting artifacts, extra spaces, or character duplication from PDF extraction. Clean it up and extract the correct information.
+            content: `You are an expert CV parser. Extract ALL possible information from the provided CV text.
 
-Extract structured data and return ONLY a valid JSON object with this exact structure:
+Return ONLY a valid JSON object with this exact structure:
 {
-  "full_name": "correct full name - fix any character duplication or artifacts",
-  "email": "correct email address - fix any extra characters or duplication",
-  "phone": "correct phone number",
-  "location": "correct location",
-  "linkedin": "linkedin URL or empty string",
-  "skills": "comma-separated skills list",
-  "experience": "JSON string of array of objects with company, role, duration, description",
-  "education": "JSON string of array of objects with school, degree, year",
-  "summary": "professional summary paragraph"
+  "full_name": "Full name as it appears on the CV",
+  "email": "Email address found on the CV - look for @ symbol",
+  "phone": "Phone number - any format found",
+  "location": "City, country, or address found",
+  "linkedin": "LinkedIn URL if found, otherwise empty string",
+  "skills": "ALL skills mentioned, comma-separated. Include technical skills, soft skills, languages, tools, software, certifications",
+  "experience": "JSON array of ALL work experiences with company, role, duration, description",
+  "education": "JSON array of ALL education entries with school, degree, year",
+  "summary": "Professional summary or objective from the CV, or generate a brief one based on experience"
 }
 
-IMPORTANT: 
-- Fix any obvious character duplication (e.g., "joaocchalanaj" should be "joaochalana")
-- Remove extra spaces in email addresses
+EXTRACTION RULES:
+- Search the ENTIRE text carefully for email addresses (contain @)
+- Search for phone numbers (any format with digits)
+- Search for location/address information
+- Extract ALL skills, not just a few - be comprehensive
+- Include ALL work experiences, even older ones
+- Include ALL education entries
+- If a field is truly not found, use empty string "" not null
+- Fix any obvious text artifacts or duplication from PDF extraction
 - Return ONLY the JSON object, no markdown, no explanation`
           },
           {
@@ -70,7 +75,6 @@ IMPORTANT:
       return NextResponse.json({ error: "Empty response from OpenAI" }, { status: 500 });
     }
 
-    // Clean up the response
     let cleanContent = parsedContent.trim();
     if (cleanContent.startsWith("```json")) {
       cleanContent = cleanContent.replace(/```json\n?/, "").replace(/\n?```/, "");
@@ -89,7 +93,6 @@ IMPORTANT:
       }, { status: 500 });
     }
 
-    // Save to Supabase
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("profiles")
