@@ -49,90 +49,91 @@ export default function ResumeBuilder() {
   const downloadPDF = () => {
     const pdf = new jsPDF("p", "mm", "a4");
     const pageWidth = pdf.internal.pageSize.getWidth();
-    const margin = 20;
+    const margin = 15;           // Reduced from 20
     const contentWidth = pageWidth - margin * 2;
-    let y = 20;
+    let y = 15;                  // Reduced from 20
 
     const primaryColor = [30, 41, 59];
 
     const addLine = (startY: number) => {
-      pdf.setDrawColor(200, 200, 200);
-      pdf.setLineWidth(0.3);
+      pdf.setDrawColor(180, 180, 180);
+      pdf.setLineWidth(0.2);
       pdf.line(margin, startY, pageWidth - margin, startY);
     };
 
-    const addText = (text: string, fontSize: number = 10, color: number[] = [51, 51, 51], isBold: boolean = false) => {
+    const addText = (text: string, fontSize: number = 9, color: number[] = [51, 51, 51], isBold: boolean = false) => {
       pdf.setFontSize(fontSize);
       pdf.setTextColor(color[0], color[1], color[2]);
       pdf.setFont("helvetica", isBold ? "bold" : "normal");
       const lines = pdf.splitTextToSize(text, contentWidth);
       pdf.text(lines, margin, y);
-      y += lines.length * (fontSize * 0.45) + 2;
+      y += lines.length * (fontSize * 0.4) + 1.5; // Tighter line spacing
     };
 
     const addSectionHeader = (text: string) => {
-      y += 4;
-      pdf.setFontSize(13);
+      y += 3; // Reduced from 4
+      pdf.setFontSize(11); // Reduced from 13
       pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
       pdf.setFont("helvetica", "bold");
       pdf.text(text.toUpperCase(), margin, y);
-      y += 2;
+      y += 1.5;
       addLine(y);
-      y += 6;
+      y += 4; // Reduced from 6
     };
 
     const addBulletPoint = (text: string) => {
-      pdf.setFontSize(10);
+      pdf.setFontSize(9); // Reduced from 10
       pdf.setTextColor(51, 51, 51);
       pdf.setFont("helvetica", "normal");
       pdf.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      pdf.circle(margin + 1.5, y - 1.2, 0.8, "F");
-      const lines = pdf.splitTextToSize(text, contentWidth - 8);
-      pdf.text(lines, margin + 6, y);
-      y += lines.length * 4.5 + 2;
+      pdf.circle(margin + 1.5, y - 1.1, 0.7, "F"); // Smaller bullet
+      const lines = pdf.splitTextToSize(text, contentWidth - 6);
+      pdf.text(lines, margin + 5, y);
+      y += lines.length * 4 + 1.5; // Tighter spacing
     };
 
+    // Header block
     pdf.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    pdf.rect(0, 0, pageWidth, 40, "F");
+    pdf.rect(0, 0, pageWidth, 32, "F"); // Reduced from 40
     
-    pdf.setFontSize(22);
+    pdf.setFontSize(20); // Reduced from 22
     pdf.setTextColor(255, 255, 255);
     pdf.setFont("helvetica", "bold");
-    pdf.text(formData.name || "Your Name", margin, 18);
+    pdf.text(formData.name || "Your Name", margin, 15);
     
-    pdf.setFontSize(11);
+    pdf.setFontSize(10); // Reduced from 11
     pdf.setTextColor(200, 200, 200);
     pdf.setFont("helvetica", "normal");
-    pdf.text(formData.jobTitle || "Professional", margin, 26);
+    pdf.text(formData.jobTitle || "Professional", margin, 22);
     
-    const contactY = 34;
-    pdf.setFontSize(8);
+    const contactY = 29;
+    pdf.setFontSize(7.5); // Reduced from 8
     pdf.setTextColor(220, 220, 220);
     
     const contacts = [];
-    if (formData.email) contacts.push("Email: " + formData.email);
-    if (formData.phone) contacts.push("Phone: " + formData.phone);
-    if (formData.location) contacts.push("Location: " + formData.location);
-    if (formData.linkedin) contacts.push("LinkedIn: " + formData.linkedin);
+    if (formData.email) contacts.push(formData.email);
+    if (formData.phone) contacts.push(formData.phone);
+    if (formData.location) contacts.push(formData.location);
+    if (formData.linkedin) contacts.push(formData.linkedin);
     
     if (contacts.length > 0) {
       const contactText = contacts.join("  |  ");
       pdf.text(contactText, margin, contactY);
     }
 
-    y = 55;
+    y = 45; // Reduced from 55
 
     const lines = resume.split("\n");
     
     for (let i = 0; i < lines.length; i++) {
-      if (y > 270) {
+      if (y > 280) { // Tighter page break threshold (was 270)
         pdf.addPage();
-        y = 20;
+        y = 15;
       }
 
       const line = lines[i].trim();
       if (!line) {
-        y += 2;
+        y += 1.5; // Reduced from 2
         continue;
       }
 
@@ -155,28 +156,20 @@ export default function ResumeBuilder() {
       }
 
       if (line.includes(" at ") || line.includes(" @ ") || (/\[/.test(line) && /\]/.test(line))) {
-        pdf.setFontSize(11);
+        pdf.setFontSize(10); // Reduced from 11
         pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
         pdf.setFont("helvetica", "bold");
         const cleanLine = line.replace(/\[.*?\]/g, "").trim();
         const jobLines = pdf.splitTextToSize(cleanLine, contentWidth);
         pdf.text(jobLines, margin, y);
-        y += jobLines.length * 5 + 1;
+        y += jobLines.length * 4.5 + 1; // Tighter
         continue;
       }
 
-      addText(line, 10, [51, 51, 51], false);
+      addText(line, 9, [51, 51, 51], false);
     }
 
-    const pageCount = pdf.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      pdf.setPage(i);
-      pdf.setFontSize(8);
-      pdf.setTextColor(150, 150, 150);
-      pdf.setFont("helvetica", "italic");
-      pdf.text("Generated by ApplyFlow - applyflow.vercel.app", margin, 287);
-      pdf.text(`Page ${i} of ${pageCount}`, pageWidth - margin - 20, 287);
-    }
+    // NO FOOTER - clean for ATS parsers
 
     pdf.save(`${formData.name.replace(/\s+/g, "_")}_Resume.pdf`);
   };

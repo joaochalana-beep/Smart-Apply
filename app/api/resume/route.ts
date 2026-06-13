@@ -10,29 +10,36 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, experience, skills, education, jobTitle, email, phone, linkedin, location } = body;
 
-    const prompt = `Write a professional resume for ${name} applying for a ${jobTitle} position.
+    const systemPrompt = `You are an expert resume writer who creates ATS-friendly resumes.
 
-${location ? `Location: ${location}` : ""}
-${email ? `Email: ${email}` : ""}
-${phone ? `Phone: ${phone}` : ""}
-${linkedin ? `LinkedIn: ${linkedin}` : ""}
+CRITICAL RULES:
+- Do NOT include contact information (name, email, phone, LinkedIn, location) anywhere in the resume body.
+- Do NOT write a header with the candidate's name or contact details.
+- The PDF generator already renders name, job title, and contact info in a separate header.
+- Only output these sections: PROFESSIONAL SUMMARY, WORK EXPERIENCE, EDUCATION, SKILLS.
+- Keep the resume concise. Target 1-2 pages when printed. Avoid fluff.
+- Use bold markdown headers: **SECTION NAME**
+- Use bullet points starting with "- " for achievements and responsibilities.
+- Use action verbs and include metrics/numbers where possible.
+- Do not use markdown code blocks (no \`\`\`).
+- Do not use tables, columns, or complex formatting.`;
+
+    const userPrompt = `Create a professional resume for ${name} applying for a ${jobTitle} position.
 
 Education: ${education}
+
 Experience: ${experience}
+
 Skills: ${skills}
 
-Format it as a clean, professional resume with:
-- Contact information at the top
-- A brief professional summary (2-3 sentences)
-- Work experience with bullet points highlighting achievements and metrics
-- Skills section organized by category
-- Education section
-
-Use professional language, action verbs, and include specific metrics where possible. Do not use markdown code blocks.`;
+Write a concise, achievement-focused resume.`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }],
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
       temperature: 0.7,
     });
 
