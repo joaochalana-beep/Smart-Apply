@@ -16,6 +16,46 @@ const COMMON_INDUSTRIES = [
   "Energy", "Telecommunications", "Gaming", "Crypto", "Government"
 ];
 
+// Auto-formats text into paragraphs if no newlines exist
+function FormattedText({ text, className = "" }: { text: string; className?: string }) {
+  if (!text) return <p className="text-zinc-500 text-sm">—</p>;
+  
+  // If text already has newlines, respect them
+  if (text.includes('\n')) {
+    return <div className={`whitespace-pre-wrap leading-relaxed ${className}`}>{text}</div>;
+  }
+  
+  // Split into sentences and group into paragraphs (3-4 sentences each)
+  const sentences = text
+    .split(/(?<=[.!?])\s+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+  
+  if (sentences.length <= 1) {
+    return <p className={className}>{text}</p>;
+  }
+  
+  const paragraphs: string[] = [];
+  let current: string[] = [];
+  
+  for (const sentence of sentences) {
+    current.push(sentence);
+    if (current.length >= 3) {
+      paragraphs.push(current.join(" "));
+      current = [];
+    }
+  }
+  if (current.length > 0) paragraphs.push(current.join(" "));
+  
+  return (
+    <div className={className}>
+      {paragraphs.map((para, i) => (
+        <p key={i} className="mb-3 last:mb-0 leading-relaxed">{para}</p>
+      ))}
+    </div>
+  );
+}
+
 export default function ProfilePage() {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -23,6 +63,7 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [roleInput, setRoleInput] = useState("");
   const [industryInput, setIndustryInput] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -30,18 +71,29 @@ export default function ProfilePage() {
   }, []);
 
   async function fetchProfile() {
+    setError(null);
     try {
       const res = await fetch("/api/profile");
       const data = await res.json();
-      setProfile(data || {});
+      if (!res.ok) {
+        setError(data.error || "Failed to load profile");
+        setProfile({});
+      } else if (data && !data.error) {
+        setProfile(data);
+      } else {
+        setProfile(data || {});
+      }
     } catch (err) {
       console.error("Failed to fetch profile:", err);
+      setError("Network error loading profile");
+      setProfile({});
     }
     setLoading(false);
   }
 
   async function saveProfile() {
     setSaving(true);
+    setError(null);
     try {
       const res = await fetch("/api/profile", {
         method: "POST",
@@ -49,10 +101,16 @@ export default function ProfilePage() {
         body: JSON.stringify(profile),
       });
       const data = await res.json();
-      setProfile(data);
-      setIsEditing(false);
-      alert("Profile saved!");
+      if (!res.ok) {
+        setError(data.error || "Failed to save");
+        alert("Failed to save profile: " + (data.error || "Unknown error"));
+      } else {
+        setProfile(data);
+        setIsEditing(false);
+        alert("Profile saved!");
+      }
     } catch (err) {
+      setError("Network error saving profile");
       alert("Failed to save profile");
     }
     setSaving(false);
@@ -123,7 +181,7 @@ export default function ProfilePage() {
       <div className="mb-4">
         <label className="block text-xs text-zinc-500 uppercase tracking-wider mb-1">{label}</label>
         {multiline ? (
-          <p className="text-zinc-200 text-sm whitespace-pre-wrap">{value || "—"}</p>
+          <FormattedText text={String(value || "")} className="text-zinc-200 text-sm" />
         ) : (
           <p className="text-zinc-200 text-sm">{value || "—"}</p>
         )}
@@ -168,6 +226,12 @@ export default function ProfilePage() {
             {saving ? "Saving..." : isEditing ? "Save Profile" : "Edit Profile"}
           </button>
         </div>
+
+        {error && (
+          <div className="bg-red-900/30 border border-red-800 rounded-xl p-4 mb-6 text-red-300 text-sm">
+            ⚠️ {error}
+          </div>
+        )}
 
         <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 mb-6">
           <h2 className="text-lg font-semibold mb-4 text-white">Basic Information</h2>
@@ -466,7 +530,7 @@ export default function ProfilePage() {
                       <span className="text-zinc-500 text-sm">{exp.duration}</span>
                     </div>
                     <p className="text-zinc-400 text-sm mb-2">{exp.company}</p>
-                    <p className="text-zinc-300 text-sm whitespace-pre-wrap">{exp.description}</p>
+                    <FormattedText text={exp.description || ""} className="text-zinc-300 text-sm" />
                   </>
                 )}
               </div>

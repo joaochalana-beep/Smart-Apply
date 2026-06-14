@@ -15,7 +15,17 @@ export async function GET() {
     .limit(1)
     .single();
 
-  if (error && error.code !== "PGRST116") {
+  if (error) {
+    if (error.code === "PGRST116") {
+      // Multiple rows found — return the most recent one instead of failing
+      const { data: rows } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      return NextResponse.json(rows?.[0] || null);
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
   return NextResponse.json(data || null);
@@ -28,8 +38,9 @@ export async function POST(req: Request) {
   const body = await req.json();
   const supabase = await createClient();
 
-  // Check if profile exists
-  const { data: existing, error: fetchError } = await supabase
+  // Check if profile exists (handle duplicates gracefully)
+  let existing: any = null;
+  const { data: existingData, error: fetchError } = await supabase
     .from("profiles")
     .select("id")
     .eq("user_id", userId)
@@ -37,8 +48,21 @@ export async function POST(req: Request) {
     .limit(1)
     .single();
 
-  if (fetchError && fetchError.code !== "PGRST116") {
-    return NextResponse.json({ error: fetchError.message }, { status: 500 });
+  if (fetchError) {
+    if (fetchError.code === "PGRST116") {
+      // Multiple rows — grab the most recent id
+      const { data: rows } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      existing = rows?.[0] || null;
+    } else {
+      return NextResponse.json({ error: fetchError.message }, { status: 500 });
+    }
+  } else {
+    existing = existingData;
   }
 
   let result;
