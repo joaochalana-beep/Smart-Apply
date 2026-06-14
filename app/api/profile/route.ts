@@ -12,10 +12,13 @@ export async function GET() {
     .select("*")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
-    .limit(1);
+    .limit(1)
+    .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data?.[0] || null);
+  if (error && error.code !== "PGRST116") {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  return NextResponse.json(data || null);
 }
 
 export async function POST(req: Request) {
@@ -25,30 +28,33 @@ export async function POST(req: Request) {
   const body = await req.json();
   const supabase = await createClient();
 
-  // Remove id and user_id from body if present (we set user_id manually)
-  const { id, user_id, ...profileData } = body;
-
   // Check if profile exists
-  const { data: existing } = await supabase
+  const { data: existing, error: fetchError } = await supabase
     .from("profiles")
     .select("id")
     .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(1)
     .single();
+
+  if (fetchError && fetchError.code !== "PGRST116") {
+    return NextResponse.json({ error: fetchError.message }, { status: 500 });
+  }
 
   let result;
   if (existing) {
-    // Update existing
+    // Update the specific existing profile by ID
     result = await supabase
       .from("profiles")
-      .update(profileData)
-      .eq("user_id", userId)
+      .update(body)
+      .eq("id", existing.id)
       .select()
       .single();
   } else {
     // Insert new
     result = await supabase
       .from("profiles")
-      .insert({ ...profileData, user_id: userId })
+      .insert({ ...body, user_id: userId })
       .select()
       .single();
   }
