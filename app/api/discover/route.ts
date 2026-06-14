@@ -19,7 +19,7 @@ const countryMap: Record<string, string> = {
   "hamburg": "de", "cologne": "de", "koln": "de", "frankfurt": "de", "stuttgart": "de",
   "dresden": "de", "leipzig": "de", "dusseldorf": "de", "nuremberg": "de", "nurnberg": "de",
   "hannover": "de", "bremen": "de", "essen": "de", "dortmund": "de",
-  "spain": "es", "madrid": "es", "barcelona": "es", "valencia": "es",
+  "spain": "es", "madrid": "es", "barcelona": "es", "valencia": "es", "seville": "es",
   "france": "fr", "paris": "fr", "lyon": "fr", "marseille": "fr",
   "netherlands": "nl", "amsterdam": "nl", "rotterdam": "nl",
   "italy": "it", "rome": "it", "milano": "it", "milan": "it",
@@ -71,6 +71,10 @@ function isUnsupportedLocation(loc: string): boolean {
   return unsupported.some(c => loc.toLowerCase().includes(c));
 }
 
+function isSpainLocation(loc: string): boolean {
+  return loc.toLowerCase().includes("spain") || loc.toLowerCase().includes("madrid") || loc.toLowerCase().includes("barcelona") || loc.toLowerCase().includes("valencia");
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { userId } = await auth();
@@ -104,7 +108,7 @@ export async function GET(req: NextRequest) {
     let allJobs: any[] = [];
     let primarySource = "";
     let fallbackUsed = false;
-    const useArbeitnowPrimary = isGermanOrGenericLocation(location) || isUnsupportedLocation(rawLocation);
+    const useArbeitnowPrimary = isGermanOrGenericLocation(location) || isUnsupportedLocation(rawLocation) || isSpainLocation(rawLocation);
 
     let adzunaError = null;
     let arbeitnowError = null;
@@ -120,8 +124,8 @@ export async function GET(req: NextRequest) {
         console.error("[Discover] Arbeitnow failed:", err.message);
       }
 
-      // For unsupported countries, try Remotive as supplement
-      if (isUnsupportedLocation(rawLocation) && isRemote) {
+      // For unsupported countries or Spain, try Remotive as supplement
+      if ((isUnsupportedLocation(rawLocation) || isSpainLocation(rawLocation)) && isRemote) {
         try {
           const remotiveJobs = await fetchRemotive(searchTerms);
           const newJobs = remotiveJobs.filter((rj: any) => !allJobs.some((aj: any) => aj.url === rj.url));
@@ -133,17 +137,20 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      // If still no jobs, try Adzuna broad fallback
-      if (allJobs.length === 0 && ADZUNA_APP_ID && ADZUNA_APP_KEY) {
+      // If still no jobs or Spain/Portugal, try Adzuna EU-specific search
+      if ((allJobs.length === 0 || isUnsupportedLocation(rawLocation) || isSpainLocation(rawLocation)) && ADZUNA_APP_ID && ADZUNA_APP_KEY) {
         try {
-          const adzunaJobs = await fetchAdzunaBroad(searchTerms, isRemote);
-          allJobs = adzunaJobs;
-          primarySource = "adzuna";
-          fallbackUsed = true;
-          console.log(`[Discover] Adzuna broad fallback returned ${adzunaJobs.length} jobs`);
+          const adzunaJobs = await fetchAdzunaEU(searchTerms, location, isRemote, isSpainLocation(rawLocation));
+          const newJobs = adzunaJobs.filter((aj: any) => !allJobs.some((j: any) => j.url === aj.url));
+          allJobs = [...allJobs, ...newJobs];
+          if (newJobs.length > 0) {
+            primarySource = primarySource === "arbeitnow" ? "arbeitnow+adzuna" : "adzuna";
+            fallbackUsed = true;
+          }
+          console.log(`[Discover] Adzuna EU added ${newJobs.length} jobs`);
         } catch (err: any) {
           adzunaError = err.message;
-          console.error("[Discover] Adzuna broad fallback failed:", err.message);
+          console.error("[Discover] Adzuna EU failed:", err.message);
         }
       }
 
@@ -191,6 +198,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Boost EU/Portugal/Spain jobs in scoring
     const desiredLoc = (profile.desired_location || "").toLowerCase();
     const mapped = allJobs.map((job: any) => {
       const isArbeitnow = job.slug !== undefined;
@@ -204,6 +212,15 @@ export async function GET(req: NextRequest) {
       }
 
       const jobLoc = (job.location || "").toLowerCase();
+      
+      // Boost EU-related jobs for Portugal/Spain searches
+      if (isUnsupportedLocation(rawLocation) || isSpainLocation(rawLocation)) {
+        if (jobLoc.includes("europe") || jobLoc.includes("eu") || jobText.includes("european")) score += 15;
+        if (jobLoc.includes("portugal") || jobText.includes("portugal")) score += 30;
+        if (jobLoc.includes("spain") || jobText.includes("spain") || jobLoc.includes("madrid") || jobLoc.includes("barcelona")) score += 30;
+        if (jobLoc.includes("germany") || jobLoc.includes("france") || jobLoc.includes("netherlands") || jobLoc.includes("italy")) score += 10;
+      }
+      
       if (desiredLoc && !desiredLoc.includes("remote") && !desiredLoc.includes("europe") && !desiredLoc.includes("eu")) {
         if (jobLoc.includes(desiredLoc) || desiredLoc.includes(jobLoc)) score += 25;
       }
@@ -296,7 +313,8 @@ async function fetchArbeitnow(searchTerms: string[], location: string, isRemote:
   const query = searchTerms.join(" ");
   let locationParam = "";
   
-  if (!isUnsupported && location && !location.includes("europe") && !location.includes("eu") && !location.includes("anywhere")) {
+  // For Spain, try searching with location
+  if (location && !isUnsupported && !location.includes("europe") && !location.includes("eu") && !location.includes("anywhere")) {
     locationParam = `&location=${encodeURIComponent(location)}`;
   }
 
@@ -337,7 +355,7 @@ async function fetchRemotive(searchTerms: string[]) {
   return data.jobs || [];
 }
 
-async function fetchAdzunaBroad(searchTerms: string[], isRemote: boolean) {
+async function fetchAdzunaEU(searchTerms: string[], location: string, isRemote: boolean, isSpain: boolean) {
   if (!ADZUNA_APP_ID || !ADZUNA_APP_KEY) {
     throw new Error("Adzuna credentials not configured");
   }
@@ -345,11 +363,16 @@ async function fetchAdzunaBroad(searchTerms: string[], isRemote: boolean) {
   const searchQuery = searchTerms.join(" ");
   const allResults: any[] = [];
   
-  const broadCountries = ["gb", "de", "fr", "nl"];
+  // For Spain, search Spain specifically. For Portugal, search EU broadly
+  const euCountries = isSpain ? ["es", "gb", "de", "fr", "nl"] : ["gb", "de", "fr", "es", "nl", "it"];
 
-  for (const country of broadCountries) {
+  for (const country of euCountries) {
     try {
-      const what = isRemote ? `${searchQuery} remote` : searchQuery;
+      let what = searchQuery;
+      if (isRemote) {
+        what = `${what} remote`;
+      }
+      
       const params = new URLSearchParams({
         app_id: ADZUNA_APP_ID,
         app_key: ADZUNA_APP_KEY,
@@ -357,8 +380,13 @@ async function fetchAdzunaBroad(searchTerms: string[], isRemote: boolean) {
         what,
       });
 
+      // For Spain, add location filter
+      if (isSpain && location && !location.includes("europe") && !location.includes("eu")) {
+        params.append("where", location);
+      }
+
       const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/1?${params.toString()}`;
-      console.log(`[Adzuna Broad] ${country} URL:`, url);
+      console.log(`[Adzuna EU] ${country} URL:`, url);
 
       const res = await fetch(url, { next: { revalidate: 0 } });
 
@@ -369,10 +397,10 @@ async function fetchAdzunaBroad(searchTerms: string[], isRemote: boolean) {
 
       const data = await res.json();
       const jobs = data.results || [];
-      console.log(`[Adzuna Broad] ${country}: ${jobs.length} jobs`);
+      console.log(`[Adzuna EU] ${country}: ${jobs.length} jobs`);
       allResults.push(...jobs);
     } catch (err: any) {
-      console.error(`[Adzuna Broad] ${country} failed:`, err.message);
+      console.error(`[Adzuna EU] ${country} failed:`, err.message);
     }
   }
 
