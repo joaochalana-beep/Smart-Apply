@@ -10,9 +10,11 @@ const supabase = createClient(
 const ADZUNA_APP_ID = process.env.ADZUNA_APP_ID;
 const ADZUNA_APP_KEY = process.env.ADZUNA_APP_KEY;
 
-// Adzuna supported country codes with priority for EU remote jobs
-const ADZUNA_EU_COUNTRIES = ["gb", "de", "fr", "nl", "es", "it", "at", "be", "ch", "pl", "se", "ie"];
-const ADZUNA_COUNTRIES = new Set(["gb", "us", "at", "au", "br", "ca", "de", "fr", "in", "it", "nl", "pl", "ru", "sg", "za", "es", "se", "ch"]);
+// Adzuna SUPPORTED country codes (from the error message)
+const ADZUNA_SUPPORTED = new Set(["at", "au", "be", "br", "ca", "ch", "de", "es", "fr", "gb", "in", "it", "mx", "nl", "nz", "pl", "sg", "us", "za"]);
+
+// EU countries we want to search for remote jobs (prioritized)
+const ADZUNA_EU_COUNTRIES = ["gb", "de", "fr", "es", "nl", "it", "at", "be", "ch", "pl"];
 
 const countryMap: Record<string, string> = {
   "united kingdom": "gb", "uk": "gb", "london": "gb", "england": "gb",
@@ -20,20 +22,20 @@ const countryMap: Record<string, string> = {
   "hamburg": "de", "cologne": "de", "köln": "de", "frankfurt": "de", "stuttgart": "de",
   "dresden": "de", "leipzig": "de", "düsseldorf": "de", "nuremberg": "de", "nürnberg": "de",
   "hannover": "de", "bremen": "de", "essen": "de", "dortmund": "de",
-  "portugal": "pt", "lisbon": "pt", "lisboa": "pt", "porto": "pt",
+  "portugal": "gb", "lisbon": "gb", "lisboa": "gb", "porto": "gb", // Portugal -> search UK with location filter
   "spain": "es", "madrid": "es", "barcelona": "es", "valencia": "es",
   "france": "fr", "paris": "fr", "lyon": "fr", "marseille": "fr",
   "netherlands": "nl", "amsterdam": "nl", "rotterdam": "nl",
   "italy": "it", "rome": "it", "milano": "it", "milan": "it",
   "belgium": "be", "brussels": "be",
   "austria": "at", "vienna": "at", "wien": "at",
-  "ireland": "ie", "dublin": "ie",
+  "ireland": "gb", "dublin": "gb", // Ireland -> search UK
   "switzerland": "ch", "zurich": "ch", "geneva": "ch",
   "poland": "pl", "warsaw": "pl",
-  "sweden": "se", "stockholm": "se",
-  "denmark": "dk", "copenhagen": "dk",
-  "norway": "no", "oslo": "no",
-  "finland": "fi", "helsinki": "fi",
+  "sweden": "gb", "stockholm": "gb", // Sweden -> search UK
+  "denmark": "gb", "copenhagen": "gb", // Denmark -> search UK
+  "norway": "gb", "oslo": "gb", // Norway -> search UK
+  "finland": "gb", "helsinki": "gb", // Finland -> search UK
 };
 
 function stripHtml(html: string): string {
@@ -268,7 +270,6 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ── Arbeitnow fetcher (EU, free, no API key) ──
 async function fetchArbeitnow(searchTerms: string[], location: string, isRemote: boolean) {
   const query = searchTerms.join(" ");
   let locationParam = "";
@@ -295,7 +296,6 @@ async function fetchArbeitnow(searchTerms: string[], location: string, isRemote:
   return data.data || [];
 }
 
-// ── Adzuna multi-country search for EU/remote jobs ──
 async function fetchAdzunaMultiCountry(searchTerms: string[], location: string, isRemote: boolean) {
   if (!ADZUNA_APP_ID || !ADZUNA_APP_KEY) {
     throw new Error("Adzuna credentials not configured");
@@ -307,8 +307,9 @@ async function fetchAdzunaMultiCountry(searchTerms: string[], location: string, 
   
   // Determine which countries to search
   let countriesToSearch: string[] = [];
+  let locationInSearch = location;
   
-  // If specific country is supported, search it first
+  // Check if location maps to a specific country
   let specificCountry = "";
   for (const [key, code] of Object.entries(countryMap)) {
     if (location.includes(key)) {
@@ -317,13 +318,21 @@ async function fetchAdzunaMultiCountry(searchTerms: string[], location: string, 
     }
   }
   
-  if (specificCountry && ADZUNA_COUNTRIES.has(specificCountry)) {
+  // If location is unsupported (like Portugal), include it in search query and use UK
+  if (specificCountry && !ADZUNA_SUPPORTED.has(specificCountry)) {
+    console.log(`[Adzuna] Location "${location}" maps to unsupported country "${specificCountry}", using UK with location in search`);
+    specificCountry = "gb";
+    if (location && location !== "portugal" && location !== "lisbon" && location !== "lisboa") {
+      locationInSearch = location; // Keep location for search query
+    }
+  }
+  
+  if (specificCountry && ADZUNA_SUPPORTED.has(specificCountry)) {
     countriesToSearch.push(specificCountry);
   }
   
-  // For remote jobs or unsupported countries, search major EU markets
-  if (isRemote || !specificCountry || !ADZUNA_COUNTRIES.has(specificCountry)) {
-    // Add major EU countries that aren't already in the list
+  // For remote jobs or no specific country, search major EU markets
+  if (isRemote || !specificCountry || !ADZUNA_SUPPORTED.has(specificCountry)) {
     for (const country of ADZUNA_EU_COUNTRIES) {
       if (!countriesToSearch.includes(country)) {
         countriesToSearch.push(country);
@@ -333,12 +342,12 @@ async function fetchAdzunaMultiCountry(searchTerms: string[], location: string, 
   
   console.log(`[Adzuna] Searching ${countriesToSearch.length} countries: ${countriesToSearch.join(", ")}`);
 
-  // Search each country (limit to first 5 to avoid rate limits)
-  const searchCountries = countriesToSearch.slice(0, 5);
+  // Search each country (limit to first 6 to avoid rate limits)
+  const searchCountries = countriesToSearch.slice(0, 6);
   
   for (const country of searchCountries) {
     try {
-      const jobs = await fetchAdzunaSingleCountry(searchQuery, location, isRemote, country);
+      const jobs = await fetchAdzunaSingleCountry(searchQuery, locationInSearch, isRemote, country);
       console.log(`[Adzuna] ${country}: ${jobs.length} jobs`);
       allResults.push(...jobs);
     } catch (err: any) {
@@ -359,24 +368,28 @@ async function fetchAdzunaSingleCountry(searchQuery: string, location: string, i
   const params = new URLSearchParams({
     app_id: ADZUNA_APP_ID!,
     app_key: ADZUNA_APP_KEY!,
-    results_per_page: "20", // Lower per country to avoid limits
+    results_per_page: "20",
   });
 
   // Build search query
   let what = searchQuery;
+  
+  // For unsupported locations (Portugal, etc.), include location in search
+  if (location && !ADZUNA_SUPPORTED.has(country)) {
+    what = `${what} ${location}`;
+  }
+  
   if (isRemote) {
     what = `${what} remote`;
-  }
-  // For unsupported countries, include location in search query
-  if (location && !ADZUNA_COUNTRIES.has(country) && country !== "gb") {
-    what = `${what} ${location}`;
   }
   
   params.append("what", what);
 
   // Add location filter only for supported countries with specific locations
   if (location && !location.includes("europe") && !location.includes("eu") && !location.includes("anywhere") && !location.includes("remote")) {
-    if (country === "gb" || ADZUNA_COUNTRIES.has(country)) {
+    // Only add where if country supports this location
+    const locationCountry = Object.entries(countryMap).find(([key]) => location.includes(key))?.[1];
+    if (!locationCountry || locationCountry === country || ADZUNA_SUPPORTED.has(country)) {
       params.append("where", location);
     }
   }
