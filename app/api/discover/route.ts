@@ -108,6 +108,7 @@ export async function GET(req: NextRequest) {
 
     let adzunaError = null;
     let arbeitnowError = null;
+    let remotiveError = null;
 
     if (useArbeitnowPrimary) {
       primarySource = "arbeitnow";
@@ -117,25 +118,40 @@ export async function GET(req: NextRequest) {
       } catch (err: any) {
         arbeitnowError = err.message;
         console.error("[Discover] Arbeitnow failed:", err.message);
-        if (ADZUNA_APP_ID && ADZUNA_APP_KEY) {
-          try {
-            const adzunaJobs = await fetchAdzunaMultiCountry(searchTerms, location, isRemote);
-            allJobs = adzunaJobs;
-            primarySource = "adzuna";
-            fallbackUsed = true;
-          } catch (adzunaErr: any) {
-            adzunaError = adzunaErr.message;
-            return NextResponse.json({
-              error: "Both job sources failed",
-              details: `Arbeitnow: ${err.message}, Adzuna: ${adzunaErr.message}`,
-            }, { status: 502 });
-          }
-        } else {
-          return NextResponse.json({
-            error: "Arbeitnow failed and no Adzuna fallback configured",
-            details: err.message,
-          }, { status: 502 });
+      }
+
+      // For unsupported countries, try Remotive as supplement
+      if (isUnsupportedLocation(rawLocation) && isRemote) {
+        try {
+          const remotiveJobs = await fetchRemotive(searchTerms);
+          const newJobs = remotiveJobs.filter((rj: any) => !allJobs.some((aj: any) => aj.url === rj.url));
+          allJobs = [...allJobs, ...newJobs];
+          console.log(`[Discover] Remotive added ${newJobs.length} jobs`);
+        } catch (err: any) {
+          remotiveError = err.message;
+          console.error("[Discover] Remotive failed:", err.message);
         }
+      }
+
+      // If still no jobs, try Adzuna broad fallback
+      if (allJobs.length === 0 && ADZUNA_APP_ID && ADZUNA_APP_KEY) {
+        try {
+          const adzunaJobs = await fetchAdzunaBroad(searchTerms, isRemote);
+          allJobs = adzunaJobs;
+          primarySource = "adzuna";
+          fallbackUsed = true;
+          console.log(`[Discover] Adzuna broad fallback returned ${adzunaJobs.length} jobs`);
+        } catch (err: any) {
+          adzunaError = err.message;
+          console.error("[Discover] Adzuna broad fallback failed:", err.message);
+        }
+      }
+
+      if (allJobs.length === 0) {
+        return NextResponse.json({
+          error: "All job sources failed",
+          details: `Arbeitnow: ${arbeitnowError || "OK but 0 results"}, Remotive: ${remotiveError || "OK"}, Adzuna: ${adzunaError || "Not configured"}`,
+        }, { status: 502 });
       }
     } else {
       if (ADZUNA_APP_ID && ADZUNA_APP_KEY) {
@@ -175,23 +191,10 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    if (isUnsupportedLocation(rawLocation) && isRemote) {
-      const beforeFilter = allJobs.length;
-      allJobs = allJobs.filter((job: any) => {
-        const jobText = `${job.title || ""} ${job.description || ""} ${job.location || ""}`.toLowerCase();
-        return job.remote === true || 
-               jobText.includes("remote") || 
-               jobText.includes("home office") || 
-               jobText.includes("homeoffice") ||
-               jobText.includes("anywhere") ||
-               jobText.includes("worldwide");
-      });
-      console.log(`[Discover] Filtered ${beforeFilter} jobs to ${allJobs.length} remote jobs for unsupported country`);
-    }
-
     const desiredLoc = (profile.desired_location || "").toLowerCase();
     const mapped = allJobs.map((job: any) => {
       const isArbeitnow = job.slug !== undefined;
+      const isRemotive = job.id !== undefined && job.candidate_required_location !== undefined;
       const jobText = `${job.title || ""} ${job.description || ""} ${job.location || ""}`.toLowerCase();
 
       let score = 0;
@@ -208,21 +211,25 @@ export async function GET(req: NextRequest) {
         score += 20;
       }
 
+      let source = "Adzuna";
+      if (isArbeitnow) source = "Arbeitnow";
+      else if (isRemotive) source = "Remotive";
+
       return {
-        id: isArbeitnow ? `arbeitnow_${job.slug}` : `adzuna_${job.id}`,
+        id: isArbeitnow ? `arbeitnow_${job.slug}` : (isRemotive ? `remotive_${job.id}` : `adzuna_${job.id}`),
         title: job.title || "Unknown Role",
-        company: isArbeitnow ? (job.company_name || "Unknown") : (job.company?.display_name || "Unknown"),
-        location: isArbeitnow ? (job.location || "Unknown") : (job.location?.display_name || `${job.location?.area?.[0] || ""}, ${job.location?.area?.[1] || ""}`),
+        company: isArbeitnow ? (job.company_name || "Unknown") : (isRemotive ? (job.company_name || "Unknown") : (job.company?.display_name || "Unknown")),
+        location: isArbeitnow ? (job.location || "Unknown") : (isRemotive ? (job.candidate_required_location || "Remote") : (job.location?.display_name || `${job.location?.area?.[0] || ""}, ${job.location?.area?.[1] || ""}`)),
         description: stripHtml(job.description || ""),
-        url: job.url || "#",
+        url: job.url || job.redirect_url || job.application_url || "#",
         salary_min: job.salary_min || null,
         salary_max: job.salary_max || null,
-        salary: isArbeitnow ? "Not specified" : (job.salary_is_predicted === "1" ? `${job.salary_min}-${job.salary_max}` : null),
-        remote: !!job.remote,
-        source: isArbeitnow ? "Arbeitnow" : "Adzuna",
+        salary: isArbeitnow ? "Not specified" : (isRemotive ? (job.salary || "Not specified") : (job.salary_is_predicted === "1" ? `${job.salary_min}-${job.salary_max}` : null)),
+        remote: !!job.remote || isRemotive || jobText.includes("remote"),
+        source,
         match_score: Math.min(100, Math.max(0, score)),
         score,
-        created_at: job.created_at || new Date().toISOString(),
+        created_at: job.created_at || job.publication_date || job.created || new Date().toISOString(),
       };
     });
 
@@ -274,6 +281,7 @@ export async function GET(req: NextRequest) {
         adzunaConfigured: !!(ADZUNA_APP_ID && ADZUNA_APP_KEY),
         adzunaError,
         arbeitnowError,
+        remotiveError,
         totalJobsFound: allJobs.length,
         jobsAfterDedup: deduped.length,
       }
@@ -308,6 +316,67 @@ async function fetchArbeitnow(searchTerms: string[], location: string, isRemote:
 
   const data = await res.json();
   return data.data || [];
+}
+
+async function fetchRemotive(searchTerms: string[]) {
+  const query = searchTerms.join(" ");
+  const url = `https://remotive.com/api/remote-jobs?search=${encodeURIComponent(query)}`;
+  console.log("[Remotive] URL:", url);
+
+  const res = await fetch(url, {
+    headers: { Accept: "application/json" },
+    next: { revalidate: 0 },
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Remotive API ${res.status}: ${errorText.slice(0, 200)}`);
+  }
+
+  const data = await res.json();
+  return data.jobs || [];
+}
+
+async function fetchAdzunaBroad(searchTerms: string[], isRemote: boolean) {
+  if (!ADZUNA_APP_ID || !ADZUNA_APP_KEY) {
+    throw new Error("Adzuna credentials not configured");
+  }
+
+  const searchQuery = searchTerms.join(" ");
+  const allResults: any[] = [];
+  
+  const broadCountries = ["gb", "de", "fr", "nl"];
+
+  for (const country of broadCountries) {
+    try {
+      const what = isRemote ? `${searchQuery} remote` : searchQuery;
+      const params = new URLSearchParams({
+        app_id: ADZUNA_APP_ID,
+        app_key: ADZUNA_APP_KEY,
+        results_per_page: "20",
+        what,
+      });
+
+      const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/1?${params.toString()}`;
+      console.log(`[Adzuna Broad] ${country} URL:`, url);
+
+      const res = await fetch(url, { next: { revalidate: 0 } });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`HTTP ${res.status}: ${errorText.slice(0, 100)}`);
+      }
+
+      const data = await res.json();
+      const jobs = data.results || [];
+      console.log(`[Adzuna Broad] ${country}: ${jobs.length} jobs`);
+      allResults.push(...jobs);
+    } catch (err: any) {
+      console.error(`[Adzuna Broad] ${country} failed:`, err.message);
+    }
+  }
+
+  return allResults;
 }
 
 async function fetchAdzunaMultiCountry(searchTerms: string[], location: string, isRemote: boolean) {
