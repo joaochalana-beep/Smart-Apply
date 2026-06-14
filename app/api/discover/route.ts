@@ -175,6 +175,21 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // For unsupported countries, filter to only remote jobs
+    if (isUnsupportedLocation(rawLocation) && isRemote) {
+      const beforeFilter = allJobs.length;
+      allJobs = allJobs.filter((job: any) => {
+        const jobText = `${job.title || ""} ${job.description || ""} ${job.location || ""}`.toLowerCase();
+        return job.remote === true || 
+               jobText.includes("remote") || 
+               jobText.includes("home office") || 
+               jobText.includes("homeoffice") ||
+               jobText.includes("anywhere") ||
+               jobText.includes("worldwide");
+      });
+      console.log(`[Discover] Filtered ${beforeFilter} jobs to ${allJobs.length} remote jobs for unsupported country`);
+    }
+
     const desiredLoc = (profile.desired_location || "").toLowerCase();
     const mapped = allJobs.map((job: any) => {
       const isArbeitnow = job.slug !== undefined;
@@ -274,8 +289,7 @@ async function fetchArbeitnow(searchTerms: string[], location: string, isRemote:
   const query = searchTerms.join(" ");
   let locationParam = "";
   
-  // For unsupported countries (Portugal, etc.), don't send location to Arbeitnow
-  // Just search for remote jobs globally
+  // For unsupported countries, don't send location — search all remote jobs
   if (!isUnsupported && location && !location.includes("europe") && !location.includes("eu") && !location.includes("anywhere")) {
     locationParam = `&location=${encodeURIComponent(location)}`;
   }
@@ -398,4 +412,18 @@ async function fetchAdzunaSingleCountry(searchQuery: string, location: string, i
   }
 
   return data.results || [];
+}
+The key change: Added a client-side filter after fetching from Arbeitnow for unsupported countries:
+TypeScript
+// For unsupported countries, filter to only remote jobs
+if (isUnsupportedLocation(rawLocation) && isRemote) {
+  allJobs = allJobs.filter((job: any) => {
+    const jobText = `${job.title || ""} ${job.description || ""} ${job.location || ""}`.toLowerCase();
+    return job.remote === true || 
+           jobText.includes("remote") || 
+           jobText.includes("home office") || 
+           jobText.includes("homeoffice") ||
+           jobText.includes("anywhere") ||
+           jobText.includes("worldwide");
+  });
 }
