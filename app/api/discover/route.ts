@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -65,24 +66,25 @@ function isGermanOrGenericLocation(loc: string): boolean {
 
 export async function GET(req: NextRequest) {
   try {
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: userErr } = await supabase.auth.getUser(token);
-    if (userErr || !user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    // Use Clerk server-side auth — reads session cookie automatically
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized", needsProfileUpdate: false }, { status: 401 });
     }
 
+    // Map Clerk userId to Supabase user (they should match if you use Clerk as auth provider)
     const { data: profile } = await supabase
       .from("profiles")
       .select("desired_role, desired_location, work_type, experience_level, id")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .single();
 
     if (!profile) {
-      return NextResponse.json({ error: "Profile not found", needsProfileUpdate: true, message: "Please complete your profile to discover jobs." }, { status: 404 });
+      return NextResponse.json({ 
+        error: "Profile not found", 
+        needsProfileUpdate: true, 
+        message: "Please complete your profile to discover jobs." 
+      }, { status: 404 });
     }
 
     const searchTerms = getSearchTerms(profile);
@@ -95,7 +97,7 @@ export async function GET(req: NextRequest) {
     let fallbackUsed = false;
     const useArbeitnowPrimary = isGermanOrGenericLocation(location);
 
-    console.log(`[Discover] User: ${user.id}, Location: "${location}", Remote: ${isRemote}, German/Generic: ${useArbeitnowPrimary}, Terms: ${searchTerms.join(", ")}`);
+    console.log(`[Discover] User: ${userId}, Location: "${location}", Remote: ${isRemote}, German/Generic: ${useArbeitnowPrimary}, Terms: ${searchTerms.join(", ")}`);
 
     if (useArbeitnowPrimary) {
       primarySource = "arbeitnow";
@@ -194,7 +196,7 @@ export async function GET(req: NextRequest) {
         salary: isArbeitnow ? "Not specified" : (job.salary_is_predicted === "1" ? `${job.salary_min}-${job.salary_max}` : null),
         remote: !!job.remote,
         source: isArbeitnow ? "Arbeitnow" : "Adzuna",
-        match_score: Math.min(100, Math.max(0, score)), // Renamed to match frontend
+        match_score: Math.min(100, Math.max(0, score)),
         score,
         created_at: job.created_at || new Date().toISOString(),
       };
@@ -222,7 +224,7 @@ export async function GET(req: NextRequest) {
       salary: j.salary,
       remote: j.remote,
       source: j.source,
-      user_id: user.id,
+      user_id: userId,
       status: "new",
       score: j.score,
       created_at: j.created_at,

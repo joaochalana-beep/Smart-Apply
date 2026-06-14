@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 
@@ -25,25 +25,31 @@ export default function DiscoverPage() {
   const [error, setError] = useState("");
   const [profileError, setProfileError] = useState<string | null>(null);
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const router = useRouter();
-  const { getToken } = useAuth();
+  const { isLoaded, isSignedIn } = useAuth();
 
+  // Wait for Clerk auth to be ready
   useEffect(() => {
-    fetchJobs();
-  }, []);
+    if (isLoaded) {
+      if (!isSignedIn) {
+        router.push("/sign-in");
+        return;
+      }
+      setAuthReady(true);
+    }
+  }, [isLoaded, isSignedIn, router]);
 
-  async function fetchJobs() {
+  const fetchJobs = useCallback(async () => {
+    if (!authReady) return;
+    
     setLoading(true);
     setError("");
     setProfileError(null);
 
     try {
-      const token = await getToken();
-      const res = await fetch("/api/discover", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      // Simple fetch — no auth headers needed, Clerk middleware handles cookies
+      const res = await fetch("/api/discover");
       const data = await res.json();
 
       if (!res.ok) {
@@ -53,7 +59,7 @@ export default function DiscoverPage() {
           setLoading(false);
           return;
         }
-        throw new Error(data.error || data.message || "Failed to load jobs");
+        throw new Error(data.error || data.message || `Failed to load jobs (${res.status})`);
       }
 
       // Map API response to frontend Job interface
@@ -75,19 +81,24 @@ export default function DiscoverPage() {
       setJobs(mappedJobs);
     } catch (err: any) {
       setError(err.message || "Failed to load jobs");
+      console.error("Discover fetch error:", err);
     }
     setLoading(false);
-  }
+  }, [authReady]);
+
+  useEffect(() => {
+    if (authReady) {
+      fetchJobs();
+    }
+  }, [authReady, fetchJobs]);
 
   async function prepareApplication(job: Job) {
     setGeneratingFor(job.id);
     try {
-      const token = await getToken();
       const res = await fetch("/api/generate-tailored-docs", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           jobUrl: job.url,
@@ -101,7 +112,6 @@ export default function DiscoverPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           job_id: job.id,
@@ -133,7 +143,18 @@ export default function DiscoverPage() {
     return "bg-zinc-500";
   }
 
-  if (loading) {
+  if (!isLoaded || !authReady) {
+    return (
+      <div className="min-h-screen bg-zinc-950 text-white p-10 pt-24 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-zinc-400">Initializing...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading && jobs.length === 0) {
     return (
       <div className="min-h-screen bg-zinc-950 text-white p-10 pt-24 flex items-center justify-center">
         <div className="text-center">
@@ -159,9 +180,9 @@ export default function DiscoverPage() {
           <button
             onClick={fetchJobs}
             disabled={loading}
-            className="bg-zinc-800 text-white px-4 py-2 rounded-full hover:bg-zinc-700 transition text-sm"
+            className="bg-zinc-800 text-white px-4 py-2 rounded-full hover:bg-zinc-700 transition text-sm disabled:opacity-50"
           >
-            Refresh
+            {loading ? "Loading..." : "Refresh"}
           </button>
         </div>
 
@@ -179,7 +200,14 @@ export default function DiscoverPage() {
 
         {error && !profileError && (
           <div className="bg-red-900/50 border border-red-800 rounded-lg p-4 text-red-400 mb-6">
-            {error}
+            <p className="font-medium mb-2">Error loading jobs</p>
+            <p className="text-sm">{error}</p>
+            <button
+              onClick={fetchJobs}
+              className="mt-3 bg-red-800 text-white px-4 py-2 rounded-full text-sm hover:bg-red-700 transition"
+            >
+              Try Again
+            </button>
           </div>
         )}
 
