@@ -63,7 +63,7 @@ function isGermanOrGenericLocation(loc: string): boolean {
   return german.some(g => loc.includes(g));
 }
 
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
     const authHeader = req.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) {
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (!profile) {
-      return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+      return NextResponse.json({ error: "Profile not found", needsProfileUpdate: true, message: "Please complete your profile to discover jobs." }, { status: 404 });
     }
 
     const searchTerms = getSearchTerms(profile);
@@ -97,8 +97,6 @@ export async function POST(req: NextRequest) {
 
     console.log(`[Discover] User: ${user.id}, Location: "${location}", Remote: ${isRemote}, German/Generic: ${useArbeitnowPrimary}, Terms: ${searchTerms.join(", ")}`);
 
-    // ── STRATEGY: German/generic → Arbeitnow primary, Adzuna fallback ──
-    // Non-German EU → Adzuna primary, Arbeitnow fallback
     if (useArbeitnowPrimary) {
       primarySource = "arbeitnow";
       try {
@@ -128,7 +126,6 @@ export async function POST(req: NextRequest) {
         }
       }
     } else {
-      // Non-German location: Adzuna primary
       if (ADZUNA_APP_ID && ADZUNA_APP_KEY) {
         primarySource = "adzuna";
         try {
@@ -166,7 +163,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── Map and score ──
     const desiredLoc = (profile.desired_location || "").toLowerCase();
     const mapped = allJobs.map((job: any) => {
       const isArbeitnow = job.slug !== undefined;
@@ -198,12 +194,12 @@ export async function POST(req: NextRequest) {
         salary: isArbeitnow ? "Not specified" : (job.salary_is_predicted === "1" ? `${job.salary_min}-${job.salary_max}` : null),
         remote: !!job.remote,
         source: isArbeitnow ? "Arbeitnow" : "Adzuna",
+        match_score: Math.min(100, Math.max(0, score)), // Renamed to match frontend
         score,
         created_at: job.created_at || new Date().toISOString(),
       };
     });
 
-    // Deduplicate by URL
     const seen = new Set();
     const deduped = mapped.filter((j: any) => {
       if (seen.has(j.url)) return false;
@@ -211,13 +207,11 @@ export async function POST(req: NextRequest) {
       return true;
     });
 
-    // Sort by score desc, then date desc
     deduped.sort((a: any, b: any) => {
       if (b.score !== a.score) return b.score - a.score;
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
-    // Upsert to jobs table
     const toUpsert = deduped.map((j: any) => ({
       job_id: j.id,
       title: j.title,
@@ -253,7 +247,6 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ── Arbeitnow fetcher (EU, free, no API key) ──
 async function fetchArbeitnow(searchTerms: string[], location: string, isRemote: boolean) {
   const query = searchTerms.join(" ");
   let locationParam = "";
@@ -281,7 +274,6 @@ async function fetchArbeitnow(searchTerms: string[], location: string, isRemote:
   return data.data || [];
 }
 
-// ── Adzuna fetcher ──
 async function fetchAdzuna(searchTerms: string[], location: string, isRemote: boolean) {
   if (!ADZUNA_APP_ID || !ADZUNA_APP_KEY) {
     throw new Error("Adzuna credentials not configured");
@@ -304,12 +296,10 @@ async function fetchAdzuna(searchTerms: string[], location: string, isRemote: bo
     results_per_page: "50",
   });
 
-  // Build single search query (FIX: was sending multiple 'what' params)
   const searchQuery = searchTerms.join(" ");
   const whatValue = isRemote ? `${searchQuery} remote` : searchQuery;
   params.append("what", whatValue);
 
-  // Add location filter if specified and not generic
   if (location && !location.includes("europe") && !location.includes("eu") && !location.includes("anywhere") && !location.includes("remote")) {
     params.append("where", location);
   }

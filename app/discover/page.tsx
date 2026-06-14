@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
 
 interface Job {
   id: string;
@@ -25,6 +26,7 @@ export default function DiscoverPage() {
   const [profileError, setProfileError] = useState<string | null>(null);
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
   const router = useRouter();
+  const { getToken } = useAuth();
 
   useEffect(() => {
     fetchJobs();
@@ -36,7 +38,12 @@ export default function DiscoverPage() {
     setProfileError(null);
 
     try {
-      const res = await fetch("/api/discover");
+      const token = await getToken();
+      const res = await fetch("/api/discover", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       const data = await res.json();
 
       if (!res.ok) {
@@ -49,7 +56,23 @@ export default function DiscoverPage() {
         throw new Error(data.error || data.message || "Failed to load jobs");
       }
 
-      setJobs(data.jobs || []);
+      // Map API response to frontend Job interface
+      const mappedJobs = (data.jobs || []).map((job: any) => ({
+        id: job.id,
+        title: job.title,
+        company: job.company,
+        location: job.location,
+        description: job.description,
+        salary: job.salary,
+        url: job.url,
+        work_type: job.remote ? "Remote" : "On-site",
+        job_type: "Full-time",
+        experience_level: "",
+        match_score: job.match_score || 0,
+        date_posted: job.created_at,
+      }));
+
+      setJobs(mappedJobs);
     } catch (err: any) {
       setError(err.message || "Failed to load jobs");
     }
@@ -59,10 +82,13 @@ export default function DiscoverPage() {
   async function prepareApplication(job: Job) {
     setGeneratingFor(job.id);
     try {
-      // Generate tailored docs
+      const token = await getToken();
       const res = await fetch("/api/generate-tailored-docs", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           jobUrl: job.url,
           jobDescription: job.description,
@@ -71,10 +97,12 @@ export default function DiscoverPage() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
-      // Save to tracker as "prepared" (not yet applied)
-      await fetch("/api/applications", {
+      const appRes = await fetch("/api/applications", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           job_id: job.id,
           company: job.company,
@@ -87,7 +115,11 @@ export default function DiscoverPage() {
         }),
       });
 
-      // Open job in new tab to apply
+      if (!appRes.ok) {
+        const appData = await appRes.json();
+        throw new Error(appData.error || "Failed to save application");
+      }
+
       window.open(job.url, "_blank");
     } catch (err: any) {
       alert("Failed to prepare application: " + err.message);
