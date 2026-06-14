@@ -192,7 +192,12 @@ export default function DiscoverPage() {
             <p>Adzuna Configured: {lastResponse.debug.adzunaConfigured ? "Yes" : "No"}</p>
             <p>Primary Source: {lastResponse.source || "unknown"}</p>
             <p>Fallback Used: {lastResponse.fallbackUsed ? "Yes" : "No"}</p>
-            <p>Search Terms: {(lastResponse.searchTerms || []).join(", ") || "none"}</p>
+            {lastResponse.debug.adzunaError && (
+              <p className="text-red-400 mt-2">Adzuna Error: {lastResponse.debug.adzunaError}</p>
+            )}
+            {lastResponse.debug.arbeitnowError && (
+              <p className="text-red-400 mt-2">Arbeitnow Error: {lastResponse.debug.arbeitnowError}</p>
+            )}
           </div>
         )}
 
