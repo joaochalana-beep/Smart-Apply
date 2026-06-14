@@ -3,10 +3,26 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
+const COMMON_ROLES = [
+  "Compliance Officer", "AML Analyst", "KYC Specialist", "Risk Manager",
+  "Fraud Analyst", "Customer Support", "Operations Manager", "Team Lead",
+  "Trust & Safety", "Regulatory Affairs", "Data Analyst", "Project Manager",
+  "Software Engineer", "Product Manager", "Sales", "Marketing"
+];
+
+const COMMON_INDUSTRIES = [
+  "Finance", "Banking", "Fintech", "Technology", "Healthcare",
+  "E-commerce", "Consulting", "Legal", "Insurance", "Real Estate",
+  "Energy", "Telecommunications", "Gaming", "Crypto", "Government"
+];
+
 export default function ProfilePage() {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [roleInput, setRoleInput] = useState("");
+  const [industryInput, setIndustryInput] = useState("");
   const router = useRouter();
 
   useEffect(() => {
@@ -34,6 +50,7 @@ export default function ProfilePage() {
       });
       const data = await res.json();
       setProfile(data);
+      setIsEditing(false);
       alert("Profile saved!");
     } catch (err) {
       alert("Failed to save profile");
@@ -71,106 +88,177 @@ export default function ProfilePage() {
     updateField(field, JSON.stringify(items));
   }
 
-  if (loading) return <div className="min-h-screen bg-zinc-950 text-white p-10">Loading...</div>;
+  function getMultiSelect(field: string): string[] {
+    const val = profile?.[field];
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    return val.split(/[,;]/).map((s: string) => s.trim()).filter((s: string) => s.length > 0);
+  }
+
+  function addMultiSelect(field: string, value: string) {
+    const current = getMultiSelect(field);
+    if (!current.includes(value)) {
+      updateField(field, [...current, value].join("; "));
+    }
+  }
+
+  function removeMultiSelect(field: string, value: string) {
+    const current = getMultiSelect(field).filter((v: string) => v !== value);
+    updateField(field, current.join("; "));
+  }
+
+  const currency = profile?.currency || "$";
+  const currencySymbol = currency === "€" ? "€" : currency === "£" ? "£" : "$";
+  const desiredRoles = getMultiSelect("desired_role");
+  const industries = getMultiSelect("industries");
+
+  if (loading) return <div className="min-h-screen bg-zinc-950 text-white p-10 pt-24">Loading...</div>;
 
   const experience = parseJSON("experience");
   const education = parseJSON("education");
 
+  const renderField = (label: string, value: string | number, multiline?: boolean) => {
+    if (isEditing) return null;
+    return (
+      <div className="mb-4">
+        <label className="block text-xs text-zinc-500 uppercase tracking-wider mb-1">{label}</label>
+        {multiline ? (
+          <p className="text-zinc-200 text-sm whitespace-pre-wrap">{value || "—"}</p>
+        ) : (
+          <p className="text-zinc-200 text-sm">{value || "—"}</p>
+        )}
+      </div>
+    );
+  };
+
+  const renderEditInput = (label: string, field: string, type: string = "text", placeholder?: string, props?: any) => (
+    <div>
+      <label className="block text-sm text-zinc-400 mb-1">{label}</label>
+      {type === "textarea" ? (
+        <textarea
+          value={profile?.[field] || ""}
+          onChange={(e) => updateField(field, e.target.value)}
+          placeholder={placeholder}
+          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-zinc-600"
+          {...props}
+        />
+      ) : (
+        <input
+          type={type}
+          value={profile?.[field] || ""}
+          onChange={(e) => updateField(field, type === "number" ? (e.target.value ? parseInt(e.target.value) : "") : e.target.value)}
+          placeholder={placeholder}
+          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-zinc-600"
+          {...props}
+        />
+      )}
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-zinc-950 text-white p-10">
+    <div className="min-h-screen bg-zinc-950 text-white p-10 pt-24">
       <div className="max-w-3xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">Your Profile</h1>
-        
-        <div className="space-y-6">
-          {/* Basic Info */}
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm text-zinc-400 mb-1">Full Name</label>
-              <input
-                type="text"
-                value={profile?.full_name || ""}
-                onChange={(e) => updateField("full_name", e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-zinc-600"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-zinc-400 mb-1">Email</label>
-              <input
-                type="email"
-                value={profile?.email || ""}
-                onChange={(e) => updateField("email", e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-zinc-600"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-zinc-400 mb-1">Phone</label>
-              <input
-                type="text"
-                value={profile?.phone || ""}
-                onChange={(e) => updateField("phone", e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-zinc-600"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-zinc-400 mb-1">Location</label>
-              <input
-                type="text"
-                value={profile?.location || ""}
-                onChange={(e) => updateField("location", e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-zinc-600"
-              />
-            </div>
-          </div>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold">Your Profile</h1>
+          <button
+            onClick={() => isEditing ? saveProfile() : setIsEditing(true)}
+            disabled={saving}
+            className="bg-white text-zinc-900 px-5 py-2 rounded-full font-medium text-sm disabled:opacity-50 hover:bg-zinc-200 transition"
+          >
+            {saving ? "Saving..." : isEditing ? "Save Profile" : "Edit Profile"}
+          </button>
+        </div>
 
-          {/* LinkedIn */}
-          <div>
-            <label className="block text-sm text-zinc-400 mb-1">LinkedIn</label>
-            <input
-              type="text"
-              value={profile?.linkedin || ""}
-              onChange={(e) => updateField("linkedin", e.target.value)}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-zinc-600"
-            />
-          </div>
-
-          {/* Skills */}
-          <div>
-            <label className="block text-sm text-zinc-400 mb-1">Skills (comma-separated)</label>
-            <textarea
-              value={profile?.skills || ""}
-              onChange={(e) => updateField("skills", e.target.value)}
-              rows={3}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-zinc-600"
-            />
-          </div>
-
-          {/* Summary */}
-          <div>
-            <label className="block text-sm text-zinc-400 mb-1">Professional Summary</label>
-            <textarea
-              value={profile?.summary || ""}
-              onChange={(e) => updateField("summary", e.target.value)}
-              rows={4}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-zinc-600"
-            />
-          </div>
-
-          {/* Job Preferences */}
-          <div className="border border-zinc-700 rounded-lg p-6 bg-zinc-900/50">
-            <h2 className="text-lg font-semibold mb-4 text-white">Job Preferences</h2>
-            <p className="text-zinc-400 text-sm mb-4">These help us find the best matching jobs for you.</p>
-            
+        <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 mb-6">
+          <h2 className="text-lg font-semibold mb-4 text-white">Basic Information</h2>
+          {isEditing ? (
             <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm text-zinc-400 mb-1">Desired Role</label>
-                <input
-                  type="text"
-                  value={profile?.desired_role || ""}
-                  onChange={(e) => updateField("desired_role", e.target.value)}
-                  placeholder="e.g. Software Engineer"
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-zinc-600"
-                />
+              {renderEditInput("Full Name", "full_name")}
+              {renderEditInput("Email", "email", "email")}
+              {renderEditInput("Phone", "phone")}
+              {renderEditInput("Location", "location")}
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-4">
+              {renderField("Full Name", profile?.full_name)}
+              {renderField("Email", profile?.email)}
+              {renderField("Phone", profile?.phone)}
+              {renderField("Location", profile?.location)}
+            </div>
+          )}
+          <div className="mt-4">
+            {isEditing ? renderEditInput("LinkedIn", "linkedin") : renderField("LinkedIn", profile?.linkedin)}
+          </div>
+        </div>
+
+        <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 mb-6">
+          <h2 className="text-lg font-semibold mb-4 text-white">About</h2>
+          {isEditing ? (
+            <>
+              <div className="mb-4">
+                {renderEditInput("Skills (comma-separated)", "skills", "textarea", undefined, { rows: 3 })}
               </div>
+              <div>
+                {renderEditInput("Professional Summary", "summary", "textarea", undefined, { rows: 4 })}
+              </div>
+            </>
+          ) : (
+            <>
+              {renderField("Skills", profile?.skills)}
+              {renderField("Professional Summary", profile?.summary, true)}
+            </>
+          )}
+        </div>
+
+        <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 mb-6">
+          <h2 className="text-lg font-semibold mb-4 text-white">Job Preferences</h2>
+          <p className="text-zinc-400 text-sm mb-4">These help us find the best matching jobs for you.</p>
+          
+          {isEditing ? (
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className="block text-sm text-zinc-400 mb-1">Desired Roles</label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {desiredRoles.map((role: string) => (
+                    <span key={role} className="bg-zinc-800 text-zinc-200 text-xs px-3 py-1 rounded-full flex items-center gap-2">
+                      {role}
+                      <button onClick={() => removeMultiSelect("desired_role", role)} className="text-zinc-500 hover:text-red-400">×</button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <select
+                    value={roleInput}
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        addMultiSelect("desired_role", e.target.value);
+                        setRoleInput("");
+                      }
+                    }}
+                    className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-zinc-600"
+                  >
+                    <option value="">Select a role...</option>
+                    {COMMON_ROLES.filter(r => !desiredRoles.includes(r)).map(r => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    value={roleInput}
+                    onChange={(e) => setRoleInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && roleInput.trim()) {
+                        e.preventDefault();
+                        addMultiSelect("desired_role", roleInput.trim());
+                        setRoleInput("");
+                      }
+                    }}
+                    placeholder="Or type & hit Enter"
+                    className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-zinc-600"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm text-zinc-400 mb-1">Experience Level</label>
                 <select
@@ -185,8 +273,22 @@ export default function ProfilePage() {
                   <option value="executive">Executive</option>
                 </select>
               </div>
+
               <div>
-                <label className="block text-sm text-zinc-400 mb-1">Min Salary ($)</label>
+                <label className="block text-sm text-zinc-400 mb-1">Currency</label>
+                <select
+                  value={currency}
+                  onChange={(e) => updateField("currency", e.target.value)}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-zinc-600"
+                >
+                  <option value="$">USD ($)</option>
+                  <option value="€">EUR (€)</option>
+                  <option value="£">GBP (£)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm text-zinc-400 mb-1">Min Salary ({currencySymbol})</label>
                 <input
                   type="number"
                   value={profile?.desired_salary_min || ""}
@@ -196,7 +298,7 @@ export default function ProfilePage() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-zinc-400 mb-1">Max Salary ($)</label>
+                <label className="block text-sm text-zinc-400 mb-1">Max Salary ({currencySymbol})</label>
                 <input
                   type="number"
                   value={profile?.desired_salary_max || ""}
@@ -205,6 +307,7 @@ export default function ProfilePage() {
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-zinc-600"
                 />
               </div>
+
               <div>
                 <label className="block text-sm text-zinc-400 mb-1">Desired Location</label>
                 <input
@@ -215,6 +318,7 @@ export default function ProfilePage() {
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-zinc-600"
                 />
               </div>
+
               <div>
                 <label className="block text-sm text-zinc-400 mb-1">Work Type</label>
                 <select
@@ -228,6 +332,7 @@ export default function ProfilePage() {
                   <option value="onsite">On-site</option>
                 </select>
               </div>
+
               <div>
                 <label className="block text-sm text-zinc-400 mb-1">Job Type</label>
                 <select
@@ -242,140 +347,230 @@ export default function ProfilePage() {
                   <option value="internship">Internship</option>
                 </select>
               </div>
-              <div>
+
+              <div className="md:col-span-2">
                 <label className="block text-sm text-zinc-400 mb-1">Industries</label>
-                <input
-                  type="text"
-                  value={profile?.industries || ""}
-                  onChange={(e) => updateField("industries", e.target.value)}
-                  placeholder="e.g. Tech, Finance, Healthcare"
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-zinc-600"
-                />
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {industries.map((ind: string) => (
+                    <span key={ind} className="bg-zinc-800 text-zinc-200 text-xs px-3 py-1 rounded-full flex items-center gap-2">
+                      {ind}
+                      <button onClick={() => removeMultiSelect("industries", ind)} className="text-zinc-500 hover:text-red-400">×</button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <select
+                    value={industryInput}
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        addMultiSelect("industries", e.target.value);
+                        setIndustryInput("");
+                      }
+                    }}
+                    className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-zinc-600"
+                  >
+                    <option value="">Select an industry...</option>
+                    {COMMON_INDUSTRIES.filter(i => !industries.includes(i)).map(i => (
+                      <option key={i} value={i}>{i}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    value={industryInput}
+                    onChange={(e) => setIndustryInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && industryInput.trim()) {
+                        e.preventDefault();
+                        addMultiSelect("industries", industryInput.trim());
+                        setIndustryInput("");
+                      }
+                    }}
+                    placeholder="Or type & hit Enter"
+                    className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-zinc-600"
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-4">
+              {renderField("Desired Roles", desiredRoles.join(", "))}
+              {renderField("Experience Level", profile?.experience_level)}
+              {renderField("Currency", currency)}
+              {renderField("Salary Range", profile?.desired_salary_min && profile?.desired_salary_max 
+                ? `${currencySymbol}${profile.desired_salary_min.toLocaleString()} - ${currencySymbol}${profile.desired_salary_max.toLocaleString()}`
+                : profile?.desired_salary_min ? `${currencySymbol}${profile.desired_salary_min.toLocaleString()}+` : "—"
+              )}
+              {renderField("Desired Location", profile?.desired_location)}
+              {renderField("Work Type", profile?.work_type)}
+              {renderField("Job Type", profile?.job_type)}
+              {renderField("Industries", industries.join(", "))}
+            </div>
+          )}
+        </div>
 
-          {/* Experience */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <label className="text-sm text-zinc-400">Experience</label>
+        <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-white">Experience</h2>
+            {isEditing && (
               <button
                 onClick={() => addJSONItem("experience", { company: "", role: "", duration: "", description: "" })}
                 className="text-sm bg-zinc-800 text-white px-3 py-1 rounded hover:bg-zinc-700 transition"
               >
                 + Add Experience
               </button>
-            </div>
-            <div className="space-y-4">
-              {experience.map((exp: any, i: number) => (
-                <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                  <div className="grid md:grid-cols-2 gap-3 mb-3">
-                    <input
-                      placeholder="Company"
-                      value={exp.company || ""}
-                      onChange={(e) => updateJSONField("experience", i, "company", e.target.value)}
-                      className="bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-white text-sm"
-                    />
-                    <input
-                      placeholder="Role"
-                      value={exp.role || ""}
-                      onChange={(e) => updateJSONField("experience", i, "role", e.target.value)}
-                      className="bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-white text-sm"
-                    />
-                    <input
-                      placeholder="Duration (e.g., Jan 2020 - Dec 2022)"
-                      value={exp.duration || ""}
-                      onChange={(e) => updateJSONField("experience", i, "duration", e.target.value)}
-                      className="bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-white text-sm md:col-span-2"
-                    />
-                  </div>
-                  <textarea
-                    placeholder="Description"
-                    value={exp.description || ""}
-                    onChange={(e) => updateJSONField("experience", i, "description", e.target.value)}
-                    rows={3}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-white text-sm mb-2"
-                  />
-                  <button
-                    onClick={() => removeJSONItem("experience", i)}
-                    className="text-sm text-red-400 hover:text-red-300 transition"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-            </div>
+            )}
           </div>
+          <div className="space-y-4">
+            {experience.map((exp: any, i: number) => (
+              <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                {isEditing ? (
+                  <>
+                    <div className="grid md:grid-cols-2 gap-3 mb-3">
+                      <input
+                        placeholder="Company"
+                        value={exp.company || ""}
+                        onChange={(e) => updateJSONField("experience", i, "company", e.target.value)}
+                        className="bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-white text-sm"
+                      />
+                      <input
+                        placeholder="Role"
+                        value={exp.role || ""}
+                        onChange={(e) => updateJSONField("experience", i, "role", e.target.value)}
+                        className="bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-white text-sm"
+                      />
+                      <input
+                        placeholder="Duration (e.g., Jan 2020 - Dec 2022)"
+                        value={exp.duration || ""}
+                        onChange={(e) => updateJSONField("experience", i, "duration", e.target.value)}
+                        className="bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-white text-sm md:col-span-2"
+                      />
+                    </div>
+                    <textarea
+                      placeholder="Description"
+                      value={exp.description || ""}
+                      onChange={(e) => updateJSONField("experience", i, "description", e.target.value)}
+                      rows={3}
+                      className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-white text-sm mb-2"
+                    />
+                    <button
+                      onClick={() => removeJSONItem("experience", i)}
+                      className="text-sm text-red-400 hover:text-red-300 transition"
+                    >
+                      Remove
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between items-start mb-1">
+                      <h3 className="font-medium text-white">{exp.role || "Untitled Role"}</h3>
+                      <span className="text-zinc-500 text-sm">{exp.duration}</span>
+                    </div>
+                    <p className="text-zinc-400 text-sm mb-2">{exp.company}</p>
+                    <p className="text-zinc-300 text-sm whitespace-pre-wrap">{exp.description}</p>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
 
-          {/* Education */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <label className="text-sm text-zinc-400">Education</label>
+        <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-white">Education</h2>
+            {isEditing && (
               <button
                 onClick={() => addJSONItem("education", { school: "", degree: "", year: "" })}
                 className="text-sm bg-zinc-800 text-white px-3 py-1 rounded hover:bg-zinc-700 transition"
               >
                 + Add Education
               </button>
-            </div>
-            <div className="space-y-4">
-              {education.map((edu: any, i: number) => (
-                <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                  <div className="grid md:grid-cols-2 gap-3">
-                    <input
-                      placeholder="School"
-                      value={edu.school || ""}
-                      onChange={(e) => updateJSONField("education", i, "school", e.target.value)}
-                      className="bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-white text-sm"
-                    />
-                    <input
-                      placeholder="Degree"
-                      value={edu.degree || ""}
-                      onChange={(e) => updateJSONField("education", i, "degree", e.target.value)}
-                      className="bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-white text-sm"
-                    />
-                    <input
-                      placeholder="Year"
-                      value={edu.year || ""}
-                      onChange={(e) => updateJSONField("education", i, "year", e.target.value)}
-                      className="bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-white text-sm md:col-span-2"
-                    />
-                  </div>
-                  <button
-                    onClick={() => removeJSONItem("education", i)}
-                    className="text-sm text-red-400 hover:text-red-300 transition mt-2"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-            </div>
+            )}
+          </div>
+          <div className="space-y-4">
+            {education.map((edu: any, i: number) => (
+              <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                {isEditing ? (
+                  <>
+                    <div className="grid md:grid-cols-2 gap-3">
+                      <input
+                        placeholder="School"
+                        value={edu.school || ""}
+                        onChange={(e) => updateJSONField("education", i, "school", e.target.value)}
+                        className="bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-white text-sm"
+                      />
+                      <input
+                        placeholder="Degree"
+                        value={edu.degree || ""}
+                        onChange={(e) => updateJSONField("education", i, "degree", e.target.value)}
+                        className="bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-white text-sm"
+                      />
+                      <input
+                        placeholder="Year"
+                        value={edu.year || ""}
+                        onChange={(e) => updateJSONField("education", i, "year", e.target.value)}
+                        className="bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-white text-sm md:col-span-2"
+                      />
+                    </div>
+                    <button
+                      onClick={() => removeJSONItem("education", i)}
+                      className="text-sm text-red-400 hover:text-red-300 transition mt-2"
+                    >
+                      Remove
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between items-start">
+                      <h3 className="font-medium text-white">{edu.degree || "Untitled Degree"}</h3>
+                      <span className="text-zinc-500 text-sm">{edu.year}</span>
+                    </div>
+                    <p className="text-zinc-400 text-sm">{edu.school}</p>
+                  </>
+                )}
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-4 mt-8">
-          <button
-            onClick={saveProfile}
-            disabled={saving}
-            className="bg-white text-zinc-900 px-6 py-3 rounded-full font-medium disabled:opacity-50 hover:bg-zinc-200 transition"
-          >
-            {saving ? "Saving..." : "Save Profile"}
-          </button>
-          
-          <button
-            onClick={() => router.push("/upload-cv")}
-            className="bg-zinc-800 text-white px-6 py-3 rounded-full font-medium hover:bg-zinc-700 transition"
-          >
-            Re-upload CV
-          </button>
-          
-          <button
-            onClick={() => router.push("/discover")}
-            className="bg-zinc-800 text-white px-6 py-3 rounded-full font-medium hover:bg-zinc-700 transition"
-          >
-            Discover Jobs →
-          </button>
+        <div className="flex gap-4">
+          {isEditing ? (
+            <>
+              <button
+                onClick={saveProfile}
+                disabled={saving}
+                className="bg-white text-zinc-900 px-6 py-3 rounded-full font-medium disabled:opacity-50 hover:bg-zinc-200 transition"
+              >
+                {saving ? "Saving..." : "Save Profile"}
+              </button>
+              <button
+                onClick={() => setIsEditing(false)}
+                className="bg-zinc-800 text-white px-6 py-3 rounded-full font-medium hover:bg-zinc-700 transition"
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setIsEditing(true)}
+                className="bg-white text-zinc-900 px-6 py-3 rounded-full font-medium hover:bg-zinc-200 transition"
+              >
+                Edit Profile
+              </button>
+              <button
+                onClick={() => router.push("/upload-cv")}
+                className="bg-zinc-800 text-white px-6 py-3 rounded-full font-medium hover:bg-zinc-700 transition"
+              >
+                Re-upload CV
+              </button>
+              <button
+                onClick={() => router.push("/discover")}
+                className="bg-zinc-800 text-white px-6 py-3 rounded-full font-medium hover:bg-zinc-700 transition"
+              >
+                Discover Jobs →
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
