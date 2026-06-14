@@ -2,7 +2,6 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 
-const JSEARCH_API_KEY = process.env.JSEARCH_API_KEY;
 const ADZUNA_APP_ID = process.env.ADZUNA_APP_ID;
 const ADZUNA_APP_KEY = process.env.ADZUNA_APP_KEY;
 
@@ -10,13 +9,8 @@ export async function GET() {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  if (!JSEARCH_API_KEY) {
-    return NextResponse.json({ error: "JSearch API key not configured" }, { status: 500 });
-  }
-
   const supabase = await createClient();
 
-  // Fetch user profile
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("*")
@@ -40,23 +34,22 @@ export async function GET() {
     }, { status: 400 });
   }
 
-  // Build search term from desired roles or skills
   const searchTerms = getSearchTerms(profile);
-  const location = (profile.desired_location || "").toLowerCase();
+  const location = (profile.desired_location || "").toLowerCase().trim().replace(/\s+/g, " ");
   const isRemote = location.includes("remote") || (profile.work_type || "").toLowerCase() === "remote";
 
   let allJobs: any[] = [];
-  let primarySource = "jsearch";
+  let primarySource = "arbeitnow";
   let fallbackUsed = false;
 
-  // ── PRIMARY: JSearch ──
+  // ── PRIMARY: Arbeitnow (EU, free, no API key) ──
   try {
-    const jsearchJobs = await fetchJSearch(searchTerms, location, isRemote, profile);
-    allJobs = jsearchJobs;
+    const arbeitnowJobs = await fetchArbeitnow(searchTerms, location, isRemote);
+    allJobs = arbeitnowJobs;
   } catch (err: any) {
-    console.error("JSearch failed:", err.message);
+    console.error("Arbeitnow failed:", err.message);
     
-    // ── FALLBACK: Adzuna ──
+    // ── FALLBACK: Adzuna (UK/EU) ──
     if (ADZUNA_APP_ID && ADZUNA_APP_KEY) {
       try {
         const adzunaJobs = await fetchAdzuna(searchTerms, location, isRemote, profile);
@@ -67,13 +60,12 @@ export async function GET() {
         console.error("Adzuna fallback also failed:", adzunaErr.message);
         return NextResponse.json({
           error: "Both job sources failed",
-          details: `JSearch: ${err.message}, Adzuna: ${adzunaErr.message}`,
-          suggestion: "Try again in a few minutes.",
+          details: `Arbeitnow: ${err.message}, Adzuna: ${adzunaErr.message}`,
         }, { status: 502 });
       }
     } else {
       return NextResponse.json({
-        error: "JSearch failed and no Adzuna fallback configured",
+        error: "Arbeitnow failed and no Adzuna fallback configured",
         details: err.message,
       }, { status: 502 });
     }
@@ -83,50 +75,39 @@ export async function GET() {
     return NextResponse.json({
       jobs: [],
       count: 0,
-      message: `No jobs found for "${searchTerms.join(", ")}"${location ? ` in ${location}` : ""}. Try broadening your search terms in Profile.`,
+      message: `No jobs found for "${searchTerms.join(", ")}"${location ? ` near ${location}` : ""}. Try broadening your search terms in Profile.`,
       searchTerms,
       source: primarySource,
       fallbackUsed,
     });
   }
 
-  // Score and normalize all jobs
   const scoredJobs = allJobs.map((job) => {
     const score = calculateMatchScore(job, profile);
     return {
-      id: `${primarySource}_${job.id || job.job_id}`,
-      title: job.job_title || job.title || "Unknown Role",
-      company: job.employer_name || job.company || job.company_name || "Unknown Company",
-      location: job.job_city && job.job_country 
-        ? `${job.job_city}, ${job.job_country}` 
-        : job.location || job.job_location || location || "Unknown",
-      description: job.job_description || job.description || "",
-      salary_min: job.job_min_salary || job.salary_min || null,
-      salary_max: job.job_max_salary || job.salary_max || null,
-      salary: formatSalary(
-        job.job_min_salary || job.salary_min,
-        job.job_max_salary || job.salary_max,
-        job.job_salary_currency
-      ),
-      url: job.job_apply_link || job.job_google_link || job.redirect_url || job.url || "",
-      contract_type: job.job_employment_type || job.contract_type || "",
-      contract_time: job.job_employment_type || job.contract_time || "",
-      category: job.job_category || job.category || "",
-      date_posted: job.job_posted_at_datetime_utc || job.date_posted || job.created_at || new Date().toISOString(),
+      id: `${primarySource}_${job.slug || job.id}`,
+      title: job.title || "Unknown Role",
+      company: job.company_name || job.company?.display_name || "Unknown Company",
+      location: job.location || (job.job_city && job.job_country ? `${job.job_city}, ${job.job_country}` : "Unknown"),
+      description: stripHtml(job.description || ""),
+      salary_min: null,
+      salary_max: null,
+      salary: "Not specified",
+      url: job.url || job.redirect_url || "",
+      contract_type: job.job_types?.join(", ") || job.contract_type || "",
+      contract_time: job.job_types?.join(", ") || job.contract_time || "",
+      category: job.tags?.join(", ") || job.category?.label || "",
+      date_posted: new Date((job.created_at || 0) * 1000).toISOString(),
       match_score: score,
-      work_type: mapWorkType(job.job_employment_type || job.contract_time),
-      job_type: mapJobType(job.job_employment_type || job.contract_type),
-      experience_level: inferExperienceLevel(
-        job.job_title || job.title || "",
-        job.job_description || job.description || ""
-      ),
+      work_type: isRemote || job.remote ? "remote" : mapWorkType(job.job_types?.join(", ") || ""),
+      job_type: mapJobType(job.job_types?.join(", ") || job.contract_type || ""),
+      experience_level: inferExperienceLevel(job.title || "", stripHtml(job.description || "")),
       source: primarySource,
     };
   });
 
   scoredJobs.sort((a, b) => b.match_score - a.match_score);
 
-  // Save to DB
   const jobsToUpsert = scoredJobs.map((job) => ({
     user_id: userId,
     company: job.company,
@@ -147,9 +128,7 @@ export async function GET() {
     .from("jobs")
     .upsert(jobsToUpsert, { onConflict: "user_id,url" });
 
-  if (upsertError) {
-    console.error("Upsert error:", upsertError);
-  }
+  if (upsertError) console.error("Upsert error:", upsertError);
 
   return NextResponse.json({
     jobs: scoredJobs,
@@ -160,64 +139,34 @@ export async function GET() {
   });
 }
 
-// ── JSearch fetcher ──
-async function fetchJSearch(searchTerms: string[], location: string, isRemote: boolean, profile: any) {
-  const query = searchTerms.join(" OR ");
+// ── Arbeitnow fetcher (EU, free, no API key) ──
+async function fetchArbeitnow(searchTerms: string[], location: string, isRemote: boolean) {
+  const query = searchTerms.join(" ");
   
-  // JSearch uses country codes: us, uk, ca, au, de, fr, es, it, pt, nl, etc.
-  let country = "";
-  const loc = location.toLowerCase();
-  
-  if (isRemote) {
-    country = ""; // Remote searches don't need country
-  } else if (loc.includes("portugal") || loc.includes("lisbon") || loc.includes("cascais") || loc.includes("porto")) {
-    country = "pt";
-  } else if (loc.includes("spain") || loc.includes("madrid") || loc.includes("barcelona")) {
-    country = "es";
-  } else if (loc.includes("france") || loc.includes("paris") || loc.includes("lyon")) {
-    country = "fr";
-  } else if (loc.includes("germany") || loc.includes("berlin") || loc.includes("munich")) {
-    country = "de";
-  } else if (loc.includes("netherlands") || loc.includes("amsterdam")) {
-    country = "nl";
-  } else if (loc.includes("italy") || loc.includes("milan") || loc.includes("rome")) {
-    country = "it";
-  } else if (loc.includes("ireland") || loc.includes("dublin")) {
-    country = "ie";
-  } else if (loc.includes("uk") || loc.includes("london") || loc.includes("england")) {
-    country = "uk";
-  } else if (loc.includes("usa") || loc.includes("america") || loc.includes("new york")) {
-    country = "us";
+  // Build location filter
+  let locationParam = "";
+  if (!isRemote && location && !location.includes("europe") && !location.includes("eu")) {
+    locationParam = `&location=${encodeURIComponent(location)}`;
   }
 
-  const params = new URLSearchParams({
-    query: isRemote ? `${query} remote` : query,
-    page: "1",
-    num_pages: "1",
-  });
-
-  if (country) {
-    params.append("country", country);
-  }
-
-  // JSearch RapidAPI endpoint
-  const url = `https://jsearch.p.rapidapi.com/search?${params.toString()}`;
+  const remoteParam = isRemote ? "&remote=true" : "";
+  
+  const url = `https://www.arbeitnow.com/api/job-board-api?search=${encodeURIComponent(query)}${locationParam}${remoteParam}&page=1`;
+  console.log("Arbeitnow URL:", url);
 
   const res = await fetch(url, {
-    method: "GET",
-    headers: {
-      "X-RapidAPI-Key": JSEARCH_API_KEY!,
-      "X-RapidAPI-Host": "jsearch.p.rapidapi.com",
-    },
+    headers: { Accept: "application/json" },
   });
 
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(`JSearch API ${res.status}: ${errorText.slice(0, 200)}`);
+    throw new Error(`Arbeitnow API ${res.status}: ${errorText.slice(0, 200)}`);
   }
 
   const data = await res.json();
-  return data.data || []; // JSearch returns { data: [...] }
+  console.log("Arbeitnow returned:", data.data?.length || 0, "jobs");
+  
+  return data.data || [];
 }
 
 // ── Adzuna fallback fetcher ──
@@ -226,13 +175,31 @@ async function fetchAdzuna(searchTerms: string[], location: string, isRemote: bo
     throw new Error("Adzuna credentials not configured");
   }
 
-  const searchTerm = searchTerms[0]; // Adzuna uses single search term
-  const loc = location.toLowerCase();
-  let country = "gb";
+  const searchTerm = searchTerms[0];
   
-  if (loc.includes("usa") || loc.includes("united states")) country = "us";
-  else if (loc.includes("germany") || loc.includes("berlin")) country = "de";
-  else if (loc.includes("france") || loc.includes("paris")) country = "fr";
+  const countryMap: Record<string, string> = {
+    portugal: "pt", lisbon: "pt", porto: "pt", cascais: "pt", braga: "pt",
+    spain: "es", madrid: "es", barcelona: "es",
+    france: "fr", paris: "fr", lyon: "fr",
+    germany: "de", berlin: "de", munich: "de", hamburg: "de", frankfurt: "de",
+    netherlands: "nl", amsterdam: "nl",
+    italy: "it", milan: "it", rome: "it",
+    ireland: "ie", dublin: "ie",
+    uk: "gb", "united kingdom": "gb", london: "gb", england: "gb",
+    belgium: "be", austria: "at", switzerland: "ch",
+  };
+
+  let country = "gb";
+  for (const [key, code] of Object.entries(countryMap)) {
+    if (location.includes(key)) {
+      country = code;
+      break;
+    }
+  }
+
+  if (location.includes("europe") || location.includes("eu")) {
+    country = "gb";
+  }
 
   const params = new URLSearchParams({
     app_id: ADZUNA_APP_ID,
@@ -242,13 +209,19 @@ async function fetchAdzuna(searchTerms: string[], location: string, isRemote: bo
     max_days_old: "7",
   });
 
-  if (searchTerm) params.append("what", isRemote ? `${searchTerm} remote` : searchTerm);
-  if (location && !isRemote) params.append("where", location);
+  if (searchTerm) {
+    params.append("what", isRemote ? `${searchTerm} remote` : searchTerm);
+  }
+
+  if (location && !isRemote && !location.includes("europe") && !location.includes("eu")) {
+    params.append("where", location);
+  }
 
   const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/1?${params.toString()}`;
+  console.log("Adzuna URL:", url);
 
   const res = await fetch(url, { headers: { Accept: "application/json" } });
-  
+
   if (!res.ok) {
     const errorText = await res.text();
     throw new Error(`Adzuna API ${res.status}: ${errorText.slice(0, 200)}`);
@@ -262,15 +235,12 @@ async function fetchAdzuna(searchTerms: string[], location: string, isRemote: bo
 
 function getSearchTerms(profile: any): string[] {
   const terms: string[] = [];
-  
-  // Add desired roles
   const roles = (profile.desired_role || "")
     .split(/[,;]/)
     .map((s: string) => s.trim())
     .filter((s: string) => s.length > 0);
   terms.push(...roles);
   
-  // If no roles, use first skill
   if (terms.length === 0) {
     const skills = (profile.skills || "")
       .split(",")
@@ -282,24 +252,19 @@ function getSearchTerms(profile: any): string[] {
   return terms.length > 0 ? terms : ["jobs"];
 }
 
-function formatSalary(min: number | null, max: number | null, currency?: string): string {
-  const sym = currency === "EUR" ? "€" : currency === "GBP" ? "£" : "$";
-  if (!min && !max) return "Not specified";
-  if (min && !max) return `${sym}${Math.round(min / 1000)}k+`;
-  if (!min && max) return `${sym}Up to ${Math.round(max / 1000)}k`;
-  return `${sym}${Math.round(min! / 1000)}k - ${sym}${Math.round(max! / 1000)}k`;
+function stripHtml(html: string): string {
+  if (!html) return "";
+  return html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&\w+;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function calculateMatchScore(job: any, profile: any): number {
   let score = 0;
-
-  const profileSkills = (profile.skills || "")
-    .toLowerCase()
-    .split(",")
-    .map((s: string) => s.trim())
-    .filter((s: string) => s.length > 0);
-
-  const jobText = `${job.job_title || job.title || ""} ${job.job_description || job.description || ""}`.toLowerCase();
+  const profileSkills = (profile.skills || "").toLowerCase().split(",").map((s: string) => s.trim()).filter((s: string) => s.length > 0);
+  const jobText = `${job.title || ""} ${stripHtml(job.description || "")} ${job.tags?.join(" ") || ""}`.toLowerCase();
 
   if (profileSkills.length > 0) {
     const matched = profileSkills.filter((skill: string) => jobText.includes(skill));
@@ -309,51 +274,28 @@ function calculateMatchScore(job: any, profile: any): number {
   }
 
   const desiredLoc = (profile.desired_location || "").toLowerCase();
-  const jobLoc = (job.job_city || job.location || "").toLowerCase();
+  const jobLoc = (job.location || "").toLowerCase();
   if (desiredLoc) {
-    if (jobLoc.includes(desiredLoc) || desiredLoc.includes(jobLoc)) {
-      score += 20;
-    } else if (desiredLoc.includes("remote") && jobText.includes("remote")) {
-      score += 20;
-    } else if (jobText.includes("remote")) {
-      score += 10;
-    }
+    if (jobLoc.includes(desiredLoc) || desiredLoc.includes(jobLoc)) score += 20;
+    else if (desiredLoc.includes("remote") && (job.remote || jobText.includes("remote"))) score += 20;
+    else if (jobText.includes("remote")) score += 10;
   } else {
     score += 10;
   }
 
   const profileWorkType = (profile.work_type || "").toLowerCase();
-  const jobWorkType = mapWorkType(job.job_employment_type || "").toLowerCase();
-  if (!profileWorkType || profileWorkType === "any") {
-    score += 15;
-  } else if (profileWorkType === jobWorkType) {
-    score += 15;
-  } else if (jobText.includes(profileWorkType)) {
-    score += 10;
-  }
+  if (!profileWorkType || profileWorkType === "any") score += 15;
+  else if (profileWorkType === "remote" && job.remote) score += 15;
+  else if (jobText.includes(profileWorkType)) score += 10;
 
   const profileExp = (profile.experience_level || "").toLowerCase();
-  const inferredExp = inferExperienceLevel(
-    job.job_title || job.title || "",
-    job.job_description || job.description || ""
-  ).toLowerCase();
-  if (!profileExp || profileExp === inferredExp) {
-    score += 10;
-  } else if (
-    (profileExp === "senior" && inferredExp === "mid") ||
-    (profileExp === "mid" && inferredExp === "entry")
-  ) {
-    score += 5;
-  }
+  const inferredExp = inferExperienceLevel(job.title || "", stripHtml(job.description || "")).toLowerCase();
+  if (!profileExp || profileExp === inferredExp) score += 10;
+  else if ((profileExp === "senior" && inferredExp === "mid") || (profileExp === "mid" && inferredExp === "entry")) score += 5;
 
   const minDesired = profile.desired_salary_min;
-  const jobMax = job.job_max_salary || job.salary_max;
-  if (minDesired && jobMax) {
-    if (jobMax >= minDesired) {
-      score += 10;
-    } else if (jobMax >= minDesired * 0.8) {
-      score += 5;
-    }
+  if (minDesired) {
+    score += 5;
   } else {
     score += 5;
   }
@@ -381,14 +323,8 @@ function mapJobType(contractType: string): string {
 
 function inferExperienceLevel(title: string, description: string): string {
   const text = `${title} ${description}`.toLowerCase();
-  if (text.includes("senior") || text.includes("sr.") || text.includes("lead") || text.includes("principal") || text.includes("manager")) {
-    return "senior";
-  }
-  if (text.includes("mid") || text.includes("intermediate") || text.includes("ii") || text.includes("2") || text.includes("analyst")) {
-    return "mid";
-  }
-  if (text.includes("junior") || text.includes("jr.") || text.includes("entry") || text.includes("graduate") || text.includes("intern") || text.includes("trainee")) {
-    return "entry";
-  }
+  if (text.includes("senior") || text.includes("sr.") || text.includes("lead") || text.includes("principal") || text.includes("manager") || text.includes("director")) return "senior";
+  if (text.includes("mid") || text.includes("intermediate") || text.includes("ii") || text.includes("2") || text.includes("analyst")) return "mid";
+  if (text.includes("junior") || text.includes("jr.") || text.includes("entry") || text.includes("graduate") || text.includes("intern") || text.includes("trainee")) return "entry";
   return "mid";
 }
