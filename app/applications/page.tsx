@@ -49,6 +49,22 @@ export default function ApplicationsPage() {
     }
   }
 
+  function downloadTxt(content: string, filename: string) {
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  function sanitizeFilename(name: string): string {
+    return name.replace(/[^a-z0-9]/gi, "_").substring(0, 50);
+  }
+
   const statusColors: Record<string, string> = {
     prepared: "bg-amber-900/50 text-amber-400",
     sent: "bg-blue-900/50 text-blue-400",
@@ -168,7 +184,7 @@ export default function ApplicationsPage() {
                   )}
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   {app.status === "prepared" ? (
                     <button
                       onClick={() => updateStatus(app.id, "sent")}
@@ -192,25 +208,29 @@ export default function ApplicationsPage() {
 
                   {app.resume_text && (
                     <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(app.resume_text);
-                        alert("Resume copied to clipboard!");
-                      }}
+                      onClick={() =>
+                        downloadTxt(
+                          app.resume_text,
+                          `${sanitizeFilename(app.company || "Company")}_${sanitizeFilename(app.role || "Role")}_Resume.txt`
+                        )
+                      }
                       className="text-sm bg-zinc-800 text-white px-3 py-2 rounded-lg hover:bg-zinc-700 transition"
                     >
-                      Copy Resume
+                      ⬇ Resume
                     </button>
                   )}
 
                   {app.cover_letter && (
                     <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(app.cover_letter);
-                        alert("Cover letter copied to clipboard!");
-                      }}
+                      onClick={() =>
+                        downloadTxt(
+                          app.cover_letter,
+                          `${sanitizeFilename(app.company || "Company")}_${sanitizeFilename(app.role || "Role")}_Cover_Letter.txt`
+                        )
+                      }
                       className="text-sm bg-zinc-800 text-white px-3 py-2 rounded-lg hover:bg-zinc-700 transition"
                     >
-                      Copy Cover Letter
+                      ⬇ Cover Letter
                     </button>
                   )}
 
