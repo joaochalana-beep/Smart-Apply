@@ -10,12 +10,12 @@ export function AuthNav() {
   }
 
   if (isSignedIn) {
-    return <UserButton afterSignOutUrl="/" />;
+    return <UserButton />;
   }
 
   return (
     <SignInButton mode="modal">
-      <button className="text-sm font-medium text-zinc-900 hover:text-zinc-600 transition-colors">
+      <button className="bg-zinc-900 text-white px-5 py-2 rounded-full text-sm font-medium hover:bg-zinc-800 transition-colors">
         Sign In
       </button>
     </SignInButton>
