@@ -22,6 +22,7 @@ export default function DiscoverPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
   const router = useRouter();
 
@@ -30,10 +31,24 @@ export default function DiscoverPage() {
   }, []);
 
   async function fetchJobs() {
+    setLoading(true);
+    setError("");
+    setProfileError(null);
+
     try {
       const res = await fetch("/api/discover");
       const data = await res.json();
-      if (data.error) throw new Error(data.error);
+
+      if (!res.ok) {
+        if (data.needsProfileUpdate) {
+          setProfileError(data.message || "Please complete your profile to discover jobs.");
+          setJobs([]);
+          setLoading(false);
+          return;
+        }
+        throw new Error(data.error || data.message || "Failed to load jobs");
+      }
+
       setJobs(data.jobs || []);
     } catch (err: any) {
       setError(err.message || "Failed to load jobs");
@@ -103,9 +118,9 @@ export default function DiscoverPage() {
           <div>
             <h1 className="text-3xl font-bold mb-2">Discover Jobs</h1>
             <p className="text-zinc-400">
-              {jobs.length > 0 
-                ? `Found ${jobs.length} jobs matching your profile` 
-                : "No jobs found. Update your profile preferences to see more results."}
+              {jobs.length > 0
+                ? `Found ${jobs.length} jobs matching your profile`
+                : "Find jobs that match your skills and preferences"}
             </p>
           </div>
           <button
@@ -117,7 +132,19 @@ export default function DiscoverPage() {
           </button>
         </div>
 
-        {error && (
+        {profileError && (
+          <div className="bg-amber-900/50 border border-amber-800 rounded-lg p-6 text-amber-400 mb-6">
+            <p className="font-medium mb-3">{profileError}</p>
+            <button
+              onClick={() => router.push("/profile")}
+              className="bg-amber-700 text-white px-5 py-2 rounded-full text-sm font-medium hover:bg-amber-600 transition"
+            >
+              Complete Your Profile →
+            </button>
+          </div>
+        )}
+
+        {error && !profileError && (
           <div className="bg-red-900/50 border border-red-800 rounded-lg p-4 text-red-400 mb-6">
             {error}
           </div>
@@ -141,7 +168,7 @@ export default function DiscoverPage() {
                     {job.company} • {job.location}
                   </p>
                   <div className="flex flex-wrap gap-2 mb-3">
-                    {job.salary && job.salary !== "Predicted" && (
+                    {job.salary && job.salary !== "Not specified" && (
                       <span className="bg-zinc-800 text-zinc-300 text-xs px-2 py-1 rounded">
                         {job.salary}
                       </span>
@@ -194,7 +221,7 @@ export default function DiscoverPage() {
           ))}
         </div>
 
-        {jobs.length === 0 && !error && (
+        {jobs.length === 0 && !error && !profileError && (
           <div className="text-center py-20">
             <p className="text-zinc-500 mb-4">No jobs found matching your preferences.</p>
             <button

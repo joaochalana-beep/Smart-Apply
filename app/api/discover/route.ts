@@ -28,51 +28,106 @@ export async function GET() {
     return NextResponse.json({ error: "No profile found. Please set up your profile first." }, { status: 400 });
   }
 
-  // Build Adzuna search params
-  const country = "us"; // Default to US. You can make this dynamic later.
-  const searchTerm = profile.desired_role || "software engineer";
-  const location = profile.desired_location || "";
-  
+  // Check if profile has enough info for search
+  const hasDesiredRole = !!(profile.desired_role || "").trim();
+  const hasSkills = !!(profile.skills || "").trim();
+
+  if (!hasDesiredRole && !hasSkills) {
+    return NextResponse.json({
+      error: "Profile incomplete",
+      message: "Please set your Desired Role or Skills in your Profile to discover jobs.",
+      needsProfileUpdate: true,
+    }, { status: 400 });
+  }
+
+  // Build search term
+  let searchTerm = (profile.desired_role || "").trim();
+  if (!searchTerm) {
+    // Use first skill as fallback
+    searchTerm = (profile.skills || "").split(",")[0].trim();
+  }
+
+  // Adzuna country codes: gb, us, au, br, ca, de, fr, in, nl, pl, ru, sg, za
+  // Default to gb (UK) for broader results, or infer from location
+  const location = (profile.desired_location || "").toLowerCase();
+  let country = "gb";
+  if (location.includes("usa") || location.includes("united states") || location.includes("america")) {
+    country = "us";
+  } else if (location.includes("portugal") || location.includes("lisbon") || location.includes("cascais")) {
+    country = "gb"; // No PT in free tier, use gb with location filter
+  }
+
   const params = new URLSearchParams({
     app_id: ADZUNA_APP_ID,
     app_key: ADZUNA_APP_KEY,
-    what: searchTerm,
-    what_or: profile.skills || "",
-    max_age: "7", // Jobs posted in last 7 days
-    sort_by: "date",
     results_per_page: "20",
+    sort_by: "date",
+    max_days_old: "7",
   });
 
-  if (location && !location.toLowerCase().includes("remote")) {
+  // Add search term - use 'what' for job title/keywords
+  if (searchTerm) {
+    params.append("what", searchTerm);
+  }
+
+  // Add location if specified and not remote
+  const isRemote = location.includes("remote") || (profile.work_type || "").toLowerCase() === "remote";
+  if (location && !isRemote) {
     params.append("where", location);
   }
 
+  // For remote jobs, don't add location filter but add remote to search
+  if (isRemote && searchTerm) {
+    params.set("what", `${searchTerm} remote`);
+  }
+
+  const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/1?${params.toString()}`;
+
   try {
-    const adzunaRes = await fetch(
-      `https://api.adzuna.com/v1/api/jobs/${country}/search/1?${params.toString()}`
-    );
+    const adzunaRes = await fetch(url, {
+      headers: { Accept: "application/json" },
+    });
 
     if (!adzunaRes.ok) {
-      const err = await adzunaRes.text();
-      console.error("Adzuna error:", err);
-      return NextResponse.json({ error: "Failed to fetch jobs from Adzuna" }, { status: 502 });
+      const errorText = await adzunaRes.text();
+      console.error("Adzuna API error:", adzunaRes.status, errorText.slice(0, 500));
+      return NextResponse.json(
+        {
+          error: `Adzuna API returned ${adzunaRes.status}`,
+          details: errorText.slice(0, 200),
+          searchTerm,
+          country,
+          suggestion: "This may be a temporary Adzuna issue. Try again in a few minutes.",
+        },
+        { status: 502 }
+      );
     }
 
     const adzunaData = await adzunaRes.json();
     const rawJobs = adzunaData.results || [];
 
+    if (rawJobs.length === 0) {
+      return NextResponse.json({
+        jobs: [],
+        count: 0,
+        message: `No jobs found for "${searchTerm}" in ${country.toUpperCase()}. Try broadening your search terms in Profile.`,
+        searchTerm,
+        country,
+      });
+    }
+
     // Score and format jobs
     const scoredJobs = rawJobs.map((job: any) => {
       const score = calculateMatchScore(job, profile);
       return {
-        id: `adzuna_${job.id}`, // Use Adzuna ID prefixed to avoid collisions
+        id: `adzuna_${job.id}`,
         title: job.title || "Unknown Role",
         company: job.company?.display_name || "Unknown Company",
         location: job.location?.display_name || location || "Unknown",
         description: job.description || "",
         salary_min: job.salary_min,
         salary_max: job.salary_max,
-        salary: job.salary_is_predicted === "1" ? "Predicted" : `${job.salary_min || 0} - ${job.salary_max || 0}`,
+        salary: formatSalary(job.salary_min, job.salary_max, job.salary_is_predicted),
         url: job.redirect_url,
         contract_type: job.contract_type || "",
         contract_time: job.contract_time || "",
@@ -85,10 +140,9 @@ export async function GET() {
       };
     });
 
-    // Sort by match score descending
     scoredJobs.sort((a: any, b: any) => b.match_score - a.match_score);
 
-    // Save discovered jobs to DB (upsert to avoid duplicates)
+    // Save to DB
     const jobsToUpsert = scoredJobs.map((job: any) => ({
       user_id: userId,
       company: job.company,
@@ -105,8 +159,6 @@ export async function GET() {
       status: "new",
     }));
 
-    // Upsert ignores duplicates on (user_id, url) if you add a unique constraint
-    // For now, just insert and let RLS handle ownership
     const { error: upsertError } = await supabase
       .from("jobs")
       .upsert(jobsToUpsert, { onConflict: "user_id,url" });
@@ -115,33 +167,48 @@ export async function GET() {
       console.error("Upsert error:", upsertError);
     }
 
-    return NextResponse.json({ jobs: scoredJobs, count: scoredJobs.length });
+    return NextResponse.json({
+      jobs: scoredJobs,
+      count: scoredJobs.length,
+      searchTerm,
+      country,
+    });
+
   } catch (error: any) {
     console.error("Discover error:", error);
-    return NextResponse.json({ error: error.message || "Failed to discover jobs" }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message || "Failed to discover jobs", searchTerm, country },
+      { status: 500 }
+    );
   }
+}
+
+function formatSalary(min: number | null, max: number | null, isPredicted: string | number): string {
+  if (isPredicted === "1" || isPredicted === 1) return "Salary predicted";
+  if (!min && !max) return "Not specified";
+  if (min && !max) return `${Math.round(min / 1000)}k+`;
+  if (!min && max) return `Up to ${Math.round(max / 1000)}k`;
+  return `${Math.round(min! / 1000)}k - ${Math.round(max! / 1000)}k`;
 }
 
 function calculateMatchScore(job: any, profile: any): number {
   let score = 0;
-  
+
   const profileSkills = (profile.skills || "")
     .toLowerCase()
     .split(",")
     .map((s: string) => s.trim())
     .filter((s: string) => s.length > 0);
-  
+
   const jobText = `${job.title} ${job.description}`.toLowerCase();
-  
-  // Skills match (up to 45 points)
+
   if (profileSkills.length > 0) {
     const matched = profileSkills.filter((skill: string) => jobText.includes(skill));
     score += (matched.length / profileSkills.length) * 45;
   } else {
-    score += 20; // Neutral if no skills listed
+    score += 20;
   }
-  
-  // Location match (up to 20 points)
+
   const desiredLoc = (profile.desired_location || "").toLowerCase();
   const jobLoc = (job.location?.display_name || "").toLowerCase();
   if (desiredLoc) {
@@ -155,8 +222,7 @@ function calculateMatchScore(job: any, profile: any): number {
   } else {
     score += 10;
   }
-  
-  // Work type match (up to 15 points)
+
   const profileWorkType = (profile.work_type || "").toLowerCase();
   const jobWorkType = mapContractTime(job.contract_time).toLowerCase();
   if (!profileWorkType || profileWorkType === "any") {
@@ -166,8 +232,7 @@ function calculateMatchScore(job: any, profile: any): number {
   } else if (jobText.includes(profileWorkType)) {
     score += 10;
   }
-  
-  // Experience level match (up to 10 points)
+
   const profileExp = (profile.experience_level || "").toLowerCase();
   const inferredExp = inferExperienceLevel(job.title, job.description).toLowerCase();
   if (!profileExp || profileExp === inferredExp) {
@@ -176,10 +241,9 @@ function calculateMatchScore(job: any, profile: any): number {
     (profileExp === "senior" && inferredExp === "mid") ||
     (profileExp === "mid" && inferredExp === "entry")
   ) {
-    score += 5; // Close enough
+    score += 5;
   }
-  
-  // Salary match (up to 10 points)
+
   const minDesired = profile.desired_salary_min;
   if (minDesired && job.salary_max) {
     if (job.salary_max >= minDesired) {
@@ -190,7 +254,7 @@ function calculateMatchScore(job: any, profile: any): number {
   } else {
     score += 5;
   }
-  
+
   return Math.min(Math.round(score), 100);
 }
 
@@ -222,5 +286,5 @@ function inferExperienceLevel(title: string, description: string): string {
   if (text.includes("junior") || text.includes("jr.") || text.includes("entry") || text.includes("graduate") || text.includes("intern")) {
     return "entry";
   }
-  return "mid"; // Default
+  return "mid";
 }
