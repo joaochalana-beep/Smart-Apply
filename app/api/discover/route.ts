@@ -57,29 +57,42 @@ function getSearchTerms(profile: any): string[] {
 }
 
 function isGermanOrGenericLocation(loc: string): boolean {
-  if (!loc || loc.trim() === "") return true;
+  if (!loc || loc.trim() === "") {
+    console.log("[DEBUG] Location empty, treating as generic/German");
+    return true;
+  }
   const generic = ["remote", "europe", "eu", "anywhere", "worldwide", "global"];
-  if (generic.some(g => loc.includes(g))) return true;
+  if (generic.some(g => loc.includes(g))) {
+    console.log(`[DEBUG] Location "${loc}" contains generic term, treating as German/generic`);
+    return true;
+  }
   const german = ["germany", "deutschland", "berlin", "munich", "münchen", "hamburg", "cologne", "köln", "frankfurt", "stuttgart", "dresden", "leipzig", "düsseldorf", "nuremberg", "nürnberg", "hannover", "bremen", "essen", "dortmund"];
-  return german.some(g => loc.includes(g));
+  const isGerman = german.some(g => loc.includes(g));
+  console.log(`[DEBUG] Location "${loc}" isGerman=${isGerman}`);
+  return isGerman;
 }
 
 export async function GET(req: NextRequest) {
   try {
-    // Use Clerk server-side auth — reads session cookie automatically
     const { userId } = await auth();
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized", needsProfileUpdate: false }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Map Clerk userId to Supabase user (they should match if you use Clerk as auth provider)
-    const { data: profile } = await supabase
+    console.log(`[DEBUG] User ${userId} requesting discover`);
+
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("desired_role, desired_location, work_type, experience_level, id")
       .eq("user_id", userId)
       .single();
 
+    if (profileError) {
+      console.error("[DEBUG] Profile fetch error:", profileError);
+    }
+
     if (!profile) {
+      console.log("[DEBUG] No profile found for user");
       return NextResponse.json({ 
         error: "Profile not found", 
         needsProfileUpdate: true, 
@@ -87,33 +100,41 @@ export async function GET(req: NextRequest) {
       }, { status: 404 });
     }
 
+    console.log("[DEBUG] Raw profile:", JSON.stringify({
+      desired_role: profile.desired_role,
+      desired_location: profile.desired_location,
+      work_type: profile.work_type,
+    }));
+
     const searchTerms = getSearchTerms(profile);
     const rawLocation = (profile.desired_location || "").toLowerCase().trim().replace(/\s+/g, " ");
     const isRemote = rawLocation.includes("remote") || (profile.work_type || "").toLowerCase() === "remote";
     const location = rawLocation.replace(/remote/g, "").replace(/,/g, " ").trim();
+
+    console.log(`[DEBUG] Parsed: rawLocation="${rawLocation}", location="${location}", isRemote=${isRemote}`);
 
     let allJobs: any[] = [];
     let primarySource = "";
     let fallbackUsed = false;
     const useArbeitnowPrimary = isGermanOrGenericLocation(location);
 
-    console.log(`[Discover] User: ${userId}, Location: "${location}", Remote: ${isRemote}, German/Generic: ${useArbeitnowPrimary}, Terms: ${searchTerms.join(", ")}`);
+    console.log(`[DEBUG] useArbeitnowPrimary=${useArbeitnowPrimary}, ADZUNA configured=${!!(ADZUNA_APP_ID && ADZUNA_APP_KEY)}`);
 
     if (useArbeitnowPrimary) {
       primarySource = "arbeitnow";
       try {
         const arbeitnowJobs = await fetchArbeitnow(searchTerms, location, isRemote);
         allJobs = arbeitnowJobs;
-        console.log(`[Discover] Arbeitnow primary returned ${allJobs.length} jobs`);
+        console.log(`[DEBUG] Arbeitnow returned ${allJobs.length} jobs`);
       } catch (err: any) {
-        console.error("[Discover] Arbeitnow failed:", err.message);
+        console.error("[DEBUG] Arbeitnow failed:", err.message);
         if (ADZUNA_APP_ID && ADZUNA_APP_KEY) {
           try {
             const adzunaJobs = await fetchAdzuna(searchTerms, location, isRemote);
             allJobs = adzunaJobs;
             primarySource = "adzuna";
             fallbackUsed = true;
-            console.log(`[Discover] Adzuna fallback returned ${allJobs.length} jobs`);
+            console.log(`[DEBUG] Adzuna fallback returned ${allJobs.length} jobs`);
           } catch (adzunaErr: any) {
             return NextResponse.json({
               error: "Both job sources failed",
@@ -128,20 +149,21 @@ export async function GET(req: NextRequest) {
         }
       }
     } else {
+      // Non-German location: Adzuna primary
       if (ADZUNA_APP_ID && ADZUNA_APP_KEY) {
         primarySource = "adzuna";
         try {
           const adzunaJobs = await fetchAdzuna(searchTerms, location, isRemote);
           allJobs = adzunaJobs;
-          console.log(`[Discover] Adzuna primary returned ${allJobs.length} jobs`);
+          console.log(`[DEBUG] Adzuna primary returned ${allJobs.length} jobs`);
         } catch (err: any) {
-          console.error("[Discover] Adzuna failed:", err.message);
+          console.error("[DEBUG] Adzuna failed:", err.message);
           try {
             const arbeitnowJobs = await fetchArbeitnow(searchTerms, location, isRemote);
             allJobs = arbeitnowJobs;
             primarySource = "arbeitnow";
             fallbackUsed = true;
-            console.log(`[Discover] Arbeitnow fallback returned ${allJobs.length} jobs`);
+            console.log(`[DEBUG] Arbeitnow fallback returned ${allJobs.length} jobs`);
           } catch (arbeitnowErr: any) {
             return NextResponse.json({
               error: "Both job sources failed",
@@ -150,12 +172,12 @@ export async function GET(req: NextRequest) {
           }
         }
       } else {
-        console.warn("[Discover] No Adzuna credentials. Non-German location will likely return German-only results.");
+        console.warn("[DEBUG] No Adzuna credentials! Falling back to Arbeitnow (will show German jobs)");
         primarySource = "arbeitnow";
         try {
           const arbeitnowJobs = await fetchArbeitnow(searchTerms, location, isRemote);
           allJobs = arbeitnowJobs;
-          console.log(`[Discover] Arbeitnow (no Adzuna creds) returned ${allJobs.length} jobs`);
+          console.log(`[DEBUG] Arbeitnow (no Adzuna creds) returned ${allJobs.length} jobs`);
         } catch (err: any) {
           return NextResponse.json({
             error: "No Adzuna credentials configured and Arbeitnow failed",
@@ -234,6 +256,8 @@ export async function GET(req: NextRequest) {
       await supabase.from("jobs").upsert(toUpsert, { onConflict: "job_id" });
     }
 
+    console.log(`[DEBUG] Returning ${deduped.length} jobs, source=${primarySource}, fallback=${fallbackUsed}`);
+
     return NextResponse.json({
       jobs: deduped.slice(0, 50),
       count: deduped.length,
@@ -242,6 +266,13 @@ export async function GET(req: NextRequest) {
       searchTerms,
       location: location || "any",
       isRemote,
+      debug: {
+        rawLocation: profile.desired_location,
+        parsedLocation: location,
+        isRemote,
+        useArbeitnowPrimary,
+        adzunaConfigured: !!(ADZUNA_APP_ID && ADZUNA_APP_KEY),
+      }
     });
   } catch (err: any) {
     console.error("Discover error:", err);
@@ -259,7 +290,7 @@ async function fetchArbeitnow(searchTerms: string[], location: string, isRemote:
 
   const remoteParam = isRemote ? "&remote=true" : "";
   const url = `https://www.arbeitnow.com/api/job-board-api?search=${encodeURIComponent(query)}${locationParam}${remoteParam}&page=1`;
-  console.log("[Arbeitnow] URL:", url);
+  console.log("[DEBUG] Arbeitnow URL:", url);
 
   const res = await fetch(url, {
     headers: { Accept: "application/json" },
@@ -272,7 +303,7 @@ async function fetchArbeitnow(searchTerms: string[], location: string, isRemote:
   }
 
   const data = await res.json();
-  console.log("[Arbeitnow] Returned:", data.data?.length || 0, "jobs");
+  console.log("[DEBUG] Arbeitnow returned", data.data?.length || 0, "jobs");
   return data.data || [];
 }
 
@@ -307,7 +338,7 @@ async function fetchAdzuna(searchTerms: string[], location: string, isRemote: bo
   }
 
   const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/1?${params.toString()}`;
-  console.log("[Adzuna] URL:", url);
+  console.log("[DEBUG] Adzuna URL:", url);
 
   const res = await fetch(url, { next: { revalidate: 0 } });
   if (!res.ok) {
@@ -316,6 +347,6 @@ async function fetchAdzuna(searchTerms: string[], location: string, isRemote: bo
   }
 
   const data = await res.json();
-  console.log("[Adzuna] Returned:", data.results?.length || 0, "jobs");
+  console.log("[DEBUG] Adzuna returned", data.results?.length || 0, "jobs");
   return data.results || [];
 }

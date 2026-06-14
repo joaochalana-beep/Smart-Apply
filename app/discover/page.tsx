@@ -26,10 +26,10 @@ export default function DiscoverPage() {
   const [profileError, setProfileError] = useState<string | null>(null);
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [lastResponse, setLastResponse] = useState<any>(null);
   const router = useRouter();
   const { isLoaded, isSignedIn } = useAuth();
 
-  // Wait for Clerk auth to be ready
   useEffect(() => {
     if (isLoaded) {
       if (!isSignedIn) {
@@ -48,9 +48,9 @@ export default function DiscoverPage() {
     setProfileError(null);
 
     try {
-      // Simple fetch — no auth headers needed, Clerk middleware handles cookies
       const res = await fetch("/api/discover");
       const data = await res.json();
+      setLastResponse(data);
 
       if (!res.ok) {
         if (data.needsProfileUpdate) {
@@ -62,7 +62,6 @@ export default function DiscoverPage() {
         throw new Error(data.error || data.message || `Failed to load jobs (${res.status})`);
       }
 
-      // Map API response to frontend Job interface
       const mappedJobs = (data.jobs || []).map((job: any) => ({
         id: job.id,
         title: job.title,
@@ -97,9 +96,7 @@ export default function DiscoverPage() {
     try {
       const res = await fetch("/api/generate-tailored-docs", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           jobUrl: job.url,
           jobDescription: job.description,
@@ -110,9 +107,7 @@ export default function DiscoverPage() {
 
       const appRes = await fetch("/api/applications", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           job_id: job.id,
           company: job.company,
@@ -185,6 +180,21 @@ export default function DiscoverPage() {
             {loading ? "Loading..." : "Refresh"}
           </button>
         </div>
+
+        {/* DEBUG INFO */}
+        {lastResponse?.debug && (
+          <div className="bg-blue-900/30 border border-blue-800 rounded-lg p-4 mb-6 text-blue-300 text-xs font-mono">
+            <p className="font-bold mb-2">Debug Info:</p>
+            <p>Raw Location: {lastResponse.debug.rawLocation || "empty"}</p>
+            <p>Parsed Location: {lastResponse.debug.parsedLocation || "empty"}</p>
+            <p>Is Remote: {lastResponse.debug.isRemote ? "Yes" : "No"}</p>
+            <p>Using Arbeitnow Primary: {lastResponse.debug.useArbeitnowPrimary ? "Yes" : "No"}</p>
+            <p>Adzuna Configured: {lastResponse.debug.adzunaConfigured ? "Yes" : "No"}</p>
+            <p>Primary Source: {lastResponse.source || "unknown"}</p>
+            <p>Fallback Used: {lastResponse.fallbackUsed ? "Yes" : "No"}</p>
+            <p>Search Terms: {(lastResponse.searchTerms || []).join(", ") || "none"}</p>
+          </div>
+        )}
 
         {profileError && (
           <div className="bg-amber-900/50 border border-amber-800 rounded-lg p-6 text-amber-400 mb-6">
