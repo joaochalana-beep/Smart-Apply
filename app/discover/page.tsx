@@ -71,7 +71,7 @@ export default function DiscoverPage() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
-      // Save to tracker
+      // Save to tracker as "prepared" (not yet applied)
       await fetch("/api/applications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -79,6 +79,7 @@ export default function DiscoverPage() {
           job_id: job.id,
           company: job.company,
           role: job.title,
+          job_url: job.url,
           resume_text: data.resume,
           cover_letter: data.coverLetter,
           method: "one_click",
@@ -102,7 +103,7 @@ export default function DiscoverPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-zinc-950 text-white p-10 flex items-center justify-center">
+      <div className="min-h-screen bg-zinc-950 text-white p-10 pt-24 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
           <p className="text-zinc-400">Scanning for jobs that match your profile...</p>
@@ -112,7 +113,7 @@ export default function DiscoverPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white p-10">
+    <div className="min-h-screen bg-zinc-950 text-white p-10 pt-24">
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>
