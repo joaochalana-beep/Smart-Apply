@@ -10,7 +10,8 @@ const supabase = createClient(
 const ADZUNA_APP_ID = process.env.ADZUNA_APP_ID;
 const ADZUNA_APP_KEY = process.env.ADZUNA_APP_KEY;
 
-// Adzuna supported country codes
+// Adzuna supported country codes with priority for EU remote jobs
+const ADZUNA_EU_COUNTRIES = ["gb", "de", "fr", "nl", "es", "it", "at", "be", "ch", "pl", "se", "ie"];
 const ADZUNA_COUNTRIES = new Set(["gb", "us", "at", "au", "br", "ca", "de", "fr", "in", "it", "nl", "pl", "ru", "sg", "za", "es", "se", "ch"]);
 
 const countryMap: Record<string, string> = {
@@ -115,7 +116,7 @@ export async function GET(req: NextRequest) {
         console.error("[Discover] Arbeitnow failed:", err.message);
         if (ADZUNA_APP_ID && ADZUNA_APP_KEY) {
           try {
-            const adzunaJobs = await fetchAdzuna(searchTerms, location, isRemote);
+            const adzunaJobs = await fetchAdzunaMultiCountry(searchTerms, location, isRemote);
             allJobs = adzunaJobs;
             primarySource = "adzuna";
             fallbackUsed = true;
@@ -134,23 +135,13 @@ export async function GET(req: NextRequest) {
         }
       }
     } else {
-      // Non-German location: Adzuna primary
+      // Non-German location: Adzuna primary with multi-country search
       if (ADZUNA_APP_ID && ADZUNA_APP_KEY) {
         primarySource = "adzuna";
         try {
-          const adzunaJobs = await fetchAdzuna(searchTerms, location, isRemote);
+          const adzunaJobs = await fetchAdzunaMultiCountry(searchTerms, location, isRemote);
           allJobs = adzunaJobs;
-          console.log(`[Discover] Adzuna returned ${allJobs.length} jobs`);
-          
-          // If Adzuna returned 0 jobs, try broader search without location filter
-          if (allJobs.length === 0 && location) {
-            console.log("[Discover] Adzuna returned 0 jobs, trying broader search without location filter");
-            const broadJobs = await fetchAdzuna(searchTerms, "", isRemote);
-            if (broadJobs.length > 0) {
-              allJobs = broadJobs;
-              console.log(`[Discover] Broad Adzuna search returned ${allJobs.length} jobs`);
-            }
-          }
+          console.log(`[Discover] Adzuna multi-country returned ${allJobs.length} jobs`);
         } catch (err: any) {
           adzunaError = err.message;
           console.error("[Discover] Adzuna failed:", err.message);
@@ -277,6 +268,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
+// ── Arbeitnow fetcher (EU, free, no API key) ──
 async function fetchArbeitnow(searchTerms: string[], location: string, isRemote: boolean) {
   const query = searchTerms.join(" ");
   let locationParam = "";
@@ -303,72 +295,109 @@ async function fetchArbeitnow(searchTerms: string[], location: string, isRemote:
   return data.data || [];
 }
 
-async function fetchAdzuna(searchTerms: string[], location: string, isRemote: boolean) {
+// ── Adzuna multi-country search for EU/remote jobs ──
+async function fetchAdzunaMultiCountry(searchTerms: string[], location: string, isRemote: boolean) {
   if (!ADZUNA_APP_ID || !ADZUNA_APP_KEY) {
     throw new Error("Adzuna credentials not configured");
   }
 
-  // Determine country code
-  let country = "gb"; // Default to UK (largest Adzuna DB with most remote jobs)
+  const searchQuery = searchTerms.join(" ");
+  const allResults: any[] = [];
+  const errors: string[] = [];
+  
+  // Determine which countries to search
+  let countriesToSearch: string[] = [];
+  
+  // If specific country is supported, search it first
+  let specificCountry = "";
   for (const [key, code] of Object.entries(countryMap)) {
     if (location.includes(key)) {
-      country = code;
+      specificCountry = code;
       break;
     }
   }
+  
+  if (specificCountry && ADZUNA_COUNTRIES.has(specificCountry)) {
+    countriesToSearch.push(specificCountry);
+  }
+  
+  // For remote jobs or unsupported countries, search major EU markets
+  if (isRemote || !specificCountry || !ADZUNA_COUNTRIES.has(specificCountry)) {
+    // Add major EU countries that aren't already in the list
+    for (const country of ADZUNA_EU_COUNTRIES) {
+      if (!countriesToSearch.includes(country)) {
+        countriesToSearch.push(country);
+      }
+    }
+  }
+  
+  console.log(`[Adzuna] Searching ${countriesToSearch.length} countries: ${countriesToSearch.join(", ")}`);
 
-  // If country not supported by Adzuna, use gb with location as search term
-  const useGbFallback = !ADZUNA_COUNTRIES.has(country);
-  if (useGbFallback) {
-    console.log(`[Adzuna] Country "${country}" not in supported list, using gb with location in search`);
-    country = "gb";
+  // Search each country (limit to first 5 to avoid rate limits)
+  const searchCountries = countriesToSearch.slice(0, 5);
+  
+  for (const country of searchCountries) {
+    try {
+      const jobs = await fetchAdzunaSingleCountry(searchQuery, location, isRemote, country);
+      console.log(`[Adzuna] ${country}: ${jobs.length} jobs`);
+      allResults.push(...jobs);
+    } catch (err: any) {
+      console.error(`[Adzuna] ${country} failed:`, err.message);
+      errors.push(`${country}: ${err.message}`);
+    }
   }
 
+  if (allResults.length === 0 && errors.length > 0) {
+    throw new Error(`All Adzuna searches failed: ${errors.join("; ")}`);
+  }
+
+  console.log(`[Adzuna] Total results from all countries: ${allResults.length}`);
+  return allResults;
+}
+
+async function fetchAdzunaSingleCountry(searchQuery: string, location: string, isRemote: boolean, country: string) {
   const params = new URLSearchParams({
-    app_id: ADZUNA_APP_ID,
-    app_key: ADZUNA_APP_KEY,
-    results_per_page: "50",
+    app_id: ADZUNA_APP_ID!,
+    app_key: ADZUNA_APP_KEY!,
+    results_per_page: "20", // Lower per country to avoid limits
   });
 
   // Build search query
-  let searchQuery = searchTerms.join(" ");
-  
-  // For remote jobs with unsupported countries, include location in search query
-  if (isRemote && useGbFallback && location) {
-    searchQuery = `${searchQuery} ${location}`;
-  }
-  
+  let what = searchQuery;
   if (isRemote) {
-    searchQuery = `${searchQuery} remote`;
+    what = `${what} remote`;
+  }
+  // For unsupported countries, include location in search query
+  if (location && !ADZUNA_COUNTRIES.has(country) && country !== "gb") {
+    what = `${what} ${location}`;
   }
   
-  params.append("what", searchQuery);
+  params.append("what", what);
 
-  // Only add where param for supported countries with non-remote jobs
-  // For remote jobs, skip where to get global remote listings
-  if (!isRemote && location && !location.includes("europe") && !location.includes("eu") && !location.includes("anywhere")) {
-    params.append("where", location);
+  // Add location filter only for supported countries with specific locations
+  if (location && !location.includes("europe") && !location.includes("eu") && !location.includes("anywhere") && !location.includes("remote")) {
+    if (country === "gb" || ADZUNA_COUNTRIES.has(country)) {
+      params.append("where", location);
+    }
   }
 
   const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/1?${params.toString()}`;
-  console.log("[Adzuna] URL:", url);
+  console.log(`[Adzuna] ${country} URL:`, url);
 
   const res = await fetch(url, { next: { revalidate: 0 } });
   
   const responseText = await res.text();
   
   if (!res.ok) {
-    console.error("[Adzuna] Error response:", responseText.slice(0, 500));
-    throw new Error(`Adzuna API ${res.status}: ${responseText.slice(0, 200)}`);
+    throw new Error(`HTTP ${res.status}: ${responseText.slice(0, 100)}`);
   }
 
   let data;
   try {
     data = JSON.parse(responseText);
   } catch (e) {
-    throw new Error(`Adzuna returned invalid JSON: ${responseText.slice(0, 200)}`);
+    throw new Error(`Invalid JSON: ${responseText.slice(0, 100)}`);
   }
 
-  console.log("[Adzuna] Returned", data.results?.length || 0, "jobs");
   return data.results || [];
 }
