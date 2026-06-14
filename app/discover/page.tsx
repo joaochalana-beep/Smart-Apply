@@ -192,6 +192,8 @@ export default function DiscoverPage() {
             <p>Adzuna Configured: {lastResponse.debug.adzunaConfigured ? "Yes" : "No"}</p>
             <p>Primary Source: {lastResponse.source || "unknown"}</p>
             <p>Fallback Used: {lastResponse.fallbackUsed ? "Yes" : "No"}</p>
+            <p>Total Jobs Found: {lastResponse.debug.totalJobsFound || 0}</p>
+            <p>Jobs After Deduplication: {lastResponse.debug.jobsAfterDedup || 0}</p>
             {lastResponse.debug.adzunaError && (
               <p className="text-red-400 mt-2">Adzuna Error: {lastResponse.debug.adzunaError}</p>
             )}

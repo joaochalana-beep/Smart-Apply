@@ -10,7 +10,7 @@ const supabase = createClient(
 const ADZUNA_APP_ID = process.env.ADZUNA_APP_ID;
 const ADZUNA_APP_KEY = process.env.ADZUNA_APP_KEY;
 
-// Adzuna supported country codes (verified)
+// Adzuna supported country codes
 const ADZUNA_COUNTRIES = new Set(["gb", "us", "at", "au", "br", "ca", "de", "fr", "in", "it", "nl", "pl", "ru", "sg", "za", "es", "se", "ch"]);
 
 const countryMap: Record<string, string> = {
@@ -140,10 +140,20 @@ export async function GET(req: NextRequest) {
         try {
           const adzunaJobs = await fetchAdzuna(searchTerms, location, isRemote);
           allJobs = adzunaJobs;
+          console.log(`[Discover] Adzuna returned ${allJobs.length} jobs`);
+          
+          // If Adzuna returned 0 jobs, try broader search without location filter
+          if (allJobs.length === 0 && location) {
+            console.log("[Discover] Adzuna returned 0 jobs, trying broader search without location filter");
+            const broadJobs = await fetchAdzuna(searchTerms, "", isRemote);
+            if (broadJobs.length > 0) {
+              allJobs = broadJobs;
+              console.log(`[Discover] Broad Adzuna search returned ${allJobs.length} jobs`);
+            }
+          }
         } catch (err: any) {
           adzunaError = err.message;
-          console.error("[Discover] Adzuna primary failed:", err.message);
-          // Fallback to Arbeitnow (likely empty for non-German, but try)
+          console.error("[Discover] Adzuna failed:", err.message);
           try {
             const arbeitnowJobs = await fetchArbeitnow(searchTerms, location, isRemote);
             allJobs = arbeitnowJobs;
@@ -257,6 +267,8 @@ export async function GET(req: NextRequest) {
         adzunaConfigured: !!(ADZUNA_APP_ID && ADZUNA_APP_KEY),
         adzunaError,
         arbeitnowError,
+        totalJobsFound: allJobs.length,
+        jobsAfterDedup: deduped.length,
       }
     });
   } catch (err: any) {
@@ -296,7 +308,8 @@ async function fetchAdzuna(searchTerms: string[], location: string, isRemote: bo
     throw new Error("Adzuna credentials not configured");
   }
 
-  let country = "gb";
+  // Determine country code
+  let country = "gb"; // Default to UK (largest Adzuna DB with most remote jobs)
   for (const [key, code] of Object.entries(countryMap)) {
     if (location.includes(key)) {
       country = code;
@@ -304,9 +317,10 @@ async function fetchAdzuna(searchTerms: string[], location: string, isRemote: bo
     }
   }
 
-  // Fallback to gb if country not supported by Adzuna
-  if (!ADZUNA_COUNTRIES.has(country)) {
-    console.log(`[Adzuna] Country code "${country}" not supported, falling back to gb with location filter`);
+  // If country not supported by Adzuna, use gb with location as search term
+  const useGbFallback = !ADZUNA_COUNTRIES.has(country);
+  if (useGbFallback) {
+    console.log(`[Adzuna] Country "${country}" not in supported list, using gb with location in search`);
     country = "gb";
   }
 
@@ -316,12 +330,23 @@ async function fetchAdzuna(searchTerms: string[], location: string, isRemote: bo
     results_per_page: "50",
   });
 
-  // Build search query — don't append "remote" to what, use separate param if needed
-  const searchQuery = searchTerms.join(" ");
+  // Build search query
+  let searchQuery = searchTerms.join(" ");
+  
+  // For remote jobs with unsupported countries, include location in search query
+  if (isRemote && useGbFallback && location) {
+    searchQuery = `${searchQuery} ${location}`;
+  }
+  
+  if (isRemote) {
+    searchQuery = `${searchQuery} remote`;
+  }
+  
   params.append("what", searchQuery);
 
-  // Add location as where filter (always, for non-GB countries or specific cities)
-  if (location && !location.includes("europe") && !location.includes("eu") && !location.includes("anywhere")) {
+  // Only add where param for supported countries with non-remote jobs
+  // For remote jobs, skip where to get global remote listings
+  if (!isRemote && location && !location.includes("europe") && !location.includes("eu") && !location.includes("anywhere")) {
     params.append("where", location);
   }
 
