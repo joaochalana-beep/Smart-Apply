@@ -47,24 +47,6 @@ const countryMap: Record<string, string> = {
   "finland": "gb", "helsinki": "gb",
 };
 
-// Generic words to ignore when extracting keywords
-const STOP_WORDS = new Set([
-  "a", "an", "the", "and", "or", "in", "on", "at", "to", "for", "of", "with", "by",
-  "from", "as", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had",
-  "do", "does", "did", "will", "would", "could", "should", "may", "might", "must",
-  "i", "you", "he", "she", "it", "we", "they", "me", "him", "her", "us", "them",
-  "my", "your", "his", "her", "its", "our", "their", "this", "that", "these", "those",
-  "am", "can", "shall", "need", "want", "looking", "seeking", "opportunity", "position",
-  "role", "job", "work", "employment", "career", "professional", "qualified", "experienced",
-  "responsible", "duties", "tasks", "requirements", "skills", "ability", "knowledge",
-  "excellent", "good", "strong", "proven", "track", "record", "minimum", "maximum",
-  "plus", "preferred", "required", "essential", "desirable", "nice", "must", "should",
-  "will", "shall", "etc", "e.g", "ie", "per", "annum", "pa", "neg", "negotiable",
-  "competitive", "depending", "experience", "based", "located", "area", "region",
-  "immediate", "start", "starting", "asap", "soon", "possible", "apply", "applying",
-  "application", "contact", "email", "phone", "tel", "www", "http", "https", "com",
-]);
-
 function stripHtml(html: string): string {
   if (!html) return "";
   return html
@@ -89,54 +71,16 @@ function getSearchTerms(profile: any): string[] {
   return [(profile.desired_role || "software engineer").trim()];
 }
 
-// Extract meaningful keywords from a role string
-function extractKeywords(text: string): string[] {
-  const words = text.toLowerCase()
-    .replace(/[^\w\s&+\-#]/g, " ")
-    .split(/\s+/)
-    .filter(w => w.length > 1 && !STOP_WORDS.has(w));
-  
-  // Also extract multi-word phrases (e.g., "data analyst", "customer support")
-  const phrases: string[] = [];
-  const cleanText = text.toLowerCase().replace(/[^\w\s&+\-#]/g, " ").trim();
-  
-  // Add the full role if it's reasonable length
-  if (cleanText.length > 2 && cleanText.length < 60) {
-    phrases.push(cleanText);
-  }
-  
-  // Add individual meaningful words
-  words.forEach(w => {
-    if (w.length >= 3 && !phrases.includes(w)) {
-      phrases.push(w);
-    }
-  });
-  
-  // Add common 2-word combinations
-  const wordList = cleanText.split(/\s+/).filter(w => w.length > 1);
-  for (let i = 0; i < wordList.length - 1; i++) {
-    const phrase = `${wordList[i]} ${wordList[i + 1]}`;
-    if (!STOP_WORDS.has(wordList[i]) && !STOP_WORDS.has(wordList[i + 1])) {
-      phrases.push(phrase);
-    }
-  }
-  
-  return [...new Set(phrases)];
-}
-
-// Get a simple search query for Apify (first role, max 3 words)
 function getSimpleSearchQuery(profile: any): string {
   const roles = (profile.desired_role || "")
     .split(/[;,]/)
     .map((r: string) => r.trim())
     .filter(Boolean);
-  
   if (roles.length > 0) {
     const firstRole = roles[0];
     const words = firstRole.split(/\s+/).slice(0, 3).join(" ");
     return words;
   }
-  
   return "software engineer";
 }
 
@@ -165,263 +109,267 @@ function isAdzunaSupported(loc: string): boolean {
 }
 
 // ============================================================================
-// EXPERIENCE LEVEL DETECTION
+// REALISTIC JOB MATCHING ENGINE
 // ============================================================================
 
-type ExperienceLevel = "entry" | "junior" | "mid" | "senior" | "unknown";
-
-const ENTRY_KEYWORDS = [
-  "entry", "entry-level", "entry level", "junior", "jr", "jr.", "associate",
-  "graduate", "grad", "intern", "internship", "trainee", "apprentice",
-  "0-2", "0 to 2", "0-1", "0 to 1", "1-2", "1 to 2", "1+ years", "2+ years",
-  "no experience", "little experience", "beginner", "starter", "fresh",
-  "first job", "early career", "career start", "recent graduate", "new grad",
-  "level 1", "level i", "l1", "i-", "i ", "1 ", "1-", "tier 1", "grade 1",
-];
-
-const SENIOR_KEYWORDS = [
-  "senior", "sr", "sr.", "lead", "principal", "staff", "head of", "director",
-  "vp", "vice president", "executive", "chief", "cto", "ceo", "cfo", "coo",
-  "5+ years", "5-10", "5 to 10", "6+ years", "7+ years", "8+ years", "10+ years",
-  "10-15", "15+ years", "experienced", "seasoned", "expert", "specialist",
-  "manager", "management", "team lead", "tech lead", "architect",
-  "level 3", "level iii", "level 4", "level iv", "l3", "l4", "iii", "iv",
-  "tier 3", "tier 4", "grade 3", "grade 4", "seniority", "veteran",
-];
-
-const MID_KEYWORDS = [
-  "mid", "mid-level", "mid level", "intermediate", "medium", "regular",
-  "2-5", "2 to 5", "3-5", "3 to 5", "4-6", "3+ years", "4+ years",
-  "level 2", "level ii", "l2", "ii", "2 ", "2-", "tier 2", "grade 2",
-];
-
-function detectExperienceLevel(text: string): ExperienceLevel {
-  const lower = text.toLowerCase();
-  
-  // Check for explicit entry-level indicators first
-  for (const kw of ENTRY_KEYWORDS) {
-    if (lower.includes(kw)) return "entry";
-  }
-  
-  // Check senior
-  for (const kw of SENIOR_KEYWORDS) {
-    if (lower.includes(kw)) return "senior";
-  }
-  
-  // Check mid
-  for (const kw of MID_KEYWORDS) {
-    if (lower.includes(kw)) return "mid";
-  }
-  
-  return "unknown";
+// Your desired roles split into individual keywords for matching
+function getRoleKeywords(roles: string[]): string[][] {
+  return roles.map(role => {
+    return role.toLowerCase()
+      .split(/[\s&+,]/)
+      .map(w => w.trim())
+      .filter(w => w.length >= 2 && !["and", "or", "the", "a", "an", "in", "of", "to", "for"].includes(w));
+  });
 }
 
-function normalizeExperienceLevel(level: string): ExperienceLevel {
-  const lower = level.toLowerCase().trim();
-  if (lower.includes("entry") || lower.includes("junior") || lower.includes("grad") || lower.includes("intern") || lower.includes("associate")) {
-    return "entry";
+// Check if job title matches ANY of your desired roles
+function scoreTitleMatch(jobTitle: string, desiredRoles: string[]): number {
+  const title = jobTitle.toLowerCase();
+  let bestScore = 0;
+  
+  for (const role of desiredRoles) {
+    const roleLower = role.toLowerCase().trim();
+    if (roleLower.length < 2) continue;
+    
+    // EXACT match in title (e.g., "Data Analyst" in "Senior Data Analyst")
+    if (title.includes(roleLower)) {
+      bestScore = Math.max(bestScore, 50);
+      continue;
+    }
+    
+    // Check individual keywords from role
+    const roleWords = roleLower.split(/\s+/).filter(w => w.length >= 3);
+    let matchedWords = 0;
+    for (const word of roleWords) {
+      if (title.includes(word)) matchedWords++;
+    }
+    
+    // All main words matched
+    if (roleWords.length >= 2 && matchedWords === roleWords.length) {
+      bestScore = Math.max(bestScore, 40);
+    } else if (matchedWords >= 2) {
+      bestScore = Math.max(bestScore, 25);
+    } else if (matchedWords === 1) {
+      bestScore = Math.max(bestScore, 10);
+    }
   }
-  if (lower.includes("senior") || lower.includes("lead") || lower.includes("principal") || lower.includes("director") || lower.includes("manager")) {
-    return "senior";
-  }
-  if (lower.includes("mid") || lower.includes("intermediate")) {
-    return "mid";
-  }
-  return "unknown";
+  
+  return bestScore;
 }
 
-function scoreExperience(jobText: string, userLevel: string): number {
-  const userExp = normalizeExperienceLevel(userLevel);
-  if (userExp === "unknown") return 0;
-  
-  const jobExp = detectExperienceLevel(jobText);
-  if (jobExp === "unknown") return 5; // Slightly positive for unclear listings
-  
-  const scoreMap: Record<ExperienceLevel, Record<ExperienceLevel, number>> = {
-    entry: {
-      entry: 35,
-      junior: 30,
-      mid: -25,
-      senior: -50,
-      unknown: 5,
-    },
-    junior: {
-      entry: 20,
-      junior: 30,
-      mid: 10,
-      senior: -40,
-      unknown: 5,
-    },
-    mid: {
-      entry: -10,
-      junior: 15,
-      mid: 30,
-      senior: -15,
-      unknown: 5,
-    },
-    senior: {
-      entry: -30,
-      junior: 0,
-      mid: 20,
-      senior: 35,
-      unknown: 5,
-    },
-    unknown: {
-      entry: 5,
-      junior: 5,
-      mid: 5,
-      senior: 5,
-      unknown: 0,
-    },
-  };
-  
-  return scoreMap[userExp][jobExp] || 0;
-}
-
-// ============================================================================
-// ROLE MATCHING
-// ============================================================================
-
-function scoreRoleMatch(jobText: string, searchTerms: string[], desiredRole: string): number {
-  const text = jobText.toLowerCase();
+// Check if description supports the role
+function scoreDescriptionMatch(jobDesc: string, desiredRoles: string[]): number {
+  const desc = jobDesc.toLowerCase();
   let score = 0;
-  const matchedTerms: string[] = [];
   
-  // Extract keywords from desired role
-  const allKeywords = extractKeywords(desiredRole);
-  
-  // Score for each keyword found
-  for (const keyword of allKeywords) {
-    const kw = keyword.toLowerCase();
-    if (kw.length < 3) continue;
+  for (const role of desiredRoles) {
+    const roleLower = role.toLowerCase().trim();
+    if (roleLower.length < 2) continue;
     
-    // Whole word match (stronger)
-    const wordRegex = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
-    if (wordRegex.test(text)) {
+    // Role mentioned in description
+    if (desc.includes(roleLower)) {
       score += 15;
-      matchedTerms.push(kw);
+      continue;
     }
-    // Partial match (weaker)
-    else if (text.includes(kw)) {
-      score += 8;
-      matchedTerms.push(kw);
+    
+    // Partial word matches
+    const words = roleLower.split(/\s+/).filter(w => w.length >= 3);
+    for (const word of words) {
+      if (desc.includes(word)) score += 5;
     }
   }
   
-  // Bonus for exact role phrase match
-  for (const term of searchTerms) {
-    const t = term.toLowerCase().trim();
-    if (t.length < 3) continue;
-    
-    // Exact phrase in title gets big bonus
-    if (text.includes(t)) {
-      score += 20;
-    }
-    
-    // Individual words from the term
-    const termWords = t.split(/\s+/).filter(w => w.length >= 3 && !STOP_WORDS.has(w));
-    let termWordMatches = 0;
-    for (const tw of termWords) {
-      if (text.includes(tw)) termWordMatches++;
-    }
-    if (termWordMatches === termWords.length && termWords.length >= 2) {
-      score += 15; // All words from a role term matched
-    }
-  }
-  
-  // Cap role matching at 60 to leave room for other factors
-  return Math.min(60, score);
+  return Math.min(30, score);
 }
 
-// ============================================================================
-// LOCATION MATCHING
-// ============================================================================
-
-function scoreLocation(jobLoc: string, desiredLoc: string, isRemote: boolean): number {
-  if (!desiredLoc || desiredLoc.trim() === "") return 0;
+// STRICT experience level checking
+function scoreExperienceLevel(jobTitle: string, jobDesc: string, userLevel: string): number {
+  const fullText = `${jobTitle} ${jobDesc}`.toLowerCase();
+  const userLevelLower = userLevel.toLowerCase().trim();
   
-  const jobLower = jobLoc.toLowerCase();
-  const desiredLower = desiredLoc.toLowerCase();
+  // If user didn't specify, neutral
+  if (!userLevelLower || userLevelLower === "any") return 0;
   
-  // Remote preference
-  if (isRemote) {
-    if (jobLower.includes("remote") || jobLower.includes("home office") || jobLower.includes("work from home") || jobLower.includes("wfh")) {
-      return 25;
-    }
-    if (jobLower.includes("hybrid")) {
-      return 15;
-    }
+  // Detect job's experience level
+  const hasSenior = /\b(senior|sr\.?|lead|principal|staff|head of|director|vp|chief|architect|manager|5\+ years|6\+ years|7\+ years|8\+ years|10\+ years)\b/i.test(fullText);
+  const hasMid = /\b(mid|mid-level|intermediate|2-5 years|3\+ years|4\+ years|level 2|level ii)\b/i.test(fullText);
+  const hasEntry = /\b(entry|entry-level|junior|jr\.?|graduate|grad|intern|trainee|0-2|1-2|1\+ years|no experience|early career|fresh)\b/i.test(fullText);
+  
+  const isUserEntry = userLevelLower.includes("entry") || userLevelLower.includes("junior") || userLevelLower.includes("grad") || userLevelLower.includes("intern");
+  const isUserMid = userLevelLower.includes("mid") || userLevelLower.includes("intermediate");
+  const isUserSenior = userLevelLower.includes("senior") || userLevelLower.includes("lead") || userLevelLower.includes("principal");
+  
+  // ENTRY USER
+  if (isUserEntry) {
+    if (hasSenior) return -60; // HEAVY penalty for senior roles
+    if (hasMid) return -30;    // Significant penalty for mid roles
+    if (hasEntry) return 25;   // Good bonus for entry roles
+    return 0;                   // Neutral for unclear
   }
   
-  // Generic locations
-  if (desiredLower.includes("europe") || desiredLower.includes("eu")) {
-    const euCountries = ["germany", "france", "netherlands", "italy", "spain", "portugal", "belgium", "austria", "switzerland", "poland", "sweden", "denmark", "norway", "finland", "ireland", "uk", "united kingdom", "london", "paris", "berlin", "madrid", "lisbon", "amsterdam", "rome", "vienna", "zurich", "warsaw", "stockholm", "copenhagen", "oslo", "helsinki", "dublin"];
-    if (euCountries.some(c => jobLower.includes(c))) return 20;
+  // MID USER
+  if (isUserMid) {
+    if (hasSenior) return -20;
+    if (hasEntry) return 10;
+    if (hasMid) return 20;
     return 0;
   }
   
-  // Exact location match
-  if (jobLower.includes(desiredLower) || desiredLower.includes(jobLower)) {
-    return 30;
-  }
-  
-  // Country match (e.g., "Lisbon" matches "Portugal")
-  for (const [key, code] of Object.entries(countryMap)) {
-    if (desiredLower.includes(key)) {
-      // Check if job location contains any city from same country
-      for (const [city, countryCode] of Object.entries(countryMap)) {
-        if (countryCode === code && jobLower.includes(city)) {
-          return 20;
-        }
-      }
-      // Check if job location contains country name
-      if (jobLower.includes(key)) return 20;
-    }
+  // SENIOR USER
+  if (isUserSenior) {
+    if (hasEntry) return -15;
+    if (hasMid) return 10;
+    if (hasSenior) return 25;
+    return 0;
   }
   
   return 0;
 }
 
-// ============================================================================
-// WORK TYPE MATCHING
-// ============================================================================
+// Location matching
+function scoreLocation(jobLoc: string, desiredLoc: string, isRemote: boolean): number {
+  if (!desiredLoc || desiredLoc.trim() === "") return 0;
+  
+  const jobLower = (jobLoc || "").toLowerCase();
+  const desiredLower = desiredLoc.toLowerCase();
+  
+  if (isRemote) {
+    if (jobLower.includes("remote") || jobLower.includes("work from home") || jobLower.includes("wfh")) return 20;
+    if (jobLower.includes("hybrid")) return 10;
+    if (jobLower.includes("on-site") || jobLower.includes("onsite")) return -10;
+  }
+  
+  // Country/city match
+  if (desiredLower.includes("portugal") || desiredLower.includes("lisbon") || desiredLower.includes("porto")) {
+    if (jobLower.includes("portugal") || jobLower.includes("lisbon") || jobLower.includes("porto") || jobLower.includes("lisboa")) return 25;
+    if (jobLower.includes("remote")) return 15; // Remote from Portugal is OK
+  }
+  
+  if (desiredLower.includes("spain") || desiredLower.includes("madrid") || desiredLower.includes("barcelona")) {
+    if (jobLower.includes("spain") || jobLower.includes("madrid") || jobLower.includes("barcelona") || jobLower.includes("valencia")) return 25;
+  }
+  
+  if (desiredLower.includes("germany") || desiredLower.includes("berlin")) {
+    if (jobLower.includes("germany") || jobLower.includes("berlin") || jobLower.includes("munich") || jobLower.includes("hamburg")) return 25;
+  }
+  
+  // Generic EU
+  if (desiredLower.includes("europe") || desiredLower.includes("eu")) {
+    const euCountries = ["germany", "france", "netherlands", "italy", "spain", "portugal", "belgium", "austria", "switzerland", "ireland", "poland", "sweden", "denmark", "norway", "finland"];
+    if (euCountries.some(c => jobLower.includes(c))) return 20;
+  }
+  
+  return 0;
+}
 
+// Work type matching
 function scoreWorkType(job: any, isRemote: boolean, userWorkType: string): number {
   const text = `${job.title || ""} ${job.description || ""} ${job.location || ""}`.toLowerCase();
-  let score = 0;
+  const userWT = (userWorkType || "").toLowerCase();
   
-  const jobType = job.jobType;
-  const isJobRemote = !!job.remote || 
-    text.includes("remote") || 
-    text.includes("work from home") || 
-    text.includes("home office") ||
-    text.includes("wfh") ||
-    (Array.isArray(jobType) && jobType.some((t: string) => t.toLowerCase().includes("remote")));
-  
+  const isJobRemote = text.includes("remote") || text.includes("work from home") || text.includes("wfh") || text.includes("home office");
   const isJobHybrid = text.includes("hybrid");
   const isJobOnsite = text.includes("on-site") || text.includes("onsite") || text.includes("in office") || text.includes("in-office");
   
-  const userWT = (userWorkType || "").toLowerCase();
-  
   if (userWT.includes("remote")) {
-    if (isJobRemote) score += 20;
-    if (isJobHybrid) score += 10;
-    if (isJobOnsite) score -= 10;
-  } else if (userWT.includes("hybrid")) {
-    if (isJobHybrid) score += 25;
-    if (isJobRemote) score += 15;
-    if (isJobOnsite) score += 5;
-  } else if (userWT.includes("on-site") || userWT.includes("onsite")) {
-    if (isJobOnsite) score += 20;
-    if (isJobHybrid) score += 10;
-    if (isJobRemote) score -= 15;
-  } else {
-    // No preference specified
-    if (isJobRemote) score += 10;
-    if (isJobHybrid) score += 10;
+    if (isJobRemote) return 15;
+    if (isJobHybrid) return 5;
+    if (isJobOnsite) return -15;
   }
   
-  return score;
+  if (userWT.includes("hybrid")) {
+    if (isJobHybrid) return 15;
+    if (isJobRemote) return 10;
+    if (isJobOnsite) return 0;
+  }
+  
+  if (userWT.includes("on-site") || userWT.includes("onsite")) {
+    if (isJobOnsite) return 15;
+    if (isJobHybrid) return 5;
+    if (isJobRemote) return -10;
+  }
+  
+  return 0;
+}
+
+// Recency bonus (small)
+function scoreRecency(job: any): number {
+  const posted = new Date(job.postedAt || job.datePosted || job.created_at || Date.now());
+  const days = (Date.now() - posted.getTime()) / (1000 * 60 * 60 * 24);
+  if (days < 1) return 5;
+  if (days < 3) return 3;
+  if (days < 7) return 2;
+  return 0;
+}
+
+// FINAL SCORE CALCULATION
+function calculateMatchScore(job: any, profile: any): { score: number; reasons: string[] } {
+  const title = job.title || job.positionName || "";
+  const desc = job.description || job.jobDescription || "";
+  const jobLoc = job.location || job.jobLocation || "";
+  
+  const desiredRoles = getSearchTerms(profile);
+  const userExpLevel = profile.experience_level || "";
+  const desiredLoc = (profile.desired_location || "").toLowerCase();
+  const isRemote = desiredLoc.includes("remote") || (profile.work_type || "").toLowerCase() === "remote";
+  const userWorkType = profile.work_type || "";
+  
+  const reasons: string[] = [];
+  let score = 0;
+  
+  // 1. TITLE MATCH (most important - max 50)
+  const titleScore = scoreTitleMatch(title, desiredRoles);
+  score += titleScore;
+  if (titleScore >= 40) reasons.push("Exact title match");
+  else if (titleScore >= 25) reasons.push("Good title match");
+  else if (titleScore >= 10) reasons.push("Partial title match");
+  
+  // 2. DESCRIPTION MATCH (max 30)
+  const descScore = scoreDescriptionMatch(desc, desiredRoles);
+  score += descScore;
+  if (descScore >= 15) reasons.push("Role mentioned in description");
+  
+  // 3. EXPERIENCE LEVEL (can be negative!)
+  const expScore = scoreExperienceLevel(title, desc, userExpLevel);
+  score += expScore;
+  if (expScore >= 20) reasons.push("Matches your experience level");
+  else if (expScore <= -30) reasons.push("Wrong experience level (too senior)");
+  else if (expScore <= -15) reasons.push("May require more experience");
+  
+  // 4. LOCATION (max 25)
+  const locScore = scoreLocation(jobLoc, desiredLoc, isRemote);
+  score += locScore;
+  if (locScore >= 20) reasons.push("Great location match");
+  else if (locScore >= 10) reasons.push("Location OK");
+  else if (locScore < 0) reasons.push("Wrong location type");
+  
+  // 5. WORK TYPE (max 15, min -15)
+  const workScore = scoreWorkType(job, isRemote, userWorkType);
+  score += workScore;
+  if (workScore >= 10) reasons.push("Matches work type preference");
+  else if (workScore < 0) reasons.push("Wrong work type");
+  
+  // 6. RECENCY (max 5)
+  const recencyScore = scoreRecency(job);
+  score += recencyScore;
+  
+  // HARD FILTERS - immediately disqualify certain jobs
+  // If experience score is very negative and title doesn't match well, cap the score
+  if (expScore <= -30 && titleScore < 20) {
+    score = Math.min(score, 15);
+    reasons.push("Likely overqualified role");
+  }
+  
+  // If title has zero relevance and description has zero relevance, very low score
+  if (titleScore === 0 && descScore === 0) {
+    score = Math.min(score, 10);
+    reasons.push("No role relevance detected");
+  }
+  
+  // Clamp to 0-100
+  score = Math.max(0, Math.min(100, score));
+  
+  return { score, reasons };
 }
 
 export async function GET(req: NextRequest) {
@@ -453,8 +401,6 @@ export async function GET(req: NextRequest) {
     const rawLocation = (profile.desired_location || "").toLowerCase().trim().replace(/\s+/g, " ");
     const isRemote = rawLocation.includes("remote") || (profile.work_type || "").toLowerCase() === "remote";
     const location = rawLocation.replace(/remote/g, "").replace(/,/g, " ").trim();
-    const userExpLevel = profile.experience_level || "";
-    const userWorkType = profile.work_type || "";
 
     const apifyCountry = getApifyCountry(rawLocation);
     const adzunaSupported = isAdzunaSupported(rawLocation);
@@ -466,7 +412,7 @@ export async function GET(req: NextRequest) {
     const errors: Record<string, string> = {};
 
     // ========================================================================
-    // STRATEGY DECISION
+    // FETCH JOBS (same as before)
     // ========================================================================
     if (apifyCountry && APIFY_API_TOKEN) {
       primarySource = "apify_indeed";
@@ -595,57 +541,18 @@ export async function GET(req: NextRequest) {
     }
 
     // ========================================================================
-    // PROCESS & SCORE RESULTS
+    // SCORE & FILTER JOBS
     // ========================================================================
-    const desiredLoc = (profile.desired_location || "").toLowerCase();
-    const desiredRole = profile.desired_role || "";
-    
-    const mapped = allJobs.map((job: any) => {
+    const scored = allJobs.map((job: any) => {
       const isArbeitnow = job.slug !== undefined;
       const isApify = job.positionName !== undefined || (job.id !== undefined && job.url !== undefined && job.company !== undefined);
       
-      const jobTitle = job.positionName || job.title || job.jobTitle || "";
-      const jobDesc = job.description || job.jobDescription || job.positionDescription || "";
-      const jobLoc = job.location || job.jobLocation || "";
-      const fullText = `${jobTitle} ${jobDesc} ${jobLoc}`.toLowerCase();
-
-      // 1. Role match score (0-60)
-      const roleScore = scoreRoleMatch(fullText, searchTerms, desiredRole);
+      const { score, reasons } = calculateMatchScore(job, profile);
       
-      // 2. Experience level score (-50 to +35)
-      const expScore = scoreExperience(fullText, userExpLevel);
-      
-      // 3. Location score (0-30)
-      const locScore = scoreLocation(jobLoc, desiredLoc, isRemote);
-      
-      // 4. Work type score (-15 to +25)
-      const workTypeScore = scoreWorkType(job, isRemote, userWorkType);
-      
-      // 5. Source recency bonus
-      let recencyScore = 0;
-      const postedDate = new Date(job.postedAt || job.datePosted || job.created_at || Date.now());
-      const daysAgo = (Date.now() - postedDate.getTime()) / (1000 * 60 * 60 * 24);
-      if (daysAgo < 1) recencyScore = 10;
-      else if (daysAgo < 3) recencyScore = 7;
-      else if (daysAgo < 7) recencyScore = 5;
-      else if (daysAgo < 14) recencyScore = 3;
-      
-      // Calculate total score
-      let totalScore = roleScore + expScore + locScore + workTypeScore + recencyScore;
-      
-      // Boost for very strong matches
-      if (roleScore >= 40 && expScore >= 20) totalScore += 15;
-      if (roleScore >= 30 && locScore >= 20 && expScore >= 15) totalScore += 10;
-      
-      // Clamp to 0-100
-      totalScore = Math.min(100, Math.max(0, totalScore));
-      
-      // Determine source label
       let source = "Adzuna";
       if (isArbeitnow) source = "Arbeitnow";
       else if (isApify) source = "Indeed";
 
-      // Build proper Indeed URL
       let jobUrl = job.url || "#";
       if (isApify && jobUrl === "#" && job.id) {
         jobUrl = `https://www.indeed.com/viewjob?jk=${job.id}`;
@@ -653,41 +560,38 @@ export async function GET(req: NextRequest) {
 
       return {
         id: isArbeitnow ? `arbeitnow_${job.slug}` : (isApify ? `indeed_${job.id}` : `adzuna_${job.id}`),
-        title: jobTitle || "Unknown Role",
+        title: job.title || job.positionName || job.jobTitle || "Unknown Role",
         company: job.company || job.companyName || job.hiringOrganization?.name || (isArbeitnow ? job.company_name : "Unknown"),
-        location: jobLoc || "Unknown",
-        description: stripHtml(jobDesc),
+        location: job.location || job.jobLocation || "Unknown",
+        description: stripHtml(job.description || job.jobDescription || job.positionDescription || ""),
         url: jobUrl,
         salary: job.salary || job.salaryRange || job.salaryCurrency || null,
-        remote: !!job.remote || (job.jobType && Array.isArray(job.jobType) && job.jobType.some((t: string) => t.toLowerCase().includes("remote"))) || fullText.includes("remote"),
+        remote: !!job.remote || (job.jobType && Array.isArray(job.jobType) && job.jobType.some((t: string) => t.toLowerCase().includes("remote"))) || `${job.title} ${job.description} ${job.location}`.toLowerCase().includes("remote"),
         source,
-        match_score: totalScore,
-        score: totalScore,
+        match_score: score,
+        score: score,
+        match_reasons: reasons,
         created_at: job.postedAt || job.datePosted || job.created_at || new Date().toISOString(),
-        // Debug info attached to each job for transparency
-        _debug: {
-          roleScore,
-          expScore,
-          locScore,
-          workTypeScore,
-          recencyScore,
-          detectedExp: detectExperienceLevel(fullText),
-        }
       };
     });
 
-    // Filter out severely mismatched jobs (optional - can be disabled)
-    // Keep jobs with score > 0 OR that have decent role matching
-    const filtered = mapped.filter((j: any) => {
-      // Always keep if role score is decent
-      if (j._debug.roleScore >= 20) return true;
-      // Always keep if total score is positive
-      if (j.score > 0) return true;
-      // Keep if it's a strong location match
-      if (j._debug.locScore >= 20) return true;
+    // STRICT FILTER: Only keep jobs with score >= 20 OR decent title match
+    const filtered = scored.filter((j: any) => {
+      // Always keep if score is decent
+      if (j.score >= 20) return true;
+      // Keep if title has some relevance (even if other factors are weak)
+      const title = j.title.toLowerCase();
+      const roles = getSearchTerms(profile);
+      for (const role of roles) {
+        const words = role.toLowerCase().split(/\s+/).filter(w => w.length >= 3);
+        for (const word of words) {
+          if (title.includes(word)) return true;
+        }
+      }
       return false;
     });
 
+    // Deduplicate
     const seen = new Set();
     const deduped = filtered.filter((j: any) => {
       if (seen.has(j.url)) return false;
@@ -695,12 +599,13 @@ export async function GET(req: NextRequest) {
       return true;
     });
 
-    // Sort by score descending, then by date
+    // Sort by score descending
     deduped.sort((a: any, b: any) => {
       if (b.score !== a.score) return b.score - a.score;
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
+    // Store in DB
     const toUpsert = deduped.map((j: any) => ({
       job_id: j.id,
       title: j.title,
@@ -733,25 +638,23 @@ export async function GET(req: NextRequest) {
         rawLocation: profile.desired_location,
         parsedLocation: location,
         isRemote,
-        userExpLevel,
+        userExpLevel: profile.experience_level,
         apifyCountry,
         adzunaSupported,
         isGerman,
         apifyConfigured: !!APIFY_API_TOKEN,
         adzunaConfigured: !!(ADZUNA_APP_ID && ADZUNA_APP_KEY),
-        perSourceCounts: {
-          apify: allJobs.filter((j: any) => j.positionName !== undefined || (j.id !== undefined && j.url !== undefined && j.company !== undefined)).length,
-          adzuna: allJobs.filter((j: any) => j.id && !j.slug && !j.positionName && !(j.id !== undefined && j.url !== undefined && j.company !== undefined)).length,
-          arbeitnow: allJobs.filter((j: any) => j.slug !== undefined).length,
-        },
-        scoreBreakdown: {
-          avgScore: deduped.length > 0 ? Math.round(deduped.reduce((sum, j) => sum + j.score, 0) / deduped.length) : 0,
-          highMatches: deduped.filter((j: any) => j.score >= 70).length,
-          mediumMatches: deduped.filter((j: any) => j.score >= 40 && j.score < 70).length,
-          lowMatches: deduped.filter((j: any) => j.score < 40).length,
+        scoreDistribution: {
+          excellent: deduped.filter((j: any) => j.score >= 80).length,
+          good: deduped.filter((j: any) => j.score >= 60 && j.score < 80).length,
+          decent: deduped.filter((j: any) => j.score >= 40 && j.score < 60).length,
+          low: deduped.filter((j: any) => j.score >= 20 && j.score < 40).length,
+          filtered: scored.length - filtered.length,
         },
         errors,
         totalJobsFound: allJobs.length,
+        jobsAfterScoring: scored.length,
+        jobsAfterFilter: filtered.length,
         jobsAfterDedup: deduped.length,
       }
     });
@@ -856,10 +759,6 @@ async function fetchApifyIndeed(profile: any, location: string, isRemote: boolea
   if (jobs.length === 1 && jobs[0].error) {
     console.error(`[Apify] Actor returned error:`, jobs[0].error);
     return [];
-  }
-
-  if (jobs.length > 0) {
-    console.log(`[Apify] First job fields:`, Object.keys(jobs[0]).join(", "));
   }
 
   return jobs;
