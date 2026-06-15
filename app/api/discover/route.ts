@@ -15,7 +15,6 @@ const APIFY_INDEED_ACTOR_ID = process.env.APIFY_INDEED_ACTOR_ID;
 const ADZUNA_SUPPORTED = new Set(["at", "au", "be", "br", "ca", "ch", "de", "es", "fr", "gb", "in", "it", "mx", "nl", "nz", "pl", "sg", "us", "za"]);
 const ADZUNA_EU_COUNTRIES = ["gb", "de", "fr", "es", "nl", "it", "at", "be", "ch", "pl"];
 
-// Apify country codes for Indeed (UPPERCASE as required by the actor)
 const APIFY_COUNTRIES: Record<string, string> = {
   "portugal": "PT", "lisbon": "PT", "lisboa": "PT", "porto": "PT",
   "spain": "ES", "madrid": "ES", "barcelona": "ES", "valencia": "ES",
@@ -139,9 +138,6 @@ export async function GET(req: NextRequest) {
     // STRATEGY DECISION
     // ========================================================================
     if (apifyCountry && APIFY_API_TOKEN) {
-      // ======================================================================
-      // STRATEGY A: Apify country -> Indeed scraping
-      // ======================================================================
       primarySource = "apify_indeed";
       try {
         const apifyJobs = await fetchApifyIndeed(searchTerms, location, isRemote, apifyCountry);
@@ -153,7 +149,6 @@ export async function GET(req: NextRequest) {
         console.error("[Discover] Apify Indeed failed:", err.message);
       }
 
-      // Fallback to Adzuna if Apify returns 0 or few results
       if (allJobs.length < 5) {
         if (ADZUNA_APP_ID && ADZUNA_APP_KEY) {
           try {
@@ -168,7 +163,6 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      // Supplement with Arbeitnow for EU remote jobs
       if (isRemote && allJobs.length < 20) {
         try {
           const arbeitnowJobs = await fetchArbeitnow(searchTerms, location, isRemote, true);
@@ -182,9 +176,6 @@ export async function GET(req: NextRequest) {
       }
 
     } else if (adzunaSupported) {
-      // ======================================================================
-      // STRATEGY B: Adzuna-supported country -> Adzuna primary
-      // ======================================================================
       primarySource = "adzuna";
       try {
         const adzunaJobs = await fetchAdzunaMultiCountry(searchTerms, location, isRemote);
@@ -209,9 +200,6 @@ export async function GET(req: NextRequest) {
       }
 
     } else if (isGerman) {
-      // ======================================================================
-      // STRATEGY C: German/generic -> Arbeitnow primary
-      // ======================================================================
       primarySource = "arbeitnow";
       try {
         const arbeitnowJobs = await fetchArbeitnow(searchTerms, location, isRemote, false);
@@ -237,9 +225,6 @@ export async function GET(req: NextRequest) {
       }
 
     } else {
-      // ======================================================================
-      // STRATEGY D: Unknown location -> Try all sources
-      // ======================================================================
       if (APIFY_API_TOKEN) {
         try {
           const apifyJobs = await fetchApifyIndeed(searchTerms, location, isRemote, "GB");
@@ -395,7 +380,7 @@ export async function GET(req: NextRequest) {
 }
 
 // ============================================================================
-// APIFY INDEED SCRAPER (ASYNC WITH LONGER POLLING)
+// APIFY INDEED SCRAPER - WITH FULL DEBUG LOGGING
 // ============================================================================
 async function fetchApifyIndeed(searchTerms: string[], location: string, isRemote: boolean, country: string) {
   if (!APIFY_API_TOKEN || !APIFY_INDEED_ACTOR_ID) {
@@ -405,14 +390,12 @@ async function fetchApifyIndeed(searchTerms: string[], location: string, isRemot
   const query = searchTerms.join(" ");
   const loc = location || (isRemote ? "Remote" : "");
 
-  // Apify actor IDs use ~ in URLs, not /
   const actorIdForUrl = APIFY_INDEED_ACTOR_ID.replace("/", "~");
-
-  // Start async run
-  const startUrl = `https://api.apify.com/v2/acts/${actorIdForUrl}/runs?token=${APIFY_API_TOKEN}`;
-  
   const countryUpper = country.toUpperCase();
 
+  // STEP 1: Start the run
+  const startUrl = `https://api.apify.com/v2/acts/${actorIdForUrl}/runs?token=${APIFY_API_TOKEN}`;
+  
   const input = {
     position: query,
     location: loc,
@@ -421,7 +404,7 @@ async function fetchApifyIndeed(searchTerms: string[], location: string, isRemot
     saveOnlyUniqueItems: true,
   };
 
-  console.log(`[Apify] Starting async run with:`, JSON.stringify(input));
+  console.log(`[Apify] STARTING RUN with input:`, JSON.stringify(input));
 
   const startRes = await fetch(startUrl, {
     method: "POST",
@@ -429,21 +412,31 @@ async function fetchApifyIndeed(searchTerms: string[], location: string, isRemot
     body: JSON.stringify(input),
   });
 
+  console.log(`[Apify] Start response status: ${startRes.status}`);
+
   if (!startRes.ok) {
     const errorText = await startRes.text();
+    console.error(`[Apify] Start failed body:`, errorText);
     throw new Error(`Apify start failed: ${startRes.status} - ${errorText.slice(0, 300)}`);
   }
 
   const startData = await startRes.json();
-  const runId = startData.data.id;
-  const datasetId = startData.data.defaultDatasetId;
+  console.log(`[Apify] Start data:`, JSON.stringify(startData, null, 2));
 
-  console.log(`[Apify] Started run ${runId}, dataset ${datasetId}`);
+  const runId = startData.data?.id;
+  const datasetId = startData.data?.defaultDatasetId;
 
-  // Poll for completion (max 180 seconds = 3 minutes)
+  if (!runId || !datasetId) {
+    throw new Error(`Apify start returned invalid data: ${JSON.stringify(startData)}`);
+  }
+
+  console.log(`[Apify] Run ID: ${runId}, Dataset ID: ${datasetId}`);
+
+  // STEP 2: Poll for completion (max 180 seconds)
   const maxWait = 180;
   const pollInterval = 5;
   let waited = 0;
+  let finalStatus = "";
 
   while (waited < maxWait) {
     await new Promise(resolve => setTimeout(resolve, pollInterval * 1000));
@@ -453,54 +446,61 @@ async function fetchApifyIndeed(searchTerms: string[], location: string, isRemot
     const statusRes = await fetch(statusUrl);
     const statusData = await statusRes.json();
 
-    console.log(`[Apify] Run status: ${statusData.data.status} (${waited}s)`);
+    finalStatus = statusData.data?.status;
+    console.log(`[Apify] Poll ${waited}s: status=${finalStatus}`);
 
-    if (statusData.data.status === "SUCCEEDED") {
+    if (finalStatus === "SUCCEEDED") {
       break;
     }
-    if (statusData.data.status === "FAILED" || statusData.data.status === "ABORTED" || statusData.data.status === "TIMED-OUT") {
-      throw new Error(`Apify run failed: ${statusData.data.status}`);
+    if (finalStatus === "FAILED" || finalStatus === "ABORTED" || finalStatus === "TIMED-OUT") {
+      throw new Error(`Apify run failed with status: ${finalStatus}`);
     }
   }
 
-  if (waited >= maxWait) {
-    throw new Error(`Apify run timed out after ${maxWait}s`);
+  if (finalStatus !== "SUCCEEDED") {
+    throw new Error(`Apify run timed out after ${maxWait}s. Last status: ${finalStatus}`);
   }
 
-  // Fetch results from dataset
+  // STEP 3: Fetch dataset items
   const datasetUrl = `https://api.apify.com/v2/datasets/${datasetId}/items?token=${APIFY_API_TOKEN}`;
+  console.log(`[Apify] Fetching dataset: ${datasetUrl}`);
+
   const resultsRes = await fetch(datasetUrl);
-  
+  console.log(`[Apify] Dataset response status: ${resultsRes.status}`);
+
   if (!resultsRes.ok) {
-    throw new Error(`Apify dataset fetch failed: ${resultsRes.status}`);
+    const errorText = await resultsRes.text();
+    throw new Error(`Apify dataset fetch failed: ${resultsRes.status} - ${errorText.slice(0, 200)}`);
   }
 
   const jobs = await resultsRes.json();
-  console.log(`[Apify] Retrieved ${jobs.length} jobs from dataset`);
+  console.log(`[Apify] Raw jobs count: ${jobs.length}`);
 
-  // Log first job for debugging
+  // HEAVY DEBUG: Log the first 3 jobs completely
   if (jobs.length > 0) {
-    console.log(`[Apify] First job sample:`, JSON.stringify(jobs[0], null, 2));
+    console.log(`[Apify] FIRST JOB RAW:`, JSON.stringify(jobs[0], null, 2));
+    if (jobs.length > 1) console.log(`[Apify] SECOND JOB RAW:`, JSON.stringify(jobs[1], null, 2));
+    if (jobs.length > 2) console.log(`[Apify] THIRD JOB RAW:`, JSON.stringify(jobs[2], null, 2));
+  } else {
+    console.log(`[Apify] NO JOBS RETURNED - dataset is empty`);
   }
 
-  // Normalize Apify output format using exact field names from official schema
-  return jobs.map((job: any) => ({
-    id: job.id,
-    positionName: job.positionName,
-    company: job.company,
-    location: job.location,
-    description: job.description,
-    url: job.url,
-    salary: job.salary,
-    jobType: job.jobType,
-    postedAt: job.postedAt,
-    scrapedAt: job.scrapedAt,
-    rating: job.rating,
-    reviewsCount: job.reviewsCount,
-    companyLogo: job.companyLogo,
-    externalApplyLink: job.externalApplyLink,
-    isExpired: job.isExpired,
-  }));
+  // Log all unique keys from first job to understand schema
+  if (jobs.length > 0) {
+    const allKeys = Object.keys(jobs[0]);
+    console.log(`[Apify] All field names in first job:`, allKeys.join(", "));
+  }
+
+  // STEP 4: Normalize - pass through ALL fields, don't rename
+  return jobs.map((job: any) => {
+    // Just pass the raw job through with minimal normalization
+    // We'll handle field mapping in the main function
+    return {
+      ...job,
+      // Ensure these common fields exist for detection
+      _isApify: true,
+    };
+  });
 }
 
 // ============================================================================
