@@ -15,16 +15,16 @@ const APIFY_INDEED_ACTOR_ID = process.env.APIFY_INDEED_ACTOR_ID;
 const ADZUNA_SUPPORTED = new Set(["at", "au", "be", "br", "ca", "ch", "de", "es", "fr", "gb", "in", "it", "mx", "nl", "nz", "pl", "sg", "us", "za"]);
 const ADZUNA_EU_COUNTRIES = ["gb", "de", "fr", "es", "nl", "it", "at", "be", "ch", "pl"];
 
-// Apify country codes for Indeed
+// Apify country codes for Indeed (UPPERCASE as required by the actor)
 const APIFY_COUNTRIES: Record<string, string> = {
-  "portugal": "pt", "lisbon": "pt", "lisboa": "pt", "porto": "pt",
-  "spain": "es", "madrid": "es", "barcelona": "es", "valencia": "es",
-  "germany": "de", "france": "fr", "uk": "gb", "ireland": "ie",
-  "italy": "it", "netherlands": "nl", "belgium": "be", "austria": "at",
-  "switzerland": "ch", "sweden": "se", "denmark": "dk", "norway": "no",
-  "finland": "fi", "poland": "pl", "czech republic": "cz", "greece": "gr",
-  "brazil": "br", "mexico": "mx", "argentina": "ar", "australia": "au",
-  "new zealand": "nz", "japan": "jp", "canada": "ca", "usa": "us", "united states": "us",
+  "portugal": "PT", "lisbon": "PT", "lisboa": "PT", "porto": "PT",
+  "spain": "ES", "madrid": "ES", "barcelona": "ES", "valencia": "ES",
+  "germany": "DE", "france": "FR", "uk": "GB", "ireland": "IE",
+  "italy": "IT", "netherlands": "NL", "belgium": "BE", "austria": "AT",
+  "switzerland": "CH", "sweden": "SE", "denmark": "DK", "norway": "NO",
+  "finland": "FI", "poland": "PL", "czech republic": "CZ", "greece": "GR",
+  "brazil": "BR", "mexico": "MX", "argentina": "AR", "australia": "AU",
+  "new zealand": "NZ", "japan": "JP", "canada": "CA", "usa": "US", "united states": "US",
 };
 
 const countryMap: Record<string, string> = {
@@ -51,10 +51,10 @@ const countryMap: Record<string, string> = {
 function stripHtml(html: string): string {
   if (!html) return "";
   return html
-    .replace(/<<\/li>/gi, "\n")
-    .replace(/<<\/p>|<\/h[1-6]>/gi, "\n\n")
-    .replace(/<<br\s*\/?>/gi, "\n")
-    .replace(/<<[^>]+>/g, "")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<\/p>|<\/h[1-6]>/gi, "\n\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
@@ -248,7 +248,7 @@ export async function GET(req: NextRequest) {
       // ======================================================================
       if (APIFY_API_TOKEN) {
         try {
-          const apifyJobs = await fetchApifyIndeed(searchTerms, location, isRemote, "gb");
+          const apifyJobs = await fetchApifyIndeed(searchTerms, location, isRemote, "GB");
           allJobs = apifyJobs;
           primarySource = "apify_indeed";
           sourcesUsed.push("apify_indeed");
@@ -291,7 +291,7 @@ export async function GET(req: NextRequest) {
     
     const mapped = allJobs.map((job: any) => {
       const isArbeitnow = job.slug !== undefined;
-      const isApify = job.positionName !== undefined || job.indeedId !== undefined;
+      const isApify = job.positionName !== undefined || job.indeedId !== undefined || job.indeed_id !== undefined;
       const jobText = `${job.title || job.positionName || ""} ${job.description || ""} ${job.location || ""}`.toLowerCase();
 
       let score = 0;
@@ -313,18 +313,18 @@ export async function GET(req: NextRequest) {
       else if (isApify) source = "Indeed";
 
       return {
-        id: isArbeitnow ? `arbeitnow_${job.slug}` : (isApify ? `indeed_${job.indeedId || job.id}` : `adzuna_${job.id}`),
-        title: job.title || job.positionName || "Unknown Role",
-        company: job.company || job.companyName || (isArbeitnow ? job.company_name : "Unknown"),
-        location: job.location || job.jobLocation || "Unknown",
-        description: stripHtml(job.description || job.jobDescription || ""),
-        url: job.url || job.applyUrl || "#",
-        salary: job.salary || job.salaryRange || null,
+        id: isArbeitnow ? `arbeitnow_${job.slug}` : (isApify ? `indeed_${job.indeedId || job.indeed_id || job.id}` : `adzuna_${job.id}`),
+        title: job.title || job.positionName || job.jobTitle || "Unknown Role",
+        company: job.company || job.companyName || job.hiringOrganization?.name || (isArbeitnow ? job.company_name : "Unknown"),
+        location: job.location || job.jobLocation || job.address || "Unknown",
+        description: stripHtml(job.description || job.jobDescription || job.positionDescription || ""),
+        url: job.url || job.applyUrl || job.jobUrl || "#",
+        salary: job.salary || job.salaryRange || job.salaryCurrency || null,
         remote: !!job.remote || jobText.includes("remote"),
         source,
         match_score: Math.min(100, Math.max(0, score)),
         score,
-        created_at: job.created_at || job.datePosted || new Date().toISOString(),
+        created_at: job.created_at || job.datePosted || job.postedAt || new Date().toISOString(),
       };
     });
 
@@ -378,8 +378,8 @@ export async function GET(req: NextRequest) {
         apifyConfigured: !!APIFY_API_TOKEN,
         adzunaConfigured: !!(ADZUNA_APP_ID && ADZUNA_APP_KEY),
         perSourceCounts: {
-          apify: allJobs.filter((j: any) => j.positionName !== undefined).length,
-          adzuna: allJobs.filter((j: any) => j.id && !j.slug && !j.positionName).length,
+          apify: allJobs.filter((j: any) => j.positionName !== undefined || j.indeedId !== undefined || j.indeed_id !== undefined).length,
+          adzuna: allJobs.filter((j: any) => j.id && !j.slug && !j.positionName && !j.indeedId && !j.indeed_id).length,
           arbeitnow: allJobs.filter((j: any) => j.slug !== undefined).length,
         },
         errors,
@@ -394,7 +394,7 @@ export async function GET(req: NextRequest) {
 }
 
 // ============================================================================
-// APIFY INDEED SCRAPER
+// APIFY INDEED SCRAPER (FIXED - SYNC ENDPOINT)
 // ============================================================================
 async function fetchApifyIndeed(searchTerms: string[], location: string, isRemote: boolean, country: string) {
   if (!APIFY_API_TOKEN || !APIFY_INDEED_ACTOR_ID) {
@@ -404,78 +404,53 @@ async function fetchApifyIndeed(searchTerms: string[], location: string, isRemot
   const query = searchTerms.join(" ");
   const loc = location || (isRemote ? "Remote" : "");
 
-  // Start Apify actor run
-  const startUrl = `https://api.apify.com/v2/acts/${APIFY_INDEED_ACTOR_ID}/runs?token=${APIFY_API_TOKEN}`;
-  
-  const startRes = await fetch(startUrl, {
+  // Apify actor IDs use ~ in URLs, not /
+  const actorIdForUrl = APIFY_INDEED_ACTOR_ID.replace("/", "~");
+
+  // Use synchronous endpoint - waits for run to finish and returns dataset items directly
+  const syncUrl = `https://api.apify.com/v2/acts/${actorIdForUrl}/run-sync-get-dataset-items?token=${APIFY_API_TOKEN}`;
+
+  // The actor expects uppercase country codes: US, UK, DE, FR, PT, etc.
+  const countryUpper = country.toUpperCase();
+
+  const input = {
+    position: query,
+    location: loc,
+    country: countryUpper,
+    maxItems: 50,
+    maxItemsPerSearch: 50,
+    saveOnlyUniqueItems: true,
+  };
+
+  console.log(`[Apify] Calling sync endpoint: ${syncUrl}`);
+  console.log(`[Apify] Input:`, JSON.stringify(input));
+
+  const startRes = await fetch(syncUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      position: query,
-      location: loc,
-      country: country,
-      maxJobCount: 50,
-      parseCompanyDetails: false,
-      saveOnlyUniqueItems: true,
-    }),
+    body: JSON.stringify(input),
   });
 
   if (!startRes.ok) {
     const errorText = await startRes.text();
-    throw new Error(`Apify start failed: ${startRes.status} - ${errorText.slice(0, 200)}`);
+    console.error(`[Apify] Sync failed: ${startRes.status} - ${errorText.slice(0, 500)}`);
+    throw new Error(`Apify sync failed: ${startRes.status} - ${errorText.slice(0, 300)}`);
   }
 
-  const startData = await startRes.json();
-  const runId = startData.data.id;
-  const datasetId = startData.data.defaultDatasetId;
-
-  console.log(`[Apify] Started run ${runId}, waiting for results...`);
-
-  // Poll for completion (max 60 seconds)
-  const maxWait = 60;
-  const pollInterval = 3;
-  let waited = 0;
-
-  while (waited < maxWait) {
-    await new Promise(resolve => setTimeout(resolve, pollInterval * 1000));
-    waited += pollInterval;
-
-    const statusUrl = `https://api.apify.com/v2/actor-runs/${runId}?token=${APIFY_API_TOKEN}`;
-    const statusRes = await fetch(statusUrl);
-    const statusData = await statusRes.json();
-
-    console.log(`[Apify] Run status: ${statusData.data.status} (${waited}s)`);
-
-    if (statusData.data.status === "SUCCEEDED") {
-      break;
-    }
-    if (statusData.data.status === "FAILED" || statusData.data.status === "ABORTED") {
-      throw new Error(`Apify run failed: ${statusData.data.status}`);
-    }
-  }
-
-  // Fetch results from dataset
-  const datasetUrl = `https://api.apify.com/v2/datasets/${datasetId}/items?token=${APIFY_API_TOKEN}`;
-  const resultsRes = await fetch(datasetUrl);
-  
-  if (!resultsRes.ok) {
-    throw new Error(`Apify dataset fetch failed: ${resultsRes.status}`);
-  }
-
-  const jobs = await resultsRes.json();
-  console.log(`[Apify] Retrieved ${jobs.length} jobs from dataset`);
+  const jobs = await startRes.json();
+  console.log(`[Apify] Sync endpoint returned ${jobs.length} jobs`);
 
   // Normalize Apify output format
   return jobs.map((job: any) => ({
-    indeedId: job.id || job.jobKey,
-    title: job.positionName || job.title,
-    company: job.company || job.companyName,
-    location: job.location || job.jobLocation || "Portugal",
-    description: job.description || job.jobDescription || "View on Indeed for full description",
-    url: job.url || `https://www.indeed.com/viewjob?jk=${job.id}`,
-    salary: job.salary || job.salaryRange || null,
-    remote: job.jobType?.includes("Remote") || false,
-    created_at: job.datePosted || new Date().toISOString(),
+    indeedId: job.id || job.jobKey || job.indeedId || job.indeed_id,
+    title: job.positionName || job.title || job.jobTitle,
+    company: job.company || job.companyName || job.hiringOrganization?.name,
+    location: job.location || job.jobLocation || job.address || countryUpper,
+    description: job.description || job.jobDescription || job.positionDescription || "View on Indeed for full description",
+    url: job.url || job.applyUrl || job.jobUrl || `https://www.indeed.com/viewjob?jk=${job.id}`,
+    salary: job.salary || job.salaryRange || job.salaryCurrency || null,
+    remote: job.jobType?.includes("Remote") || job.remote || false,
+    created_at: job.datePosted || job.postedAt || job.created_at || new Date().toISOString(),
   }));
 }
 
