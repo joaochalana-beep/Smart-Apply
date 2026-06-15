@@ -112,17 +112,6 @@ function isAdzunaSupported(loc: string): boolean {
 // REALISTIC JOB MATCHING ENGINE
 // ============================================================================
 
-// Your desired roles split into individual keywords for matching
-function getRoleKeywords(roles: string[]): string[][] {
-  return roles.map(role => {
-    return role.toLowerCase()
-      .split(/[\s&+,]/)
-      .map(w => w.trim())
-      .filter(w => w.length >= 2 && !["and", "or", "the", "a", "an", "in", "of", "to", "for"].includes(w));
-  });
-}
-
-// Check if job title matches ANY of your desired roles
 function scoreTitleMatch(jobTitle: string, desiredRoles: string[]): number {
   const title = jobTitle.toLowerCase();
   let bestScore = 0;
@@ -131,20 +120,17 @@ function scoreTitleMatch(jobTitle: string, desiredRoles: string[]): number {
     const roleLower = role.toLowerCase().trim();
     if (roleLower.length < 2) continue;
     
-    // EXACT match in title (e.g., "Data Analyst" in "Senior Data Analyst")
     if (title.includes(roleLower)) {
       bestScore = Math.max(bestScore, 50);
       continue;
     }
     
-    // Check individual keywords from role
     const roleWords = roleLower.split(/\s+/).filter(w => w.length >= 3);
     let matchedWords = 0;
     for (const word of roleWords) {
       if (title.includes(word)) matchedWords++;
     }
     
-    // All main words matched
     if (roleWords.length >= 2 && matchedWords === roleWords.length) {
       bestScore = Math.max(bestScore, 40);
     } else if (matchedWords >= 2) {
@@ -157,7 +143,6 @@ function scoreTitleMatch(jobTitle: string, desiredRoles: string[]): number {
   return bestScore;
 }
 
-// Check if description supports the role
 function scoreDescriptionMatch(jobDesc: string, desiredRoles: string[]): number {
   const desc = jobDesc.toLowerCase();
   let score = 0;
@@ -166,13 +151,11 @@ function scoreDescriptionMatch(jobDesc: string, desiredRoles: string[]): number 
     const roleLower = role.toLowerCase().trim();
     if (roleLower.length < 2) continue;
     
-    // Role mentioned in description
     if (desc.includes(roleLower)) {
       score += 15;
       continue;
     }
     
-    // Partial word matches
     const words = roleLower.split(/\s+/).filter(w => w.length >= 3);
     for (const word of words) {
       if (desc.includes(word)) score += 5;
@@ -182,15 +165,12 @@ function scoreDescriptionMatch(jobDesc: string, desiredRoles: string[]): number 
   return Math.min(30, score);
 }
 
-// STRICT experience level checking
 function scoreExperienceLevel(jobTitle: string, jobDesc: string, userLevel: string): number {
   const fullText = `${jobTitle} ${jobDesc}`.toLowerCase();
   const userLevelLower = userLevel.toLowerCase().trim();
   
-  // If user didn't specify, neutral
   if (!userLevelLower || userLevelLower === "any") return 0;
   
-  // Detect job's experience level
   const hasSenior = /\b(senior|sr\.?|lead|principal|staff|head of|director|vp|chief|architect|manager|5\+ years|6\+ years|7\+ years|8\+ years|10\+ years)\b/i.test(fullText);
   const hasMid = /\b(mid|mid-level|intermediate|2-5 years|3\+ years|4\+ years|level 2|level ii)\b/i.test(fullText);
   const hasEntry = /\b(entry|entry-level|junior|jr\.?|graduate|grad|intern|trainee|0-2|1-2|1\+ years|no experience|early career|fresh)\b/i.test(fullText);
@@ -199,15 +179,13 @@ function scoreExperienceLevel(jobTitle: string, jobDesc: string, userLevel: stri
   const isUserMid = userLevelLower.includes("mid") || userLevelLower.includes("intermediate");
   const isUserSenior = userLevelLower.includes("senior") || userLevelLower.includes("lead") || userLevelLower.includes("principal");
   
-  // ENTRY USER
   if (isUserEntry) {
-    if (hasSenior) return -60; // HEAVY penalty for senior roles
-    if (hasMid) return -30;    // Significant penalty for mid roles
-    if (hasEntry) return 25;   // Good bonus for entry roles
-    return 0;                   // Neutral for unclear
+    if (hasSenior) return -60;
+    if (hasMid) return -30;
+    if (hasEntry) return 25;
+    return 0;
   }
   
-  // MID USER
   if (isUserMid) {
     if (hasSenior) return -20;
     if (hasEntry) return 10;
@@ -215,7 +193,6 @@ function scoreExperienceLevel(jobTitle: string, jobDesc: string, userLevel: stri
     return 0;
   }
   
-  // SENIOR USER
   if (isUserSenior) {
     if (hasEntry) return -15;
     if (hasMid) return 10;
@@ -226,7 +203,6 @@ function scoreExperienceLevel(jobTitle: string, jobDesc: string, userLevel: stri
   return 0;
 }
 
-// Location matching
 function scoreLocation(jobLoc: string, desiredLoc: string, isRemote: boolean): number {
   if (!desiredLoc || desiredLoc.trim() === "") return 0;
   
@@ -239,10 +215,9 @@ function scoreLocation(jobLoc: string, desiredLoc: string, isRemote: boolean): n
     if (jobLower.includes("on-site") || jobLower.includes("onsite")) return -10;
   }
   
-  // Country/city match
   if (desiredLower.includes("portugal") || desiredLower.includes("lisbon") || desiredLower.includes("porto")) {
     if (jobLower.includes("portugal") || jobLower.includes("lisbon") || jobLower.includes("porto") || jobLower.includes("lisboa")) return 25;
-    if (jobLower.includes("remote")) return 15; // Remote from Portugal is OK
+    if (jobLower.includes("remote")) return 15;
   }
   
   if (desiredLower.includes("spain") || desiredLower.includes("madrid") || desiredLower.includes("barcelona")) {
@@ -253,7 +228,6 @@ function scoreLocation(jobLoc: string, desiredLoc: string, isRemote: boolean): n
     if (jobLower.includes("germany") || jobLower.includes("berlin") || jobLower.includes("munich") || jobLower.includes("hamburg")) return 25;
   }
   
-  // Generic EU
   if (desiredLower.includes("europe") || desiredLower.includes("eu")) {
     const euCountries = ["germany", "france", "netherlands", "italy", "spain", "portugal", "belgium", "austria", "switzerland", "ireland", "poland", "sweden", "denmark", "norway", "finland"];
     if (euCountries.some(c => jobLower.includes(c))) return 20;
@@ -262,7 +236,6 @@ function scoreLocation(jobLoc: string, desiredLoc: string, isRemote: boolean): n
   return 0;
 }
 
-// Work type matching
 function scoreWorkType(job: any, isRemote: boolean, userWorkType: string): number {
   const text = `${job.title || ""} ${job.description || ""} ${job.location || ""}`.toLowerCase();
   const userWT = (userWorkType || "").toLowerCase();
@@ -292,7 +265,6 @@ function scoreWorkType(job: any, isRemote: boolean, userWorkType: string): numbe
   return 0;
 }
 
-// Recency bonus (small)
 function scoreRecency(job: any): number {
   const posted = new Date(job.postedAt || job.datePosted || job.created_at || Date.now());
   const days = (Date.now() - posted.getTime()) / (1000 * 60 * 60 * 24);
@@ -302,7 +274,114 @@ function scoreRecency(job: any): number {
   return 0;
 }
 
+// ============================================================================
+// LANGUAGE SCORING
+// ============================================================================
+
+function scoreLanguage(jobTitle: string, jobDesc: string, userLanguages: string[]): { score: number; missing: string[] } {
+  if (!userLanguages || userLanguages.length === 0) return { score: 0, missing: [] };
+  
+  const fullText = `${jobTitle} ${jobDesc}`.toLowerCase();
+  const userLangsLower = userLanguages.map(l => l.toLowerCase());
+  
+  const languagePatterns: Record<string, RegExp[]> = {
+    german: [
+      /\bgerman\b/i, /\bdeutsch\b/i, /\bgerman speaking\b/i, /\bgerman-speaking\b/i,
+      /\bfluency in german\b/i, /\bgerman fluency\b/i, /\bgerman required\b/i,
+      /\bgerman language\b/i, /\bnative.*german\b/i, /\bgerman.*native\b/i,
+      /\bproficient.*german\b/i, /\bgerman.*proficient\b/i,
+    ],
+    english: [
+      /\benglish\b/i, /\bfluent english\b/i, /\benglish fluency\b/i,
+      /\benglish required\b/i, /\benglish speaking\b/i,
+    ],
+    portuguese: [
+      /\bportuguese\b/i, /\bportugu[eê]s\b/i, /\bfluent.*portuguese\b/i,
+      /\bportuguese.*required\b/i,
+    ],
+    spanish: [
+      /\bspanish\b/i, /\bespa[nñ]ol\b/i, /\bspanish speaking\b/i,
+      /\bspanish.*required\b/i,
+    ],
+    french: [
+      /\bfrench\b/i, /\bfran[cç]ais\b/i, /\bfrench speaking\b/i,
+      /\bfrench.*required\b/i,
+    ],
+    italian: [
+      /\bitalian\b/i, /\bitaliano\b/i, /\bitalian.*required\b/i,
+    ],
+    dutch: [
+      /\bdutch\b/i, /\bnederlands\b/i, /\bdutch.*required\b/i,
+    ],
+    russian: [
+      /\brussian\b/i, /\brussian.*required\b/i,
+    ],
+    chinese: [
+      /\bchinese\b/i, /\bmandarin\b/i, /\bchinese.*required\b/i,
+    ],
+    japanese: [
+      /\bjapanese\b/i, /\bjapanese.*required\b/i,
+    ],
+    arabic: [
+      /\barabic\b/i, /\barabic.*required\b/i,
+    ],
+    hindi: [
+      /\bhindi\b/i, /\bhindi.*required\b/i,
+    ],
+    polish: [
+      /\bpolish\b/i, /\bpolish.*required\b/i,
+    ],
+    turkish: [
+      /\bturkish\b/i, /\bturkish.*required\b/i,
+    ],
+    swedish: [
+      /\bswedish\b/i, /\bswedish.*required\b/i,
+    ],
+    danish: [
+      /\bdanish\b/i, /\bdanish.*required\b/i,
+    ],
+    norwegian: [
+      /\bnorwegian\b/i, /\bnorwegian.*required\b/i,
+    ],
+    finnish: [
+      /\bfinnish\b/i, /\bfinnish.*required\b/i,
+    ],
+    greek: [
+      /\bgreek\b/i, /\bgreek.*required\b/i,
+    ],
+    czech: [
+      /\bczech\b/i, /\bczech.*required\b/i,
+    ],
+  };
+  
+  let penalty = 0;
+  const missingLanguages: string[] = [];
+  
+  for (const [lang, patterns] of Object.entries(languagePatterns)) {
+    const isRequired = patterns.some(p => p.test(fullText));
+    const userHasIt = userLangsLower.includes(lang);
+    
+    if (isRequired && !userHasIt) {
+      penalty -= 30;
+      missingLanguages.push(lang);
+    }
+  }
+  
+  // Extra penalty for explicit "required" language statements
+  if (/german.*required|required.*german|must.*german|german.*must|fluent.*german.*required|native.*german/i.test(fullText)) {
+    if (!userLangsLower.includes("german")) {
+      penalty -= 40;
+      if (!missingLanguages.includes("german")) missingLanguages.push("german");
+    }
+  }
+  
+  return { score: Math.max(-80, penalty), missing: missingLanguages };
+}
+
+// ============================================================================
 // FINAL SCORE CALCULATION
+// ============================================================================
+
 function calculateMatchScore(job: any, profile: any): { score: number; reasons: string[] } {
   const title = job.title || job.positionName || "";
   const desc = job.description || job.jobDescription || "";
@@ -313,6 +392,7 @@ function calculateMatchScore(job: any, profile: any): { score: number; reasons: 
   const desiredLoc = (profile.desired_location || "").toLowerCase();
   const isRemote = desiredLoc.includes("remote") || (profile.work_type || "").toLowerCase() === "remote";
   const userWorkType = profile.work_type || "";
+  const userLanguages = profile.languages || [];
   
   const reasons: string[] = [];
   let score = 0;
@@ -353,20 +433,29 @@ function calculateMatchScore(job: any, profile: any): { score: number; reasons: 
   const recencyScore = scoreRecency(job);
   score += recencyScore;
   
-  // HARD FILTERS - immediately disqualify certain jobs
-  // If experience score is very negative and title doesn't match well, cap the score
+  // 7. LANGUAGE (can be negative!)
+  const langResult = scoreLanguage(title, desc, userLanguages);
+  score += langResult.score;
+  if (langResult.missing.length > 0) {
+    reasons.push(`Requires ${langResult.missing.join(", ")} (you don't speak it)`);
+  }
+  
+  // HARD FILTERS
   if (expScore <= -30 && titleScore < 20) {
     score = Math.min(score, 15);
     reasons.push("Likely overqualified role");
   }
   
-  // If title has zero relevance and description has zero relevance, very low score
   if (titleScore === 0 && descScore === 0) {
     score = Math.min(score, 10);
     reasons.push("No role relevance detected");
   }
   
-  // Clamp to 0-100
+  if (langResult.score <= -40) {
+    score = Math.min(score, 20);
+    reasons.push("Language barrier");
+  }
+  
   score = Math.max(0, Math.min(100, score));
   
   return { score, reasons };
@@ -381,7 +470,7 @@ export async function GET(req: NextRequest) {
 
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("desired_role, desired_location, work_type, experience_level, id")
+      .select("desired_role, desired_location, work_type, experience_level, languages, id")
       .eq("user_id", userId)
       .single();
 
@@ -411,9 +500,6 @@ export async function GET(req: NextRequest) {
     let sourcesUsed: string[] = [];
     const errors: Record<string, string> = {};
 
-    // ========================================================================
-    // FETCH JOBS (same as before)
-    // ========================================================================
     if (apifyCountry && APIFY_API_TOKEN) {
       primarySource = "apify_indeed";
       try {
@@ -540,9 +626,6 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // ========================================================================
-    // SCORE & FILTER JOBS
-    // ========================================================================
     const scored = allJobs.map((job: any) => {
       const isArbeitnow = job.slug !== undefined;
       const isApify = job.positionName !== undefined || (job.id !== undefined && job.url !== undefined && job.company !== undefined);
@@ -575,11 +658,8 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    // STRICT FILTER: Only keep jobs with score >= 20 OR decent title match
     const filtered = scored.filter((j: any) => {
-      // Always keep if score is decent
       if (j.score >= 20) return true;
-      // Keep if title has some relevance (even if other factors are weak)
       const title = j.title.toLowerCase();
       const roles = getSearchTerms(profile);
       for (const role of roles) {
@@ -591,7 +671,6 @@ export async function GET(req: NextRequest) {
       return false;
     });
 
-    // Deduplicate
     const seen = new Set();
     const deduped = filtered.filter((j: any) => {
       if (seen.has(j.url)) return false;
@@ -599,13 +678,11 @@ export async function GET(req: NextRequest) {
       return true;
     });
 
-    // Sort by score descending
     deduped.sort((a: any, b: any) => {
       if (b.score !== a.score) return b.score - a.score;
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
-    // Store in DB
     const toUpsert = deduped.map((j: any) => ({
       job_id: j.id,
       title: j.title,
@@ -639,6 +716,7 @@ export async function GET(req: NextRequest) {
         parsedLocation: location,
         isRemote,
         userExpLevel: profile.experience_level,
+        userLanguages: profile.languages || [],
         apifyCountry,
         adzunaSupported,
         isGerman,

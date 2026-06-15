@@ -16,16 +16,20 @@ const COMMON_INDUSTRIES = [
   "Energy", "Telecommunications", "Gaming", "Crypto", "Government"
 ];
 
+const COMMON_LANGUAGES = [
+  "English", "Portuguese", "Spanish", "French", "German", "Italian",
+  "Dutch", "Russian", "Chinese", "Japanese", "Arabic", "Hindi", "Polish",
+  "Turkish", "Swedish", "Danish", "Norwegian", "Finnish", "Greek", "Czech"
+];
+
 // Auto-formats text into paragraphs if no newlines exist
 function FormattedText({ text, className = "" }: { text: string; className?: string }) {
   if (!text) return <p className="text-zinc-500 text-sm">—</p>;
   
-  // If text already has newlines, respect them
   if (text.includes('\n')) {
     return <div className={`whitespace-pre-wrap leading-relaxed ${className}`}>{text}</div>;
   }
   
-  // Split into sentences and group into paragraphs (3-4 sentences each)
   const sentences = text
     .split(/(?<=[.!?])\s+/)
     .map(s => s.trim())
@@ -63,6 +67,7 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [roleInput, setRoleInput] = useState("");
   const [industryInput, setIndustryInput] = useState("");
+  const [langInput, setLangInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
@@ -116,7 +121,7 @@ export default function ProfilePage() {
     setSaving(false);
   }
 
-  function updateField(field: string, value: string | number) {
+  function updateField(field: string, value: string | number | string[]) {
     setProfile((prev: any) => ({ ...prev, [field]: value }));
   }
 
@@ -165,10 +170,36 @@ export default function ProfilePage() {
     updateField(field, current.join("; "));
   }
 
+  // Languages are stored as array, not semicolon-separated string
+  function getLanguages(): string[] {
+    const val = profile?.languages;
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    try {
+      const parsed = JSON.parse(val);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {}
+    return [];
+  }
+
+  function addLanguage(value: string) {
+    const current = getLanguages();
+    const trimmed = value.trim();
+    if (trimmed && !current.includes(trimmed)) {
+      updateField("languages", [...current, trimmed]);
+    }
+  }
+
+  function removeLanguage(value: string) {
+    const current = getLanguages().filter((v: string) => v !== value);
+    updateField("languages", current);
+  }
+
   const currency = profile?.currency || "$";
   const currencySymbol = currency === "€" ? "€" : currency === "£" ? "£" : "$";
   const desiredRoles = getMultiSelect("desired_role");
   const industries = getMultiSelect("industries");
+  const languages = getLanguages();
 
   if (loading) return <div className="min-h-screen bg-zinc-950 text-white p-10 pt-24">Loading...</div>;
 
@@ -229,7 +260,7 @@ export default function ProfilePage() {
 
         {error && (
           <div className="bg-red-900/30 border border-red-800 rounded-xl p-4 mb-6 text-red-300 text-sm">
-            ⚠️ {error}
+            ⚠ {error}
           </div>
         )}
 
@@ -412,6 +443,51 @@ export default function ProfilePage() {
                 </select>
               </div>
 
+              {/* NEW: Languages Section */}
+              <div className="md:col-span-2">
+                <label className="block text-sm text-zinc-400 mb-1">Languages You Speak</label>
+                <p className="text-xs text-zinc-500 mb-2">We'll filter out jobs that require languages you don't speak</p>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {languages.map((lang: string) => (
+                    <span key={lang} className="bg-blue-900/50 text-blue-200 text-xs px-3 py-1 rounded-full flex items-center gap-2">
+                      {lang}
+                      <button onClick={() => removeLanguage(lang)} className="text-blue-400 hover:text-blue-200">×</button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <select
+                    value={langInput}
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        addLanguage(e.target.value);
+                        setLangInput("");
+                      }
+                    }}
+                    className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-zinc-600"
+                  >
+                    <option value="">Select a language...</option>
+                    {COMMON_LANGUAGES.filter(l => !languages.includes(l)).map(l => (
+                      <option key={l} value={l}>{l}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    value={langInput}
+                    onChange={(e) => setLangInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && langInput.trim()) {
+                        e.preventDefault();
+                        addLanguage(langInput.trim());
+                        setLangInput("");
+                      }
+                    }}
+                    placeholder="Or type & hit Enter"
+                    className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-zinc-600"
+                  />
+                </div>
+              </div>
+
               <div className="md:col-span-2">
                 <label className="block text-sm text-zinc-400 mb-1">Industries</label>
                 <div className="flex flex-wrap gap-2 mb-2">
@@ -467,6 +543,7 @@ export default function ProfilePage() {
               {renderField("Desired Location", profile?.desired_location)}
               {renderField("Work Type", profile?.work_type)}
               {renderField("Job Type", profile?.job_type)}
+              {renderField("Languages", languages.join(", ") || "—")}
               {renderField("Industries", industries.join(", "))}
             </div>
           )}
