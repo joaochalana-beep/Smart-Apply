@@ -177,8 +177,8 @@ export default function ResumeBuilder() {
   const extractPDFText = async (file: File): Promise<string> => {
     const pdfjs = await import("pdfjs-dist");
     
-    // Use local worker file (same as your working upload-cv page)
-    pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.mjs";
+    // Use CDN worker that matches the installed pdfjs-dist version (4.2.67)
+    pdfjs.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.worker.min.mjs";
     
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
