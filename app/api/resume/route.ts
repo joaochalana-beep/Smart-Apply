@@ -1,22 +1,9 @@
+"use server";
+
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-type ExperienceEntry = {
-  company: string;
-  role: string;
-  duration: string;
-  location: string;
-  achievements: string[];
-};
-
-type SkillCategory = {
-  category: string;
-  skills: string[];
-};
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 type FormData = {
   name: string;
@@ -27,84 +14,120 @@ type FormData = {
   location: string;
   summary: string;
   targetJobDescription: string;
-  experiences: ExperienceEntry[];
-  skills: SkillCategory[];
+  experiences: Array<{
+    company: string;
+    role: string;
+    duration: string;
+    location: string;
+    achievements: string[];
+  }>;
+  skills: Array<{
+    category: string;
+    skills: string[];
+  }>;
   education: string;
   certifications: string;
   languages: string;
 };
 
-function extractKeywords(jobDescription: string): string[] {
-  const commonStopWords = new Set([
+function calculateATSScore(resume: string, jobDescription: string, formData: FormData): { score: number; improvements: string[]; keywords: string[] } {
+  const resumeLower = resume.toLowerCase();
+  const improvements: string[] = [];
+  const matchedKeywords: string[] = [];
+
+  // Extract meaningful keywords from JD (filter out generic words)
+  const genericWords = new Set([
     "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by",
     "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did",
     "will", "would", "could", "should", "may", "might", "must", "shall", "can", "need", "dare",
-    "ought", "used", "rarely", "seldom", "hardly", "scarcely", "barely", "never", "always",
-    "often", "sometimes", "frequently", "usually", "generally", "typically", "normally",
-    "commonly", "regularly", "constantly", "continuously", "repeatedly", "periodically",
-    "occasionally", "routinely", "daily", "weekly", "monthly", "yearly", "annually",
-    "we", "you", "they", "them", "their", "theirs", "themselves", "what", "which", "who",
-    "whom", "whose", "this", "that", "these", "those", "am", "is", "are", "was", "were",
-    "being", "been", "have", "has", "had", "do", "does", "did", "will", "would", "shall",
-    "should", "may", "might", "can", "could", "must", "ought", "need", "dare", "used",
-    "about", "above", "across", "after", "against", "along", "among", "around", "before",
-    "behind", "below", "beneath", "beside", "between", "beyond", "despite", "during",
-    "except", "inside", "into", "near", "off", "onto", "outside", "over", "past", "since",
-    "through", "throughout", "till", "toward", "under", "underneath", "until", "upon",
-    "within", "without", "according", "because", "before", "both", "each", "either",
-    "neither", "whether", "although", "though", "while", "whereas", "unless", "until",
-    "since", "so", "than", "too", "very", "just", "now", "only", "own", "same", "so",
-    "than", "too", "very", "also", "back", "still", "even", "only", "just", "already",
-    "yet", "ever", "never", "always", "often", "sometimes", "usually", "generally",
-    "typically", "normally", "commonly", "regularly", "constantly", "continuously",
-    "repeatedly", "periodically", "occasionally", "routinely", "responsible", "duties",
-    "tasks", "work", "job", "role", "position", "employment", "career", "professional",
+    "we", "you", "they", "them", "their", "this", "that", "these", "those", "am", "is", "are",
+    "about", "above", "across", "after", "against", "along", "among", "around", "before", "behind",
+    "below", "beneath", "beside", "between", "beyond", "despite", "during", "except", "inside",
+    "into", "near", "off", "onto", "outside", "over", "past", "since", "through", "throughout",
+    "till", "toward", "under", "underneath", "until", "upon", "within", "without", "according",
+    "because", "both", "each", "either", "neither", "whether", "although", "though", "while",
+    "whereas", "unless", "since", "so", "than", "too", "very", "just", "now", "only", "own",
+    "same", "also", "back", "still", "even", "already", "yet", "ever", "never", "always", "often",
+    "sometimes", "usually", "generally", "typically", "normally", "commonly", "regularly", "routinely",
+    "responsible", "duties", "tasks", "work", "job", "role", "position", "employment", "career",
+    "professional", "what", "which", "who", "whom", "whose", "how", "when", "where", "why",
+    "all", "any", "both", "each", "few", "more", "most", "other", "some", "such", "no", "nor",
+    "not", "only", "own", "same", "so", "than", "too", "very", "can", "will", "just", "should",
+    "now", "here", "there", "up", "down", "out", "if", "about", "into", "through", "during",
+    "before", "after", "above", "below", "between", "under", "again", "further", "then", "once",
+    "data", "user", "based", "online", "high", "reviewing", "environment", "requirements",
   ]);
 
-  const words = jobDescription
-    .toLowerCase()
-    .replace(/[^\w\s]/g, " ")
-    .split(/\s+/)
-    .filter(w => w.length >= 3 && !commonStopWords.has(w) && !/^\d+$/.test(w));
-
+  // Extract multi-word phrases and important terms
+  const jdText = jobDescription.toLowerCase();
+  const words = jdText.replace(/[^\w\s]/g, " ").split(/\s+/).filter(w => w.length >= 4 && !genericWords.has(w));
+  
   const frequency: Record<string, number> = {};
-  words.forEach(w => {
-    frequency[w] = (frequency[w] || 0) + 1;
-  });
-
-  return Object.entries(frequency)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 25)
-    .map(([word]) => word);
-}
-
-function calculateATSScore(resume: string, jobDescription: string, formData: FormData): { score: number; improvements: string[]; keywords: string[] } {
-  const resumeLower = resume.toLowerCase();
-  const jdKeywords = extractKeywords(jobDescription);
-  const matchedKeywords: string[] = [];
-  const improvements: string[] = [];
-
-  // Keyword matching
+  words.forEach(w => { frequency[w] = (frequency[w] || 0) + 1; });
+  
+  // Also extract 2-word phrases
+  const phrases: string[] = [];
+  const wordList = jdText.replace(/[^\w\s]/g, " ").split(/\s+/).filter(w => w.length >= 3);
+  for (let i = 0; i < wordList.length - 1; i++) {
+    const phrase = `${wordList[i]} ${wordList[i + 1]}`;
+    if (!genericWords.has(wordList[i]) && !genericWords.has(wordList[i + 1])) {
+      phrases.push(phrase);
+    }
+  }
+  
+  const topWords = Object.entries(frequency).sort((a, b) => b[1] - a[1]).slice(0, 20).map(([w]) => w);
+  const topPhrases = [...new Set(phrases)].slice(0, 15);
+  
+  // Check keyword matches
   let keywordScore = 0;
-  jdKeywords.forEach(kw => {
+  topWords.forEach(kw => {
     if (resumeLower.includes(kw)) {
-      keywordScore += 2;
+      keywordScore += 3;
       matchedKeywords.push(kw);
     }
   });
-  keywordScore = Math.min(40, keywordScore);
+  topPhrases.forEach(phrase => {
+    if (resumeLower.includes(phrase)) {
+      keywordScore += 5;
+      if (!matchedKeywords.includes(phrase)) matchedKeywords.push(phrase);
+    }
+  });
+  keywordScore = Math.min(35, keywordScore);
+
+  // CRITICAL: Exact job title match
+  const targetTitle = formData.jobTitle.toLowerCase().replace(/[^\w\s]/g, "");
+  const titleWords = targetTitle.split(/\s+/).filter(w => w.length > 2);
+  let titleMatchScore = 0;
+  
+  // Check if full title appears
+  if (resumeLower.includes(targetTitle)) {
+    titleMatchScore = 25;
+  } else {
+    // Check individual words
+    let matchedTitleWords = 0;
+    titleWords.forEach(w => {
+      if (resumeLower.includes(w)) matchedTitleWords++;
+    });
+    if (matchedTitleWords === titleWords.length) titleMatchScore = 20;
+    else if (matchedTitleWords >= Math.ceil(titleWords.length / 2)) titleMatchScore = 10;
+    else titleMatchScore = Math.max(0, matchedTitleWords * 3);
+  }
+  
+  if (titleMatchScore < 20) {
+    improvements.push(`Include your target job title '${formData.jobTitle}' prominently in your Professional Summary or header`);
+  }
 
   // Check for metrics/numbers
-  const hasMetrics = /\d+%|\d+\s*(percent|x|times|fold|million|billion|k|thousand|hundred)|\$\d+|\d+\s*(users|customers|clients|tickets|calls|emails|days|hours|months|years)/i.test(resume);
+  const hasMetrics = /\d+%|\d+\s*(percent|x|times|fold|million|billion|k|thousand|hundred)|\$\d+|\d+\s*(users|customers|clients|tickets|calls|emails|days|hours|months|years|pieces|items)/i.test(resume);
   if (!hasMetrics) {
-    improvements.push("Add specific metrics and numbers to your achievements (e.g., 'reduced response time by 20%')");
+    improvements.push("Add specific metrics and numbers to achievements (e.g., 'improved resolution time by 30%')");
   }
 
   // Check for action verbs
-  const actionVerbs = ["achieved", "improved", "increased", "decreased", "reduced", "enhanced", "optimized", "streamlined", "implemented", "developed", "created", "designed", "managed", "led", "coordinated", "collaborated", "negotiated", "resolved", "delivered", "executed", "launched", "spearheaded", "drove", "generated", "boosted", "transformed", "pioneered", "established", "built", "grew", "expanded", "secured", "won", "saved", "eliminated", "prevented", "mitigated", "detected", "identified", "investigated", "verified", "validated", "audited", "complied", "ensured", "maintained", "monitored", "tracked", "analyzed", "evaluated", "assessed", "reviewed", "processed", "handled", "managed", "supervised", "trained", "mentored", "supported", "assisted", "served", "responded", "communicated", "presented", "reported", "documented", "recorded", "updated", "maintained"];
+  const actionVerbs = ["achieved", "improved", "increased", "decreased", "reduced", "enhanced", "optimized", "streamlined", "implemented", "developed", "created", "designed", "managed", "led", "coordinated", "collaborated", "negotiated", "resolved", "delivered", "executed", "launched", "spearheaded", "drove", "generated", "boosted", "transformed", "pioneered", "established", "built", "grew", "expanded", "secured", "won", "saved", "eliminated", "prevented", "mitigated", "detected", "identified", "investigated", "verified", "validated", "audited", "complied", "ensured", "maintained", "monitored", "tracked", "analyzed", "evaluated", "assessed", "reviewed", "processed", "handled", "supervised", "trained", "mentored", "supported", "assisted", "served", "responded", "communicated", "presented", "reported", "documented", "recorded", "updated", "scaled", "enforced", "escalated", "flagged"];
   const verbCount = actionVerbs.filter(v => resumeLower.includes(v)).length;
   if (verbCount < 5) {
-    improvements.push(`Use more action verbs at the start of bullet points. Found ${verbCount}, aim for 8+ (e.g., spearheaded, optimized, drove)`);
+    improvements.push(`Use more action verbs at bullet starts. Found ${verbCount}, aim for 8+ (e.g., spearheaded, optimized, drove)`);
   }
 
   // Check section completeness
@@ -119,40 +142,66 @@ function calculateATSScore(resume: string, jobDescription: string, formData: For
   if (!hasEducation) improvements.push("Add an Education section");
 
   // Check for soft skills fluff
-  const softSkills = ["detail-oriented", "team player", "hardworking", "self-motivated", "enthusiastic", "passionate", "dedicated", "committed", "reliable", "punctual", "flexible", "adaptable", "quick learner", "good communication", "excellent communication"];
+  const softSkills = ["detail-oriented", "team player", "hardworking", "self-motivated", "enthusiastic", "passionate", "dedicated", "committed", "reliable", "punctual", "flexible", "adaptable", "quick learner", "good communication", "excellent communication", "strong work ethic", "go-getter", "self-starter"];
   const softSkillCount = softSkills.filter(s => resumeLower.includes(s)).length;
-  if (softSkillCount > 3) {
-    improvements.push("Reduce generic soft skills ('team player', 'hardworking'). Replace with specific achievements that demonstrate these traits");
+  if (softSkillCount > 2) {
+    improvements.push("Reduce generic soft skills ('team player', 'hardworking'). Replace with specific achievements");
   }
 
   // Check length
   const lineCount = resume.split("\n").filter(l => l.trim()).length;
-  if (lineCount < 20) {
-    improvements.push("Resume seems short. Add more detail to your experience and achievements");
-  } else if (lineCount > 80) {
-    improvements.push("Resume may be too long. Aim for 1-2 pages. Trim older or less relevant experience");
+  if (lineCount < 15) {
+    improvements.push("Resume seems short. Add more detail to experience and achievements");
+  } else if (lineCount > 100) {
+    improvements.push("Resume may be too long. Aim for 1-2 pages. Trim older experience");
   }
 
-  // Check for job title alignment
-  const targetTitle = formData.jobTitle.toLowerCase();
-  if (!resumeLower.includes(targetTitle) && targetTitle.length > 3) {
-    improvements.push(`Include your target job title '${formData.jobTitle}' somewhere in your resume (summary or skills section)`);
+  // Language check if specified
+  if (formData.languages) {
+    const langList = formData.languages.toLowerCase().split(/[,;]/).map(l => l.trim());
+    langList.forEach(lang => {
+      if (lang.length > 2 && !resumeLower.includes(lang)) {
+        improvements.push(`Mention '${lang}' in your skills or summary section`);
+      }
+    });
   }
 
-  // Calculate final score
-  let score = 50; // Base score
+  // Calculate final score — START LOWER, ADD UP
+  let score = 30; // Base
+  
   score += keywordScore;
+  score += titleMatchScore;
   if (hasMetrics) score += 15;
-  score += Math.min(15, verbCount * 2);
+  score += Math.min(10, verbCount);
   if (hasSummary) score += 5;
   if (hasExperience) score += 5;
   if (hasSkills) score += 5;
   if (hasEducation) score += 5;
-  if (softSkillCount <= 3) score += 5;
-  if (lineCount >= 20 && lineCount <= 80) score += 5;
+  if (softSkillCount <= 2) score += 5;
+  if (lineCount >= 15 && lineCount <= 100) score += 5;
+  
+  // PENALTY: If there are critical improvements, cap the score
+  const criticalIssues = improvements.filter(i => 
+    i.includes("target job title") || 
+    i.includes("metrics") || 
+    i.includes("short") ||
+    i.includes("too long")
+  ).length;
+  
+  if (criticalIssues >= 2) {
+    score = Math.min(score, 75);
+  }
+  if (criticalIssues >= 3) {
+    score = Math.min(score, 60);
+  }
+  
+  // NEVER return 100 if there are improvements
+  if (improvements.length > 0) {
+    score = Math.min(score, 95);
+  }
 
   return {
-    score: Math.min(100, Math.max(0, score)),
+    score: Math.round(Math.min(100, Math.max(0, score))),
     improvements,
     keywords: matchedKeywords.slice(0, 15),
   };
@@ -160,127 +209,116 @@ function calculateATSScore(resume: string, jobDescription: string, formData: For
 
 export async function POST(request: NextRequest) {
   try {
-    const body: FormData = await request.json();
+    const formData: FormData = await request.json();
 
-    // Extract keywords from job description for tailoring
-    const jdKeywords = body.targetJobDescription ? extractKeywords(body.targetJobDescription) : [];
+    const systemPrompt = `You are an expert resume writer and career coach. You specialize in creating ATS-optimized resumes and cover letters that pass automated screening systems while remaining human-readable.
 
-    const systemPrompt = `You are an elite ATS optimization expert and resume writer. You create resumes that pass Applicant Tracking Systems and impress human recruiters.
+Rules for resume generation:
+1. Use the exact job title provided by the user prominently in the Professional Summary and header
+2. Include keywords from the job description naturally throughout
+3. Use strong action verbs at the start of every bullet point
+4. Include specific metrics and numbers where possible
+5. Keep formatting clean with clear section headers
+6. Avoid generic soft skills ("team player", "hardworking") — replace with specific achievements
+7. Tailor experience bullets to match the job description requirements
+8. Use a professional, modern format
 
-CRITICAL RULES FOR RESUME:
-- Output ONLY these sections: **PROFESSIONAL SUMMARY**, **WORK EXPERIENCE**, **SKILLS**, **EDUCATION**, **CERTIFICATIONS** (if any)
-- Do NOT include name, contact info, or any header — the PDF renderer handles that separately
-- Use **SECTION NAME** for headers (bold markdown)
-- Use "- " bullet points for all achievements
-- Every bullet must start with a strong action verb
-- Include specific metrics, numbers, and percentages in every bullet where possible
-- Mirror language from the job description keywords provided
-- Use industry-standard terminology
-- Keep bullets concise: 1-2 lines max
-- Prioritize recency and relevance
-- For older roles, use fewer bullets
-- Target 1-2 pages when printed
-- No tables, columns, or complex formatting
-- No markdown code blocks`;
+Output format:
+**PROFESSIONAL SUMMARY**
+[2-3 sentences tailored to the job]
 
-    const userPromptResume = `Create an ATS-optimized resume for someone applying to: "${body.jobTitle}"
+**WORK EXPERIENCE**
+[Company] | [Role] | [Duration] | [Location]
+- Achievement with metric
+- Achievement with metric
+...
 
-${body.targetJobDescription ? `TARGET JOB DESCRIPTION KEYWORDS TO INCLUDE: ${jdKeywords.join(", ")}
+**SKILLS**
+[Category]: [skill, skill, skill]
+...
+
+**EDUCATION**
+[Education details]
+
+**CERTIFICATIONS** (if applicable)
+[Certification details]
+
+Rules for cover letter:
+1. Address the specific role and company
+2. Mention 2-3 key requirements from the job description and how the candidate meets them
+3. Include specific achievements with metrics
+4. Keep it to 3-4 paragraphs
+5. Professional but enthusiastic tone
+6. End with a call to action`;
+
+    const userPrompt = `Generate an ATS-optimized resume and cover letter for this candidate applying for: ${formData.jobTitle}
 
 JOB DESCRIPTION:
-${body.targetJobDescription}
+${formData.targetJobDescription}
 
-Tailor the resume specifically for this role. Mirror the language and priorities from the job description.` : "Create a versatile resume optimized for this role type."}
-
-PERSONAL SUMMARY (use or enhance): ${body.summary || "Not provided — generate based on experience"}
+CANDIDATE INFORMATION:
+Name: ${formData.name}
+Email: ${formData.email}
+Phone: ${formData.phone}
+LinkedIn: ${formData.linkedin}
+Location: ${formData.location}
+${formData.summary ? `Summary: ${formData.summary}` : ""}
 
 WORK EXPERIENCE:
-${body.experiences.map((exp, i) => `
-${i + 1}. ${exp.role} at ${exp.company} (${exp.duration})${exp.location ? ` — ${exp.location}` : ""}
+${formData.experiences.map(exp => `
+Company: ${exp.company}
+Role: ${exp.role}
+Duration: ${exp.duration}
+Location: ${exp.location}
 Achievements:
 ${exp.achievements.filter(a => a.trim()).map(a => `- ${a}`).join("\n")}
 `).join("\n")}
 
-SKILLS BY CATEGORY:
-${body.skills.map(cat => `${cat.category}: ${cat.skills.filter(s => s.trim()).join(", ")}`).join("\n")}
+SKILLS:
+${formData.skills.map(cat => `${cat.category}: ${cat.skills.filter(s => s.trim()).join(", ")}`).join("\n")}
 
-EDUCATION: ${body.education}
+EDUCATION:
+${formData.education}
 
-${body.certifications ? `CERTIFICATIONS: ${body.certifications}` : ""}
+CERTIFICATIONS:
+${formData.certifications}
 
-${body.languages ? `LANGUAGES: ${body.languages}` : ""}
+LANGUAGES:
+${formData.languages}
 
-Generate a concise, powerful, ATS-friendly resume.`;
+Generate both the resume and cover letter. Separate them clearly with "=== COVER LETTER ==="`;
 
-    const systemPromptCL = `You are an expert cover letter writer. You write compelling, personalized cover letters that get interviews.
-
-CRITICAL RULES FOR COVER LETTER:
-- Professional but personable tone
-- 3-4 paragraphs max
-- Hook the reader in paragraph 1
-- Connect specific experience to job requirements
-- Show enthusiasm for the company/role
-- End with a strong call to action
-- No generic fluff
-- Address specific requirements from the job description`;
-
-    const userPromptCL = `Write a compelling cover letter for ${body.name} applying to the "${body.jobTitle}" position.
-
-${body.targetJobDescription ? `JOB DESCRIPTION:
-${body.targetJobDescription}` : ""}
-
-CANDIDATE BACKGROUND:
-- Target role: ${body.jobTitle}
-- Experience: ${body.experiences.map(e => `${e.role} at ${e.company} (${e.duration})`).join("; ")}
-- Key skills: ${body.skills.map(c => c.skills.filter(s => s.trim()).join(", ")).join("; ")}
-- Education: ${body.education}
-${body.languages ? `- Languages: ${body.languages}` : ""}
-
-Write a cover letter that:
-1. Opens with why they're excited about this specific role
-2. Highlights 2-3 most relevant achievements with metrics
-3. Connects their skills to the job requirements
-4. Closes with enthusiasm and a call to action`;
-
-    // Generate resume
-    const resumeCompletion = await openai.chat.completions.create({
+    const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: userPromptResume },
+        { role: "user", content: userPrompt },
       ],
-      temperature: 0.5,
-      max_tokens: 2000,
+      temperature: 0.7,
+      max_tokens: 3000,
     });
 
-    // Generate cover letter
-    const clCompletion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: systemPromptCL },
-        { role: "user", content: userPromptCL },
-      ],
-      temperature: 0.6,
-      max_tokens: 1500,
-    });
-
-    const resume = resumeCompletion.choices[0].message.content?.replace(/```plaintext/g, "").replace(/```/g, "").trim() || "";
-    const coverLetter = clCompletion.choices[0].message.content?.replace(/```plaintext/g, "").replace(/```/g, "").trim() || "";
+    const content = completion.choices[0].message.content || "";
+    
+    // Split resume and cover letter
+    const parts = content.split("=== COVER LETTER ===");
+    const resume = parts[0].trim();
+    const coverLetter = parts[1]?.trim() || "Cover letter generation failed. Please try again.";
 
     // Calculate ATS score
-    const { score, improvements, keywords } = calculateATSScore(resume, body.targetJobDescription || "", body);
+    const atsResult = calculateATSScore(resume, formData.targetJobDescription, formData);
 
     return NextResponse.json({
       resume,
       coverLetter,
-      atsScore: score,
-      improvements,
-      keywords,
+      atsScore: atsResult.score,
+      improvements: atsResult.improvements,
+      keywords: atsResult.keywords,
     });
   } catch (error) {
-    console.error("Error generating resume:", error);
+    console.error("Resume generation error:", error);
     return NextResponse.json(
-      { error: "Failed to generate resume" },
+      { error: "Failed to generate resume. Please try again." },
       { status: 500 }
     );
   }
