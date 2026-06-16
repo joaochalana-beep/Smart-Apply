@@ -174,19 +174,46 @@ export default function ResumeBuilder() {
     updateField("skills", updated);
   };
 
-  const handleCVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+   const handleCVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setExtracting(true);
 
-    const uploadData = new FormData();
-    uploadData.append("cv", file);
-
     try {
+      let text = "";
+
+      if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
+        // Extract PDF text in browser using pdfjs-dist
+        const pdfjs = await import("pdfjs-dist");
+        // Set the worker source - use the CDN version
+        pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+        
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+        
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          const pageText = content.items
+            .map((item: any) => item.str)
+            .join(" ");
+          text += pageText + "\n";
+        }
+      } else {
+        // For TXT, DOC, DOCX - read as text
+        text = await file.text();
+      }
+
+      if (!text.trim()) {
+        throw new Error("Could not extract text from file");
+      }
+
+      // Send extracted text to API
       const res = await fetch("/api/extract-cv", {
         method: "POST",
-        body: uploadData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
       });
       const data = await res.json();
 
@@ -194,6 +221,7 @@ export default function ResumeBuilder() {
         throw new Error(data.error);
       }
 
+      // Merge extracted data with form
       setFormData((prev) => ({
         ...prev,
         name: data.name || prev.name,
@@ -203,18 +231,17 @@ export default function ResumeBuilder() {
         linkedin: data.linkedin || prev.linkedin,
         location: data.location || prev.location,
         summary: data.summary || prev.summary,
-        experiences:
-          data.experiences?.length ? data.experiences : prev.experiences,
+        experiences: data.experiences?.length ? data.experiences : prev.experiences,
         skills: data.skills?.length ? data.skills : prev.skills,
         education: data.education || prev.education,
         certifications: data.certifications || prev.certifications,
         languages: data.languages || prev.languages,
       }));
 
-      setStep(1);
+      setStep(1); // Move to review/edit step
     } catch (err) {
+      console.error("CV extraction error:", err);
       alert("Failed to extract CV. Please fill in manually.");
-      console.error(err);
     } finally {
       setExtracting(false);
     }

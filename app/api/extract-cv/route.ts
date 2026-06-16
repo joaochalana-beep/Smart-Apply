@@ -5,27 +5,11 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
-    const file = formData.get("cv") as File;
+    const body = await request.json();
+    const { text } = body;
 
-    if (!file) {
-      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
-    }
-
-    let text = "";
-
-    if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      const pdf = require("pdf-parse/lib/pdf-parse.js");
-      const pdfData = await pdf(buffer);
-      text = pdfData.text;
-    } else {
-      text = await file.text();
-    }
-
-    if (!text.trim()) {
-      return NextResponse.json({ error: "Could not extract text from file" }, { status: 400 });
+    if (!text || !text.trim()) {
+      return NextResponse.json({ error: "No text provided" }, { status: 400 });
     }
 
     const completion = await openai.chat.completions.create({
