@@ -244,12 +244,23 @@ Output format:
 [Certification details]
 
 Rules for cover letter:
-1. Address the specific role and company
-2. Mention 2-3 key requirements from the job description and how the candidate meets them
-3. Include specific achievements with metrics
-4. Keep it to 3-4 paragraphs
-5. Professional but enthusiastic tone
-6. End with a call to action`;
+1. Use today's date at the top (format: Month Day, Year — e.g., "June 16, 2026")
+2. Address as "Dear Hiring Manager," — do NOT include company name, company address, or [Company Address] placeholder
+3. Mention 2-3 key requirements from the job description and how the candidate meets them
+4. Include specific achievements with metrics
+5. Keep it to 3-4 paragraphs
+6. Professional but enthusiastic tone
+7. End with a call to action
+
+Cover letter format:
+[Month Day, Year]
+
+Dear Hiring Manager,
+
+[Body paragraphs]
+
+Sincerely,
+[Candidate Name]`;
 
     const userPrompt = `Generate an ATS-optimized resume and cover letter for this candidate applying for: ${formData.jobTitle}
 
