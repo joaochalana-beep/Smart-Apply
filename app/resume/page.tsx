@@ -174,7 +174,29 @@ export default function ResumeBuilder() {
     updateField("skills", updated);
   };
 
-   const handleCVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const extractPDFText = async (arrayBuffer: ArrayBuffer): Promise<string> => {
+    try {
+      // Dynamic import of pdfjs-dist with legacy build (no worker needed)
+      const pdfjs = await import("pdfjs-dist/legacy/build/pdf.js");
+      const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+      let text = "";
+      
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        const pageText = content.items
+          .map((item: any) => item.str)
+          .join(" ");
+        text += pageText + "\n";
+      }
+      return text;
+    } catch (e) {
+      console.error("PDF extraction failed:", e);
+      throw new Error("Could not extract text from PDF. Please try a .txt file or fill in manually.");
+    }
+  };
+
+  const handleCVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -184,24 +206,9 @@ export default function ResumeBuilder() {
       let text = "";
 
       if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
-        // Extract PDF text in browser using pdfjs-dist
-        const pdfjs = await import("pdfjs-dist");
-        // Set the worker source - use the CDN version
-        pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
-        
         const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
-        
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const content = await page.getTextContent();
-          const pageText = content.items
-            .map((item: any) => item.str)
-            .join(" ");
-          text += pageText + "\n";
-        }
+        text = await extractPDFText(arrayBuffer);
       } else {
-        // For TXT, DOC, DOCX - read as text
         text = await file.text();
       }
 
@@ -209,19 +216,23 @@ export default function ResumeBuilder() {
         throw new Error("Could not extract text from file");
       }
 
-      // Send extracted text to API
       const res = await fetch("/api/extract-cv", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
       });
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `API error: ${res.status}`);
+      }
+      
       const data = await res.json();
 
       if (data.error) {
         throw new Error(data.error);
       }
 
-      // Merge extracted data with form
       setFormData((prev) => ({
         ...prev,
         name: data.name || prev.name,
@@ -238,10 +249,10 @@ export default function ResumeBuilder() {
         languages: data.languages || prev.languages,
       }));
 
-      setStep(1); // Move to review/edit step
-    } catch (err) {
+      setStep(1);
+    } catch (err: any) {
       console.error("CV extraction error:", err);
-      alert("Failed to extract CV. Please fill in manually.");
+      alert(`Failed to extract CV: ${err.message || "Unknown error"}. Please fill in manually.`);
     } finally {
       setExtracting(false);
     }
