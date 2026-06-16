@@ -174,6 +174,28 @@ export default function ResumeBuilder() {
     updateField("skills", updated);
   };
 
+  const extractPDFText = async (file: File): Promise<string> => {
+    const pdfjs = await import("pdfjs-dist");
+    
+    // Use local worker file (same as your working upload-cv page)
+    pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.mjs";
+    
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+    
+    let fullText = "";
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(" ");
+      fullText += pageText + "\n";
+    }
+    
+    return fullText;
+  };
+
   const handleCVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -183,12 +205,11 @@ export default function ResumeBuilder() {
     try {
       let text = "";
 
-      if (file.type === "text/plain" || file.name.endsWith(".txt")) {
-        text = await file.text();
+      if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
+        text = await extractPDFText(file);
       } else {
-        alert("Currently only .txt files are supported for CV upload. Please convert your CV to .txt or fill in manually.");
-        setExtracting(false);
-        return;
+        // For TXT files
+        text = await file.text();
       }
 
       if (!text.trim()) {
@@ -206,7 +227,7 @@ export default function ResumeBuilder() {
       }
       
       const data = await res.json();
-      console.log("Extracted CV data:", data); // DEBUG LOG
+      console.log("Extracted CV data:", data);
 
       if (data.error) {
         throw new Error(data.error);
@@ -428,7 +449,7 @@ export default function ResumeBuilder() {
       <div className="border-2 border-dashed border-zinc-300 rounded-2xl p-12 hover:border-zinc-500 transition cursor-pointer">
         <input
           type="file"
-          accept=".txt"
+          accept=".pdf,.txt"
           onChange={handleCVUpload}
           className="hidden"
           id="cv-upload"
@@ -436,7 +457,7 @@ export default function ResumeBuilder() {
         <label htmlFor="cv-upload" className="cursor-pointer block">
           <div className="text-4xl mb-4">📄</div>
           <p className="font-medium text-zinc-900">Click to upload your CV</p>
-          <p className="text-sm text-zinc-600 mt-1">TXT files only (for now)</p>
+          <p className="text-sm text-zinc-600 mt-1">PDF or TXT</p>
         </label>
       </div>
 
