@@ -174,32 +174,6 @@ export default function ResumeBuilder() {
     updateField("skills", updated);
   };
 
-  const extractPDFText = async (arrayBuffer: ArrayBuffer): Promise<string> => {
-    try {
-      // Dynamic import pdfjs-dist
-      const pdfjs = await import("pdfjs-dist");
-      
-      // Set worker source to CDN
-      pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.worker.min.mjs`;
-      
-      const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
-      let text = "";
-      
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const content = await page.getTextContent();
-        const pageText = content.items
-          .map((item: any) => item.str)
-          .join(" ");
-        text += pageText + "\n";
-      }
-      return text;
-    } catch (e) {
-      console.error("PDF extraction failed:", e);
-      throw new Error("Could not extract text from PDF. Please try a .txt file or fill in manually.");
-    }
-  };
-
   const handleCVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -209,11 +183,12 @@ export default function ResumeBuilder() {
     try {
       let text = "";
 
-      if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
-        const arrayBuffer = await file.arrayBuffer();
-        text = await extractPDFText(arrayBuffer);
-      } else {
+      if (file.type === "text/plain" || file.name.endsWith(".txt")) {
         text = await file.text();
+      } else {
+        alert("Currently only .txt files are supported for CV upload. Please convert your CV to .txt or fill in manually.");
+        setExtracting(false);
+        return;
       }
 
       if (!text.trim()) {
@@ -227,15 +202,34 @@ export default function ResumeBuilder() {
       });
       
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || `API error: ${res.status}`);
+        throw new Error(`API error: ${res.status}`);
       }
       
       const data = await res.json();
+      console.log("Extracted CV data:", data); // DEBUG LOG
 
       if (data.error) {
         throw new Error(data.error);
       }
+
+      // Properly map experiences with fallback
+      const extractedExperiences = data.experiences?.map((exp: any) => ({
+        company: exp.company || "",
+        role: exp.role || "",
+        duration: exp.duration || "",
+        location: exp.location || "",
+        achievements: Array.isArray(exp.achievements) && exp.achievements.length > 0 
+          ? exp.achievements 
+          : [""],
+      })) || [{ ...DEFAULT_EXPERIENCE }];
+
+      // Properly map skills with fallback
+      const extractedSkills = data.skills?.map((cat: any) => ({
+        category: cat.category || "Technical",
+        skills: Array.isArray(cat.skills) && cat.skills.length > 0
+          ? cat.skills
+          : [""],
+      })) || [{ ...DEFAULT_SKILLS }];
 
       setFormData((prev) => ({
         ...prev,
@@ -246,8 +240,8 @@ export default function ResumeBuilder() {
         linkedin: data.linkedin || prev.linkedin,
         location: data.location || prev.location,
         summary: data.summary || prev.summary,
-        experiences: data.experiences?.length ? data.experiences : prev.experiences,
-        skills: data.skills?.length ? data.skills : prev.skills,
+        experiences: extractedExperiences,
+        skills: extractedSkills,
         education: data.education || prev.education,
         certifications: data.certifications || prev.certifications,
         languages: data.languages || prev.languages,
@@ -425,8 +419,8 @@ export default function ResumeBuilder() {
 
   const renderUploadStep = () => (
     <div className="space-y-6 text-center">
-      <h2 className="text-xl font-semibold">Upload Your Existing CV</h2>
-      <p className="text-zinc-500">
+      <h2 className="text-xl font-semibold text-zinc-900">Upload Your Existing CV</h2>
+      <p className="text-zinc-600">
         We'll extract your information automatically. You can edit everything
         afterward.
       </p>
@@ -434,29 +428,27 @@ export default function ResumeBuilder() {
       <div className="border-2 border-dashed border-zinc-300 rounded-2xl p-12 hover:border-zinc-500 transition cursor-pointer">
         <input
           type="file"
-          accept=".pdf,.doc,.docx,.txt"
+          accept=".txt"
           onChange={handleCVUpload}
           className="hidden"
           id="cv-upload"
         />
         <label htmlFor="cv-upload" className="cursor-pointer block">
           <div className="text-4xl mb-4">📄</div>
-          <p className="font-medium">Click to upload your CV</p>
-          <p className="text-sm text-zinc-500 mt-1">
-            PDF, DOC, DOCX, or TXT
-          </p>
+          <p className="font-medium text-zinc-900">Click to upload your CV</p>
+          <p className="text-sm text-zinc-600 mt-1">TXT files only (for now)</p>
         </label>
       </div>
 
       <button
         onClick={() => setStep(1)}
-        className="text-zinc-500 hover:text-zinc-900 text-sm"
+        className="text-zinc-600 hover:text-zinc-900 text-sm font-medium"
       >
         Skip upload — start from scratch →
       </button>
 
       {extracting && (
-        <div className="text-zinc-600">
+        <div className="text-zinc-800">
           <div className="animate-spin inline-block w-6 h-6 border-2 border-zinc-300 border-t-zinc-900 rounded-full mr-2"></div>
           Extracting your information...
         </div>
@@ -466,93 +458,83 @@ export default function ResumeBuilder() {
 
   const renderStep1 = () => (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold">Personal Information</h2>
+      <h2 className="text-xl font-semibold text-zinc-900">Personal Information</h2>
       <div className="grid md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium mb-1">
-            Full Name *
-          </label>
+          <label className="block text-sm font-medium mb-1 text-zinc-700">Full Name *</label>
           <input
             type="text"
             value={formData.name}
             onChange={(e) => updateField("name", e.target.value)}
-            className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+            className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 text-zinc-900 placeholder:text-zinc-400"
             placeholder="John Doe"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">
-            Target Job Title *
-          </label>
+          <label className="block text-sm font-medium mb-1 text-zinc-700">Target Job Title *</label>
           <input
             type="text"
             value={formData.jobTitle}
             onChange={(e) => updateField("jobTitle", e.target.value)}
-            className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+            className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 text-zinc-900 placeholder:text-zinc-400"
             placeholder="Software Engineer"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Email</label>
+          <label className="block text-sm font-medium mb-1 text-zinc-700">Email</label>
           <input
             type="email"
             value={formData.email}
             onChange={(e) => updateField("email", e.target.value)}
-            className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+            className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 text-zinc-900 placeholder:text-zinc-400"
             placeholder="john@email.com"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Phone</label>
+          <label className="block text-sm font-medium mb-1 text-zinc-700">Phone</label>
           <input
             type="tel"
             value={formData.phone}
             onChange={(e) => updateField("phone", e.target.value)}
-            className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+            className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 text-zinc-900 placeholder:text-zinc-400"
             placeholder="+1 555 123 4567"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">
-            LinkedIn
-          </label>
+          <label className="block text-sm font-medium mb-1 text-zinc-700">LinkedIn</label>
           <input
             type="url"
             value={formData.linkedin}
             onChange={(e) => updateField("linkedin", e.target.value)}
-            className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+            className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 text-zinc-900 placeholder:text-zinc-400"
             placeholder="linkedin.com/in/johndoe"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">
-            Location
-          </label>
+          <label className="block text-sm font-medium mb-1 text-zinc-700">Location</label>
           <input
             type="text"
             value={formData.location}
             onChange={(e) => updateField("location", e.target.value)}
-            className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+            className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 text-zinc-900 placeholder:text-zinc-400"
             placeholder="New York, USA"
           />
         </div>
       </div>
       <div>
-        <label className="block text-sm font-medium mb-1">
-          Professional Summary (optional)
-        </label>
+        <label className="block text-sm font-medium mb-1 text-zinc-700">Professional Summary (optional)</label>
         <textarea
           value={formData.summary}
           onChange={(e) => updateField("summary", e.target.value)}
           rows={3}
-          className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+          className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 text-zinc-900 placeholder:text-zinc-400"
           placeholder="Brief overview of your career (2-3 sentences). Leave blank for AI to generate."
         />
       </div>
       <div className="flex justify-between">
         <button
           onClick={() => setStep(0)}
-          className="text-zinc-600 px-6 py-3 rounded-full font-medium hover:bg-zinc-100"
+          className="text-zinc-700 px-6 py-3 rounded-full font-medium hover:bg-zinc-100"
         >
           ← Back
         </button>
@@ -568,8 +550,8 @@ export default function ResumeBuilder() {
 
   const renderStep2 = () => (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold">Target Job Description</h2>
-      <p className="text-zinc-500 text-sm">
+      <h2 className="text-xl font-semibold text-zinc-900">Target Job Description</h2>
+      <p className="text-zinc-600 text-sm">
         Paste the job description you're applying for. Our AI will extract
         keywords and tailor your CV to match what recruiters are looking for.
       </p>
@@ -577,13 +559,13 @@ export default function ResumeBuilder() {
         value={formData.targetJobDescription}
         onChange={(e) => updateField("targetJobDescription", e.target.value)}
         rows={12}
-        className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+        className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 text-zinc-900 placeholder:text-zinc-400"
         placeholder="Paste the full job description here...&#10;&#10;Example:&#10;We are seeking a Customer Support Specialist to join our fintech team...&#10;Requirements:&#10;- 2+ years in customer support&#10;- Experience with KYC/AML&#10;- Fluent English&#10;..."
       />
       <div className="flex justify-between">
         <button
           onClick={() => setStep(1)}
-          className="text-zinc-600 px-6 py-3 rounded-full font-medium hover:bg-zinc-100"
+          className="text-zinc-700 px-6 py-3 rounded-full font-medium hover:bg-zinc-100"
         >
           ← Back
         </button>
@@ -599,8 +581,8 @@ export default function ResumeBuilder() {
 
   const renderStep3 = () => (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold">Work Experience</h2>
-      <p className="text-zinc-500 text-sm">
+      <h2 className="text-xl font-semibold text-zinc-900">Work Experience</h2>
+      <p className="text-zinc-600 text-sm">
         Add each role. Focus on achievements with numbers — this is what ATS
         systems and recruiters scan for first.
       </p>
@@ -610,13 +592,11 @@ export default function ResumeBuilder() {
           className="bg-zinc-50 rounded-xl p-6 border border-zinc-200 space-y-4"
         >
           <div className="flex items-center justify-between">
-            <h3 className="font-medium text-zinc-700">
-              Experience {expIndex + 1}
-            </h3>
+            <h3 className="font-medium text-zinc-800">Experience {expIndex + 1}</h3>
             {formData.experiences.length > 1 && (
               <button
                 onClick={() => removeExperience(expIndex)}
-                className="text-red-500 text-sm hover:text-red-700"
+                className="text-red-500 text-sm hover:text-red-700 font-medium"
               >
                 Remove
               </button>
@@ -629,7 +609,7 @@ export default function ResumeBuilder() {
               onChange={(e) =>
                 updateExperience(expIndex, "company", e.target.value)
               }
-              className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+              className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 text-zinc-900 placeholder:text-zinc-400"
               placeholder="Company Name"
             />
             <input
@@ -638,7 +618,7 @@ export default function ResumeBuilder() {
               onChange={(e) =>
                 updateExperience(expIndex, "role", e.target.value)
               }
-              className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+              className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 text-zinc-900 placeholder:text-zinc-400"
               placeholder="Your Role"
             />
             <input
@@ -647,7 +627,7 @@ export default function ResumeBuilder() {
               onChange={(e) =>
                 updateExperience(expIndex, "duration", e.target.value)
               }
-              className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+              className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 text-zinc-900 placeholder:text-zinc-400"
               placeholder="Jan 2022 - Dec 2023"
             />
             <input
@@ -656,14 +636,12 @@ export default function ResumeBuilder() {
               onChange={(e) =>
                 updateExperience(expIndex, "location", e.target.value)
               }
-              className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+              className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 text-zinc-900 placeholder:text-zinc-400"
               placeholder="City, Country (optional)"
             />
           </div>
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-zinc-600">
-              Key Achievements
-            </label>
+            <label className="block text-sm font-medium text-zinc-700">Key Achievements</label>
             {exp.achievements.map((ach, achIndex) => (
               <div key={achIndex} className="flex gap-2">
                 <input
@@ -672,7 +650,7 @@ export default function ResumeBuilder() {
                   onChange={(e) =>
                     updateAchievement(expIndex, achIndex, e.target.value)
                   }
-                  className="flex-1 px-4 py-2 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 text-sm"
+                  className="flex-1 px-4 py-2 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 text-sm text-zinc-900 placeholder:text-zinc-400"
                   placeholder={
                     ACHIEVEMENT_PROMPTS[achIndex % ACHIEVEMENT_PROMPTS.length]
                   }
@@ -680,7 +658,7 @@ export default function ResumeBuilder() {
                 {exp.achievements.length > 1 && (
                   <button
                     onClick={() => removeAchievement(expIndex, achIndex)}
-                    className="text-red-400 hover:text-red-600 px-2"
+                    className="text-red-400 hover:text-red-600 px-2 font-medium"
                   >
                     ×
                   </button>
@@ -698,14 +676,14 @@ export default function ResumeBuilder() {
       ))}
       <button
         onClick={addExperience}
-        className="w-full py-3 border-2 border-dashed border-zinc-300 rounded-xl text-zinc-500 hover:border-zinc-500 hover:text-zinc-700 font-medium"
+        className="w-full py-3 border-2 border-dashed border-zinc-300 rounded-xl text-zinc-600 hover:border-zinc-500 hover:text-zinc-800 font-medium"
       >
         + Add Another Experience
       </button>
       <div className="flex justify-between">
         <button
           onClick={() => setStep(2)}
-          className="text-zinc-600 px-6 py-3 rounded-full font-medium hover:bg-zinc-100"
+          className="text-zinc-700 px-6 py-3 rounded-full font-medium hover:bg-zinc-100"
         >
           ← Back
         </button>
@@ -721,8 +699,8 @@ export default function ResumeBuilder() {
 
   const renderStep4 = () => (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold">Skills & Competencies</h2>
-      <p className="text-zinc-500 text-sm">
+      <h2 className="text-xl font-semibold text-zinc-900">Skills & Competencies</h2>
+      <p className="text-zinc-600 text-sm">
         Group skills by category. This helps ATS systems parse your
         competencies correctly.
       </p>
@@ -737,7 +715,7 @@ export default function ResumeBuilder() {
               onChange={(e) =>
                 updateSkillCategory(catIndex, e.target.value)
               }
-              className="px-4 py-2 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 text-sm font-medium"
+              className="px-4 py-2 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 text-sm font-medium text-zinc-900 bg-white"
             >
               {SKILL_CATEGORIES.map((c) => (
                 <option key={c} value={c}>
@@ -748,7 +726,7 @@ export default function ResumeBuilder() {
             {formData.skills.length > 1 && (
               <button
                 onClick={() => removeSkillCategory(catIndex)}
-                className="text-red-500 text-sm hover:text-red-700"
+                className="text-red-500 text-sm hover:text-red-700 font-medium"
               >
                 Remove Category
               </button>
@@ -763,13 +741,13 @@ export default function ResumeBuilder() {
                   onChange={(e) =>
                     updateSkill(catIndex, skillIndex, e.target.value)
                   }
-                  className="flex-1 px-4 py-2 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 text-sm"
+                  className="flex-1 px-4 py-2 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 text-sm text-zinc-900 placeholder:text-zinc-400"
                   placeholder="e.g., React, Python, KYC, SQL..."
                 />
                 {cat.skills.length > 1 && (
                   <button
                     onClick={() => removeSkill(catIndex, skillIndex)}
-                    className="text-red-400 hover:text-red-600 px-2"
+                    className="text-red-400 hover:text-red-600 px-2 font-medium"
                   >
                     ×
                   </button>
@@ -787,14 +765,14 @@ export default function ResumeBuilder() {
       ))}
       <button
         onClick={addSkillCategory}
-        className="w-full py-3 border-2 border-dashed border-zinc-300 rounded-xl text-zinc-500 hover:border-zinc-500 hover:text-zinc-700 font-medium"
+        className="w-full py-3 border-2 border-dashed border-zinc-300 rounded-xl text-zinc-600 hover:border-zinc-500 hover:text-zinc-800 font-medium"
       >
         + Add Another Category
       </button>
       <div className="flex justify-between">
         <button
           onClick={() => setStep(3)}
-          className="text-zinc-600 px-6 py-3 rounded-full font-medium hover:bg-zinc-100"
+          className="text-zinc-700 px-6 py-3 rounded-full font-medium hover:bg-zinc-100"
         >
           ← Back
         </button>
@@ -810,39 +788,39 @@ export default function ResumeBuilder() {
 
   const renderStep5 = () => (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold">Education & Certifications</h2>
+      <h2 className="text-xl font-semibold text-zinc-900">Education & Certifications</h2>
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">Education</label>
+          <label className="block text-sm font-medium mb-1 text-zinc-700">Education</label>
           <textarea
             value={formData.education}
             onChange={(e) => updateField("education", e.target.value)}
             rows={3}
-            className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+            className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 text-zinc-900 placeholder:text-zinc-400"
             placeholder="Bachelor of Science in Computer Science&#10;University of Example, 2018-2022"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">
+          <label className="block text-sm font-medium mb-1 text-zinc-700">
             Certifications (optional)
           </label>
           <textarea
             value={formData.certifications}
             onChange={(e) => updateField("certifications", e.target.value)}
             rows={3}
-            className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+            className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 text-zinc-900 placeholder:text-zinc-400"
             placeholder="AWS Certified Solutions Architect, 2023&#10;Google Analytics Certification, 2022"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">
+          <label className="block text-sm font-medium mb-1 text-zinc-700">
             Languages (optional)
           </label>
           <input
             type="text"
             value={formData.languages}
             onChange={(e) => updateField("languages", e.target.value)}
-            className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+            className="w-full px-4 py-3 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 text-zinc-900 placeholder:text-zinc-400"
             placeholder="English (Native), Spanish (Fluent), French (Conversational)"
           />
         </div>
@@ -850,7 +828,7 @@ export default function ResumeBuilder() {
       <div className="flex justify-between">
         <button
           onClick={() => setStep(4)}
-          className="text-zinc-600 px-6 py-3 rounded-full font-medium hover:bg-zinc-100"
+          className="text-zinc-700 px-6 py-3 rounded-full font-medium hover:bg-zinc-100"
         >
           ← Back
         </button>
@@ -871,8 +849,8 @@ export default function ResumeBuilder() {
     return (
       <div className="space-y-6">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Your Application Package</h2>
-          <p className="text-zinc-500">
+          <h2 className="text-2xl font-bold mb-2 text-zinc-900">Your Application Package</h2>
+          <p className="text-zinc-600">
             ATS Score: {result.atsScore}/100 — {getScoreLabel(result.atsScore)}
           </p>
         </div>
@@ -976,7 +954,7 @@ export default function ResumeBuilder() {
           </button>
           <button
             onClick={() => setStep(0)}
-            className="px-6 py-3 rounded-full font-medium border border-zinc-300 hover:bg-zinc-50"
+            className="px-6 py-3 rounded-full font-medium border border-zinc-300 hover:bg-zinc-50 text-zinc-700"
           >
             Start Over
           </button>
@@ -1013,7 +991,7 @@ export default function ResumeBuilder() {
           <h1 className="text-3xl font-bold text-zinc-900 mb-2">
             AI Resume Builder
           </h1>
-          <p className="text-zinc-500">
+          <p className="text-zinc-600">
             Generate an ATS-optimized resume and cover letter tailored to any
             job.
           </p>
