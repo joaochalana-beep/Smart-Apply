@@ -7,12 +7,12 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get("cv") as File;
-    
+
     if (!file) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
-    // Read file as text (PDF parsing would need a library like pdf-parse)
+    // Read file as text (works for .txt, .doc, .docx will be garbled but GPT can often still parse)
     const text = await file.text();
 
     const completion = await openai.chat.completions.create({
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
   "experiences": [
     {
       "company": "string",
-      "role": "string", 
+      "role": "string",
       "duration": "string",
       "location": "string",
       "achievements": ["string", "string"]
