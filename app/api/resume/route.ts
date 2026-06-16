@@ -222,6 +222,8 @@ Rules for resume generation:
 6. Avoid generic soft skills ("team player", "hardworking") — replace with specific achievements
 7. Tailor experience bullets to match the job description requirements
 8. Use a professional, modern format
+9. IMPORTANT: Do NOT include a separate contact info section (email, phone, LinkedIn, location) in the resume body — this information is already in the PDF header. Only include Professional Summary, Work Experience, Skills, Education, and Certifications sections.
+10. Do NOT use markdown links like [LinkedIn](url) anywhere in the resume
 
 Output format:
 **PROFESSIONAL SUMMARY**
@@ -245,19 +247,27 @@ Output format:
 
 Rules for cover letter:
 1. Use today's date at the top (format: Month Day, Year — e.g., "June 16, 2026")
-2. Address as "Dear Hiring Manager," — do NOT include company name, company address, or [Company Address] placeholder
-3. Mention 2-3 key requirements from the job description and how the candidate meets them
-4. Include specific achievements with metrics
-5. Keep it to 3-4 paragraphs
-6. Professional but enthusiastic tone
-7. End with a call to action
+2. Address as "Dear Hiring Manager," 
+3. Include the company name in the first paragraph (e.g., "I am excited to apply for [Role] at [Company Name]...")
+4. Do NOT include company address or [Company Address] placeholder
+5. Mention 2-3 key requirements from the job description and how the candidate meets them
+6. Include specific achievements with metrics
+7. Keep it to 3-4 paragraphs
+8. Professional but enthusiastic tone
+9. End with a call to action
 
 Cover letter format:
 [Month Day, Year]
 
 Dear Hiring Manager,
 
-[Body paragraphs]
+[Body paragraph 1: mention role and company name, express enthusiasm]
+
+[Body paragraph 2: highlight relevant experience and achievements]
+
+[Body paragraph 3: mention key skills matching job requirements]
+
+[Closing paragraph: call to action]
 
 Sincerely,
 [Candidate Name]`;
