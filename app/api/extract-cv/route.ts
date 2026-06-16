@@ -19,150 +19,154 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: "system",
-          content: `You are an expert CV parser. Extract ALL possible information from the provided CV text.
+          content: `You are an expert CV parser. Extract ALL information from the CV text.
 
-The CV text is extracted from a PDF and may have formatting artifacts. Look carefully for information that might be split across lines or mixed with noise.
+Return ONLY a valid JSON object. Do NOT use markdown code blocks. Do NOT add explanations.
 
-Return ONLY a valid JSON object with this exact structure:
+The JSON must have this EXACT structure:
 {
-  "name": "Full name as it appears on the CV header",
-  "email": "Email address",
-  "phone": "Phone number",
-  "location": "City, country, or address",
-  "linkedin": "LinkedIn URL if found, otherwise empty string",
-  "jobTitle": "Most recent job title or target role inferred from the CV",
-  "summary": "Professional summary or generate one based on experience",
+  "name": "string",
+  "email": "string", 
+  "phone": "string",
+  "location": "string",
+  "linkedin": "string",
+  "jobTitle": "string",
+  "summary": "string",
   "experiences": [
     {
-      "company": "Company name",
-      "role": "Job title",
-      "duration": "Employment period",
-      "location": "Work location if mentioned",
-      "achievements": ["Achievement 1", "Achievement 2", "Achievement 3"]
+      "company": "string",
+      "role": "string",
+      "duration": "string",
+      "location": "string",
+      "achievements": ["string", "string"]
     }
   ],
   "skills": [
     {
-      "category": "Technical",
-      "skills": ["Skill 1", "Skill 2"]
-    },
-    {
-      "category": "Soft Skills", 
-      "skills": ["Skill 3", "Skill 4"]
+      "category": "string",
+      "skills": ["string", "string"]
     }
   ],
-  "education": "Education details as a single string. Include ALL education entries separated by line breaks",
-  "certifications": "Certifications as a string",
-  "languages": "Languages as a string"
+  "education": "string",
+  "certifications": "string",
+  "languages": "string"
 }
 
-CRITICAL RULES:
-- Extract ALL work experiences found in the CV, not just the most recent
-- Each experience MUST have achievements as an array of strings
-- Convert paragraph job descriptions into 3-5 bullet-point achievements
-- Include metrics and numbers in achievements where found
-- Group ALL skills into categorized arrays (Technical, Soft Skills, Languages, Tools, etc.)
-- Education should include ALL degrees, schools, and years as one formatted string
-- If you cannot find a field, use empty string "" or empty array []
-- Return ONLY the JSON object, no markdown, no explanation`
+MANDATORY RULES:
+- Extract EVERY single job/work entry found in the CV
+- Each job must have achievements as an array of 3-5 bullet strings
+- If the CV lists jobs with paragraphs, convert each paragraph into bullet achievements
+- Include ALL education: degrees, schools, dates, certifications
+- Group ALL skills found into categories
+- NEVER return empty arrays unless truly nothing was found
+- NEVER wrap the response in markdown`
         },
         {
           role: "user",
-          content: `Parse this CV:\n\n${truncatedText}`
+          content: truncatedText
         }
       ],
       temperature: 0.1,
       max_tokens: 2500,
+      response_format: { type: "json_object" }
     });
 
     const content = completion.choices[0].message.content || "{}";
+    console.log("Raw OpenAI response:", content);
+
+    const parsed = JSON.parse(content);
+    console.log("Parsed JSON:", JSON.stringify(parsed, null, 2));
+
+    // Normalize experiences
+    let experiences: any[] = [];
     
-    // Clean markdown code blocks
-    let cleanContent = content.trim();
-    if (cleanContent.startsWith("```json")) {
-      cleanContent = cleanContent.replace(/```json\n?/, "").replace(/\n?```/, "");
-    } else if (cleanContent.startsWith("```")) {
-      cleanContent = cleanContent.replace(/```\n?/, "").replace(/\n?```/, "");
-    }
-
-    const parsed = JSON.parse(cleanContent);
-
-    // Ensure experiences is always an array with proper structure
-    let experiences = [];
-    if (Array.isArray(parsed.experiences)) {
+    if (Array.isArray(parsed.experiences) && parsed.experiences.length > 0) {
       experiences = parsed.experiences.map((exp: any) => ({
-        company: exp.company || "",
-        role: exp.role || "",
-        duration: exp.duration || "",
-        location: exp.location || "",
+        company: String(exp.company || ""),
+        role: String(exp.role || ""),
+        duration: String(exp.duration || ""),
+        location: String(exp.location || ""),
         achievements: Array.isArray(exp.achievements) && exp.achievements.length > 0
-          ? exp.achievements
-          : [exp.description || exp.responsibilities || ""],
+          ? exp.achievements.map(String)
+          : [String(exp.description || exp.responsibilities || "")],
       }));
-    } else if (typeof parsed.experience === "string") {
-      // Fallback: try to parse if API returned old format
+    } else if (Array.isArray(parsed.experience) && parsed.experience.length > 0) {
+      experiences = parsed.experience.map((exp: any) => ({
+        company: String(exp.company || ""),
+        role: String(exp.role || exp.title || ""),
+        duration: String(exp.duration || exp.period || ""),
+        location: String(exp.location || ""),
+        achievements: Array.isArray(exp.achievements) 
+          ? exp.achievements.map(String)
+          : Array.isArray(exp.description)
+            ? exp.description.map(String)
+            : [String(exp.description || exp.responsibilities || "")],
+      }));
+    } else if (typeof parsed.experience === "string" && parsed.experience.trim()) {
       try {
         const parsedExp = JSON.parse(parsed.experience);
         if (Array.isArray(parsedExp)) {
           experiences = parsedExp.map((exp: any) => ({
-            company: exp.company || "",
-            role: exp.role || exp.title || "",
-            duration: exp.duration || exp.period || "",
-            location: exp.location || "",
-            achievements: Array.isArray(exp.description) 
-              ? exp.description 
-              : [exp.description || ""],
+            company: String(exp.company || ""),
+            role: String(exp.role || exp.title || ""),
+            duration: String(exp.duration || exp.period || ""),
+            location: String(exp.location || ""),
+            achievements: Array.isArray(exp.achievements) 
+              ? exp.achievements.map(String)
+              : [String(exp.description || "")],
           }));
         }
       } catch (e) {
-        experiences = [{ company: "", role: "", duration: "", location: "", achievements: [""] }];
+        console.log("Failed to parse experience string:", parsed.experience);
       }
     }
 
-    // Ensure skills is always an array of objects
-    let skills = [];
-    if (Array.isArray(parsed.skills)) {
-      // Check if it's already in {category, skills[]} format
-      if (parsed.skills.length > 0 && typeof parsed.skills[0] === "object" && parsed.skills[0].category) {
+    // Normalize skills
+    let skills: any[] = [];
+    
+    if (Array.isArray(parsed.skills) && parsed.skills.length > 0) {
+      if (typeof parsed.skills[0] === "object" && parsed.skills[0].category) {
         skills = parsed.skills.map((cat: any) => ({
-          category: cat.category || "Technical",
-          skills: Array.isArray(cat.skills) ? cat.skills : [cat.skills || ""],
+          category: String(cat.category || "Technical"),
+          skills: Array.isArray(cat.skills) && cat.skills.length > 0
+            ? cat.skills.map(String)
+            : [""],
         }));
       } else {
-        // It's a flat array of skill strings - group them
-        skills = [{ category: "Technical", skills: parsed.skills }];
+        // Flat array of strings
+        skills = [{ category: "Technical", skills: parsed.skills.map(String) }];
       }
-    } else if (typeof parsed.skills === "string") {
-      // Comma-separated string
-      const skillList = parsed.skills.split(",").map((s: string) => s.trim()).filter(Boolean);
+    } else if (typeof parsed.skills === "string" && parsed.skills.trim()) {
+      const skillList = parsed.skills.split(/,|;/).map((s: string) => s.trim()).filter(Boolean);
       skills = [{ category: "Technical", skills: skillList.length > 0 ? skillList : [""] }];
     }
 
-    // Ensure education is a string
+    // Normalize education
     let education = "";
     if (typeof parsed.education === "string") {
       education = parsed.education;
     } else if (Array.isArray(parsed.education)) {
       education = parsed.education.map((edu: any) => 
         typeof edu === "string" ? edu : `${edu.degree || ""} at ${edu.school || ""} (${edu.year || ""})`
-      ).join("\n");
+      ).filter(Boolean).join("\n");
     }
 
-    // Build final response
     const result = {
-      name: parsed.name || parsed.full_name || "",
-      email: parsed.email || "",
-      phone: parsed.phone || "",
-      location: parsed.location || "",
-      linkedin: parsed.linkedin || "",
-      jobTitle: parsed.jobTitle || "",
-      summary: parsed.summary || "",
+      name: String(parsed.name || parsed.full_name || ""),
+      email: String(parsed.email || ""),
+      phone: String(parsed.phone || ""),
+      location: String(parsed.location || ""),
+      linkedin: String(parsed.linkedin || ""),
+      jobTitle: String(parsed.jobTitle || parsed.job_title || ""),
+      summary: String(parsed.summary || ""),
       experiences: experiences.length > 0 ? experiences : [{ company: "", role: "", duration: "", location: "", achievements: [""] }],
       skills: skills.length > 0 ? skills : [{ category: "Technical", skills: [""] }],
       education: education,
-      certifications: parsed.certifications || "",
-      languages: parsed.languages || "",
+      certifications: String(parsed.certifications || ""),
+      languages: String(parsed.languages || ""),
     };
+
+    console.log("Final result:", JSON.stringify(result, null, 2));
 
     return NextResponse.json(result);
   } catch (error: any) {
