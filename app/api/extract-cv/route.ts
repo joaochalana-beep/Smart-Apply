@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-import pdf from "pdf-parse";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -15,15 +14,13 @@ export async function POST(request: NextRequest) {
 
     let text = "";
 
-    // Check file type and parse accordingly
     if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
-      // Parse PDF
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
+      const pdf = require("pdf-parse/lib/pdf-parse.js");
       const pdfData = await pdf(buffer);
       text = pdfData.text;
     } else {
-      // For .txt, .doc, .docx — read as text (docx will be garbled but GPT can sometimes parse)
       text = await file.text();
     }
 
