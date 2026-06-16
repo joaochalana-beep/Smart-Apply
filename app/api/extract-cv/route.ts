@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import pdf from "pdf-parse";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -12,8 +13,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
-    // Read file as text (works for .txt, .doc, .docx will be garbled but GPT can often still parse)
-    const text = await file.text();
+    let text = "";
+
+    // Check file type and parse accordingly
+    if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
+      // Parse PDF
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const pdfData = await pdf(buffer);
+      text = pdfData.text;
+    } else {
+      // For .txt, .doc, .docx — read as text (docx will be garbled but GPT can sometimes parse)
+      text = await file.text();
+    }
+
+    if (!text.trim()) {
+      return NextResponse.json({ error: "Could not extract text from file" }, { status: 400 });
+    }
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
