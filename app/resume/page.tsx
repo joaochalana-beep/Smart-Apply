@@ -176,8 +176,12 @@ export default function ResumeBuilder() {
 
   const extractPDFText = async (arrayBuffer: ArrayBuffer): Promise<string> => {
     try {
-      // Dynamic import of pdfjs-dist with legacy build (no worker needed)
-      const pdfjs = await import("pdfjs-dist/legacy/build/pdf.js");
+      // Dynamic import pdfjs-dist
+      const pdfjs = await import("pdfjs-dist");
+      
+      // Set worker source to CDN
+      pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.worker.min.mjs`;
+      
       const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
       let text = "";
       
