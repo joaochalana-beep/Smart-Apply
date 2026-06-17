@@ -389,7 +389,7 @@ function calculateMatchScore(job: any, profile: any): { score: number; reasons: 
   const jobLoc = job.location || job.jobLocation || "";
   
   const desiredRoles = getSearchTerms(profile);
-  const userExpLevel = profile.experience_level || "";
+  const userExpLevel = String(profile.experience_level || "").toLowerCase().trim();
   const desiredLoc = (profile.desired_location || "").toLowerCase();
   const isRemote = desiredLoc.includes("remote") || (profile.work_type || "").toLowerCase() === "remote";
   const userWorkType = profile.work_type || "";
@@ -473,7 +473,7 @@ export async function GET(req: NextRequest) {
       .from("profiles")
       .select("*")
       .eq("user_id", userId)
-      .single();
+      .maybeSingle();
 
     if (profileError) {
       console.error("[Discover] Profile fetch error:", profileError);
@@ -485,8 +485,8 @@ export async function GET(req: NextRequest) {
       desired_role: safeProfile.desired_role || "software engineer",
       desired_location: safeProfile.desired_location || "remote",
       work_type: safeProfile.work_type || "remote",
-      experience_level: safeProfile.experience_level || "mid",
-      languages: safeProfile.languages || [],
+      experience_level: String(safeProfile.experience_level || "mid"),
+      languages: Array.isArray(safeProfile.languages) ? safeProfile.languages : [],
       id: safeProfile.id || userId,
       ...safeProfile
     };
