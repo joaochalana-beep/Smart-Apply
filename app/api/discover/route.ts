@@ -12,8 +12,8 @@ const ADZUNA_APP_KEY = process.env.ADZUNA_APP_KEY;
 const APIFY_API_TOKEN = process.env.APIFY_API_TOKEN;
 const APIFY_INDEED_ACTOR_ID = process.env.APIFY_INDEED_ACTOR_ID;
 
-const ADZUNA_SUPPORTED = new Set(["at", "au", "be", "br", "ca", "ch", "de", "es", "fr", "gb", "in", "it", "mx", "nl", "nz", "pl", "sg", "us", "za"]);
-const ADZUNA_EU_COUNTRIES = ["gb", "de", "fr", "es", "nl", "it", "at", "be", "ch", "pl"];
+const ADZUNA_SUPPORTED = new Set(["at", "au", "be", "br", "ca", "ch", "de", "es", "fr", "gb", "ie", "in", "it", "mx", "nl", "nz", "pl", "pt", "sg", "us", "za"]);
+const ADZUNA_EU_COUNTRIES = ["gb", "de", "fr", "es", "nl", "it", "at", "be", "ch", "pl", "pt", "ie"];
 
 const APIFY_COUNTRIES: Record<string, string> = {
   "portugal": "PT", "lisbon": "PT", "lisboa": "PT", "porto": "PT",
@@ -38,22 +38,23 @@ const countryMap: Record<string, string> = {
   "italy": "it", "rome": "it", "milano": "it", "milan": "it",
   "belgium": "be", "brussels": "be",
   "austria": "at", "vienna": "at", "wien": "at",
-  "ireland": "gb", "dublin": "gb",
+  "ireland": "ie", "dublin": "ie",
   "switzerland": "ch", "zurich": "ch", "geneva": "ch",
   "poland": "pl", "warsaw": "pl",
-  "sweden": "gb", "stockholm": "gb",
-  "denmark": "gb", "copenhagen": "gb",
-  "norway": "gb", "oslo": "gb",
-  "finland": "gb", "helsinki": "gb",
+  "portugal": "pt", "lisbon": "pt", "lisboa": "pt", "porto": "pt",
+  "sweden": "se", "stockholm": "se",
+  "denmark": "dk", "copenhagen": "dk",
+  "norway": "no", "oslo": "no",
+  "finland": "fi", "helsinki": "fi",
 };
 
 function stripHtml(html: string): string {
   if (!html) return "";
   return html
-    .replace(/<<\/li>/gi, "\n")
-    .replace(/<<\/p>|<\/h[1-6]>/gi, "\n\n")
-    .replace(/<<br\s*\/?>/gi, "\n")
-    .replace(/<<[^>]+>/g, "")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<\/p>|<\/h[1-6]>/gi, "\n\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
@@ -468,9 +469,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: profile, error: profileError } = await supabase
+    const { data: rawProfile, error: profileError } = await supabase
       .from("profiles")
-      .select("desired_role, desired_location, work_type, experience_level, languages, id")
+      .select("*")
       .eq("user_id", userId)
       .single();
 
@@ -478,17 +479,21 @@ export async function GET(req: NextRequest) {
       console.error("[Discover] Profile fetch error:", profileError);
     }
 
-    if (!profile) {
-      return NextResponse.json({ 
-        error: "Profile not found", 
-        needsProfileUpdate: true, 
-        message: "Please complete your profile to discover jobs." 
-      }, { status: 404 });
-    }
+    // Use defaults if profile is missing — never block job discovery
+    const safeProfile = rawProfile || {};
+    const effectiveProfile = {
+      desired_role: safeProfile.desired_role || "software engineer",
+      desired_location: safeProfile.desired_location || "remote",
+      work_type: safeProfile.work_type || "remote",
+      experience_level: safeProfile.experience_level || "mid",
+      languages: safeProfile.languages || [],
+      id: safeProfile.id || userId,
+      ...safeProfile
+    };
 
-    const searchTerms = getSearchTerms(profile);
-    const rawLocation = (profile.desired_location || "").toLowerCase().trim().replace(/\s+/g, " ");
-    const isRemote = rawLocation.includes("remote") || (profile.work_type || "").toLowerCase() === "remote";
+    const searchTerms = getSearchTerms(effectiveProfile);
+    const rawLocation = (effectiveProfile.desired_location || "").toLowerCase().trim().replace(/\s+/g, " ");
+    const isRemote = rawLocation.includes("remote") || (effectiveProfile.work_type || "").toLowerCase() === "remote";
     const location = rawLocation.replace(/remote/g, "").replace(/,/g, " ").trim();
 
     const apifyCountry = getApifyCountry(rawLocation);
@@ -500,30 +505,17 @@ export async function GET(req: NextRequest) {
     let sourcesUsed: string[] = [];
     const errors: Record<string, string> = {};
 
-    if (apifyCountry && APIFY_API_TOKEN) {
-      primarySource = "apify_indeed";
+    // SKIP APIFY — billing blocked. Adzuna is primary.
+    if (ADZUNA_APP_ID && ADZUNA_APP_KEY) {
+      primarySource = "adzuna";
       try {
-        const apifyJobs = await fetchApifyIndeed(profile, location, isRemote, apifyCountry);
-        allJobs = apifyJobs;
-        sourcesUsed.push("apify_indeed");
-        console.log(`[Discover] Apify Indeed returned ${apifyJobs.length} jobs for ${apifyCountry}`);
+        const adzunaJobs = await fetchAdzunaMultiCountry(searchTerms, location, isRemote);
+        allJobs = adzunaJobs;
+        sourcesUsed.push("adzuna");
+        console.log(`[Discover] Adzuna returned ${adzunaJobs.length} jobs`);
       } catch (err: any) {
-        errors["apify_indeed"] = err.message;
-        console.error("[Discover] Apify Indeed failed:", err.message);
-      }
-
-      if (allJobs.length < 5) {
-        if (ADZUNA_APP_ID && ADZUNA_APP_KEY) {
-          try {
-            const adzunaJobs = await fetchAdzunaMultiCountry(searchTerms, location, isRemote);
-            const newJobs = adzunaJobs.filter((aj: any) => !allJobs.some((j: any) => j.url === aj.url));
-            allJobs = [...allJobs, ...newJobs];
-            if (newJobs.length > 0) sourcesUsed.push("adzuna");
-            console.log(`[Discover] Adzuna fallback added ${newJobs.length} jobs`);
-          } catch (err: any) {
-            errors["adzuna"] = err.message;
-          }
-        }
+        errors["adzuna"] = err.message;
+        console.error("[Discover] Adzuna failed:", err.message);
       }
 
       if (isRemote && allJobs.length < 20) {
@@ -590,7 +582,7 @@ export async function GET(req: NextRequest) {
     } else {
       if (APIFY_API_TOKEN) {
         try {
-          const apifyJobs = await fetchApifyIndeed(profile, location, isRemote, "GB");
+          const apifyJobs = await fetchApifyIndeed(effectiveProfile, location, isRemote, "GB");
           allJobs = apifyJobs;
           primarySource = "apify_indeed";
           sourcesUsed.push("apify_indeed");
@@ -630,7 +622,7 @@ export async function GET(req: NextRequest) {
       const isArbeitnow = job.slug !== undefined;
       const isApify = job.positionName !== undefined || (job.id !== undefined && job.url !== undefined && job.company !== undefined);
       
-      const { score, reasons } = calculateMatchScore(job, profile);
+      const { score, reasons } = calculateMatchScore(job, effectiveProfile);
       
       let source = "Adzuna";
       if (isArbeitnow) source = "Arbeitnow";
@@ -661,7 +653,7 @@ export async function GET(req: NextRequest) {
     const filtered = scored.filter((j: any) => {
       if (j.score >= 20) return true;
       const title = j.title.toLowerCase();
-      const roles = getSearchTerms(profile);
+      const roles = getSearchTerms(effectiveProfile);
       for (const role of roles) {
         const words = role.toLowerCase().split(/\s+/).filter(w => w.length >= 3);
         for (const word of words) {
@@ -712,11 +704,11 @@ export async function GET(req: NextRequest) {
       location: location || "any",
       isRemote,
       debug: {
-        rawLocation: profile.desired_location,
+        rawLocation: effectiveProfile.desired_location,
         parsedLocation: location,
         isRemote,
-        userExpLevel: profile.experience_level,
-        userLanguages: profile.languages || [],
+        userExpLevel: effectiveProfile.experience_level,
+        userLanguages: effectiveProfile.languages || [],
         apifyCountry,
         adzunaSupported,
         isGerman,
