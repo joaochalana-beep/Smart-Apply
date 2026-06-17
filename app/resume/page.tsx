@@ -233,41 +233,41 @@ export default function ResumeBuilder() {
         throw new Error(data.error);
       }
 
-      // Direct assignment - trust the API returns correct structure
-      const newFormData = {
-        name: data.name || "",
-        jobTitle: data.jobTitle || "",
-        email: data.email || "",
-        phone: data.phone || "",
-        linkedin: data.linkedin || "",
-        location: data.location || "",
-        summary: data.summary || "",
-        targetJobDescription: "",
-        experiences: Array.isArray(data.experiences) && data.experiences.length > 0
-          ? data.experiences.map((exp: any) => ({
-              company: exp.company || "",
-              role: exp.role || "",
-              duration: exp.duration || "",
-              location: exp.location || "",
-              achievements: Array.isArray(exp.achievements) && exp.achievements.length > 0
-                ? exp.achievements
-                : [""],
-            }))
-          : [{ ...DEFAULT_EXPERIENCE }],
-        skills: Array.isArray(data.skills) && data.skills.length > 0
-          ? data.skills.map((cat: any) => ({
-              category: cat.category || "Technical",
-              skills: Array.isArray(cat.skills) && cat.skills.length > 0
-                ? cat.skills
-                : [""],
-            }))
-          : [{ ...DEFAULT_SKILLS }],
-        education: data.education || "",
-        certifications: data.certifications || "",
-        languages: data.languages || "",
-      };
+      // Properly map experiences with fallback
+      const extractedExperiences = data.experiences?.map((exp: any) => ({
+        company: exp.company || "",
+        role: exp.role || "",
+        duration: exp.duration || "",
+        location: exp.location || "",
+        achievements: Array.isArray(exp.achievements) && exp.achievements.length > 0 
+          ? exp.achievements 
+          : [""],
+      })) || [{ ...DEFAULT_EXPERIENCE }];
 
-      setFormData(newFormData);
+      // Properly map skills with fallback
+      const extractedSkills = data.skills?.map((cat: any) => ({
+        category: cat.category || "Technical",
+        skills: Array.isArray(cat.skills) && cat.skills.length > 0
+          ? cat.skills
+          : [""],
+      })) || [{ ...DEFAULT_SKILLS }];
+
+      setFormData((prev) => ({
+        ...prev,
+        name: data.name || prev.name,
+        jobTitle: data.jobTitle || prev.jobTitle,
+        email: data.email || prev.email,
+        phone: data.phone || prev.phone,
+        linkedin: data.linkedin || prev.linkedin,
+        location: data.location || prev.location,
+        summary: data.summary || prev.summary,
+        experiences: extractedExperiences,
+        skills: extractedSkills,
+        education: data.education || prev.education,
+        certifications: data.certifications || prev.certifications,
+        languages: data.languages || prev.languages,
+      }));
+
       setStep(1);
     } catch (err: any) {
       console.error("CV extraction error:", err);
@@ -572,11 +572,9 @@ export default function ResumeBuilder() {
   const renderStep2 = () => (
     <div className="space-y-6">
       <h2 className="text-xl font-semibold text-zinc-900">Target Job Description</h2>
-      <p className="text-zinc-600 text-sm mb-2">
-        💡 <strong>Tip:</strong> Paste the FULL job description for best results. Include the "About the Role" and "What You'll Need" sections.
-      </p>
       <p className="text-zinc-600 text-sm">
-        Our AI will extract keywords and tailor your CV to match what recruiters are looking for.
+        Paste the job description you're applying for. Our AI will extract
+        keywords and tailor your CV to match what recruiters are looking for.
       </p>
       <textarea
         value={formData.targetJobDescription}

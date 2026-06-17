@@ -32,7 +32,6 @@ type FormData = {
 
 function calculateATSScore(resume: string, jobDescription: string, formData: FormData): { score: number; improvements: string[]; keywords: string[] } {
   const resumeLower = resume.toLowerCase();
-  const jdLower = jobDescription.toLowerCase();
   const improvements: string[] = [];
   const matchedKeywords: string[] = [];
 
@@ -167,26 +166,6 @@ function calculateATSScore(resume: string, jobDescription: string, formData: For
     });
   }
 
-  // NEW: Check for FinCrime-specific keywords if JD mentions them
-  const fintechKeywords = ["fintech", "financial crime", "fincrime", "escalation", "second line", "mlro", "sanctions", "ctf", "payment systems", "regulatory", "compliance officer"];
-  const jdHasFintech = fintechKeywords.some(kw => jdLower.includes(kw));
-  if (jdHasFintech) {
-    const matchedFintech = fintechKeywords.filter(kw => resumeLower.includes(kw));
-    if (matchedFintech.length < 3) {
-      improvements.push(`Add more financial crime-specific terminology (${fintechKeywords.slice(0, 5).join(", ")})`);
-    }
-  }
-
-  // NEW: Check for payment systems if mentioned in JD
-  if (jdLower.includes("payment") && !resumeLower.includes("payment")) {
-    improvements.push("Mention experience with payment systems or mobile applications");
-  }
-
-  // NEW: Check for escalation/second line if in JD
-  if ((jdLower.includes("escalation") || jdLower.includes("second line")) && !resumeLower.includes("escalat") && !resumeLower.includes("second line")) {
-    improvements.push("Highlight escalation experience or second line of defence responsibilities");
-  }
-
   // Calculate final score — START LOWER, ADD UP
   let score = 30; // Base
   
@@ -206,10 +185,7 @@ function calculateATSScore(resume: string, jobDescription: string, formData: For
     i.includes("target job title") || 
     i.includes("metrics") || 
     i.includes("short") ||
-    i.includes("too long") ||
-    i.includes("financial crime-specific") ||
-    i.includes("payment systems") ||
-    i.includes("escalation")
+    i.includes("too long")
   ).length;
   
   if (criticalIssues >= 2) {
@@ -235,54 +211,66 @@ export async function POST(request: NextRequest) {
   try {
     const formData: FormData = await request.json();
 
-    const today = new Date().toLocaleDateString("en-US", {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    });
+    const systemPrompt = `You are an expert resume writer and career coach. You specialize in creating ATS-optimized resumes and cover letters that pass automated screening systems while remaining human-readable.
 
-    const systemPrompt = `You are an expert resume writer specializing in ATS-optimized resumes for fintech and compliance roles.
+Rules for resume generation:
+1. Use the exact job title provided by the user prominently in the Professional Summary and header
+2. Include keywords from the job description naturally throughout
+3. Use strong action verbs at the start of every bullet point
+4. Include specific metrics and numbers where possible
+5. Keep formatting clean with clear section headers
+6. Avoid generic soft skills ("team player", "hardworking") — replace with specific achievements
+7. Tailor experience bullets to match the job description requirements
+8. Use a professional, modern format
+9. IMPORTANT: Do NOT include a separate contact info section (email, phone, LinkedIn, location) in the resume body — this information is already in the PDF header. Only include Professional Summary, Work Experience, Skills, Education, and Certifications sections.
+10. Do NOT use markdown links like [LinkedIn](url) anywhere in the resume
 
-CRITICAL RULES:
-1. Use the EXACT target job title in the Professional Summary AND as the header job title
-2. Mirror the job description language — if they say "Financial Crime Escalations Officer", use that exact phrase
-3. Lead every bullet with a strong action verb (Spearheaded, Managed, Investigated, Escalated, Reviewed)
-4. Include 1-2 metrics per bullet (%, $, time saved, cases handled, volume processed)
-5. Group skills by: Compliance & Regulatory, FinCrime Operations, Tools & Systems, Languages
-6. NEVER include duplicate sections, footers, page numbers, or markdown links like [LinkedIn](url)
-7. Keep resume to 1 page maximum. Prioritize recent relevant experience (last 3 roles max)
-8. Professional Summary must mention: role title, years of experience, 2 key skills from JD, 1 metric
-9. Do NOT include a separate contact info block (email, phone, LinkedIn, location) in the resume body — this goes in the PDF header only
-10. Do NOT include a separate LANGUAGES section — add languages to the Skills section instead
-
-OUTPUT FORMAT:
+Output format:
 **PROFESSIONAL SUMMARY**
-[2 sentences max. Must include target job title, years exp, key skill, metric]
+[2-3 sentences tailored to the job]
 
-**WORK EXPERIENCE** (most recent first, max 3 roles)
+**WORK EXPERIENCE**
 [Company] | [Role] | [Duration] | [Location]
-- Action verb + metric + skill from JD
-- Action verb + metric + skill from JD
+- Achievement with metric
+- Achievement with metric
 ...
 
 **SKILLS**
-Compliance & Regulatory: KYC, AML, GDPR, Sanctions
-FinCrime Operations: Case Review, Escalation, Fraud Detection
-Tools & Systems: [tools from JD or experience]
-Languages: [languages with proficiency levels]
+[Category]: [skill, skill, skill]
+...
 
 **EDUCATION**
-[Degree, School, Year — one line per entry, max 2 entries]
+[Education details]
 
-COVER LETTER RULES:
-1. Date: ${today}
-2. "Dear Hiring Manager,"
-3. Paragraph 1: Role + company name + enthusiasm + years of relevant experience
-4. Paragraph 2: 2 specific achievements with metrics matching JD requirements
-5. Paragraph 3: Mention language skills if required + payment systems knowledge if applicable
-6. Paragraph 4: Call to action
-7. NEVER include company address or [Company Address] placeholder
-8. Sign off: "Sincerely, [Name]"`;
+**CERTIFICATIONS** (if applicable)
+[Certification details]
+
+Rules for cover letter:
+1. Use today's date at the top (format: Month Day, Year — e.g., "June 16, 2026")
+2. Address as "Dear Hiring Manager," 
+3. Include the company name in the first paragraph (e.g., "I am excited to apply for [Role] at [Company Name]...")
+4. Do NOT include company address or [Company Address] placeholder
+5. Mention 2-3 key requirements from the job description and how the candidate meets them
+6. Include specific achievements with metrics
+7. Keep it to 3-4 paragraphs
+8. Professional but enthusiastic tone
+9. End with a call to action
+
+Cover letter format:
+[Month Day, Year]
+
+Dear Hiring Manager,
+
+[Body paragraph 1: mention role and company name, express enthusiasm]
+
+[Body paragraph 2: highlight relevant experience and achievements]
+
+[Body paragraph 3: mention key skills matching job requirements]
+
+[Closing paragraph: call to action]
+
+Sincerely,
+[Candidate Name]`;
 
     const userPrompt = `Generate an ATS-optimized resume and cover letter for this candidate applying for: ${formData.jobTitle}
 
@@ -327,7 +315,7 @@ Generate both the resume and cover letter. Separate them clearly with "=== COVER
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      temperature: 0.5,
+      temperature: 0.7,
       max_tokens: 3000,
     });
 
@@ -335,17 +323,8 @@ Generate both the resume and cover letter. Separate them clearly with "=== COVER
     
     // Split resume and cover letter
     const parts = content.split("=== COVER LETTER ===");
-    let resume = parts[0].trim();
+    const resume = parts[0].trim();
     const coverLetter = parts[1]?.trim() || "Cover letter generation failed. Please try again.";
-
-    // Clean up common AI artifacts
-    resume = resume
-      .replace(/\[LinkedIn\]\(https?:\/\/[^\)]+\)/gi, "")
-      .replace(/\[.*?\]\(https?:\/\/.*?\)/gi, "")
-      .replace(/footer.*$/gim, "")
-      .replace(/page \d+ of \d+/gi, "")
-      .replace(/^\s*languages\s*$/gim, "")
-      .replace(/\n{3,}/g, "\n\n");
 
     // Calculate ATS score
     const atsResult = calculateATSScore(resume, formData.targetJobDescription, formData);
