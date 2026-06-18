@@ -1,0 +1,169 @@
+{
+  "metadata": {
+    "exported_at": "2026-06-18T00:40:46.155973",
+    "total_jobs": 5,
+    "us_filtered": true,
+    "source": "smart_apply_scraper"
+  },
+  "jobs": [
+    {
+      "id": "d5a589d4f7e2df75",
+      "title": "Senior Backend Engineer",
+      "company": "Wise",
+      "company_id": "wise",
+      "location": "Berlin, Germany",
+      "department": "Engineering",
+      "description": "<p>Build scalable systems...</p>",
+      "url": "https://boards.greenhouse.io/wise/jobs/12345",
+      "platform": "greenhouse",
+      "sector": "fintech",
+      "region": "Europe",
+      "country": "UK",
+      "is_remote": false,
+      "is_us_based": false,
+      "posted_at": "2026-06-15T10:00:00Z",
+      "scraped_at": "2026-06-18T00:40:46.143797",
+      "raw_data": {
+        "id": 12345,
+        "title": "Senior Backend Engineer",
+        "location": {
+          "name": "Berlin, Germany"
+        },
+        "departments": [
+          {
+            "name": "Engineering"
+          }
+        ],
+        "content": "<p>Build scalable systems...</p>",
+        "absolute_url": "https://boards.greenhouse.io/wise/jobs/12345",
+        "updated_at": "2026-06-15T10:00:00Z"
+      }
+    },
+    {
+      "id": "85fc53b826549fe2",
+      "title": "Product Manager",
+      "company": "Wise",
+      "company_id": "wise",
+      "location": "London, UK",
+      "department": "Product",
+      "description": "<p>Drive product strategy...</p>",
+      "url": "https://boards.greenhouse.io/wise/jobs/12346",
+      "platform": "greenhouse",
+      "sector": "fintech",
+      "region": "Europe",
+      "country": "UK",
+      "is_remote": false,
+      "is_us_based": false,
+      "posted_at": "2026-06-14T09:00:00Z",
+      "scraped_at": "2026-06-18T00:40:46.143857",
+      "raw_data": {
+        "id": 12346,
+        "title": "Product Manager",
+        "location": {
+          "name": "London, UK"
+        },
+        "departments": [
+          {
+            "name": "Product"
+          }
+        ],
+        "content": "<p>Drive product strategy...</p>",
+        "absolute_url": "https://boards.greenhouse.io/wise/jobs/12346",
+        "updated_at": "2026-06-14T09:00:00Z"
+      }
+    },
+    {
+      "id": "6abdf24455a261b5",
+      "title": "Remote DevOps Engineer",
+      "company": "Wise",
+      "company_id": "wise",
+      "location": "Remote - EMEA",
+      "department": "Engineering",
+      "description": "<p>Manage infrastructure...</p>",
+      "url": "https://boards.greenhouse.io/wise/jobs/12348",
+      "platform": "greenhouse",
+      "sector": "fintech",
+      "region": "Europe",
+      "country": "UK",
+      "is_remote": true,
+      "is_us_based": false,
+      "posted_at": "2026-06-12T07:00:00Z",
+      "scraped_at": "2026-06-18T00:40:46.143886",
+      "raw_data": {
+        "id": 12348,
+        "title": "Remote DevOps Engineer",
+        "location": {
+          "name": "Remote - EMEA"
+        },
+        "departments": [
+          {
+            "name": "Engineering"
+          }
+        ],
+        "content": "<p>Manage infrastructure...</p>",
+        "absolute_url": "https://boards.greenhouse.io/wise/jobs/12348",
+        "updated_at": "2026-06-12T07:00:00Z"
+      }
+    },
+    {
+      "id": "7dc093ac5d9e59b8",
+      "title": "Frontend Developer",
+      "company": "Adyen",
+      "company_id": "adyen",
+      "location": "Amsterdam, Netherlands, Full-time",
+      "department": "Engineering",
+      "description": "<p>Build beautiful UIs...</p>",
+      "url": "https://jobs.lever.co/adyen/abc-1",
+      "platform": "lever",
+      "sector": "fintech",
+      "region": "Europe",
+      "country": "Netherlands",
+      "is_remote": false,
+      "is_us_based": false,
+      "posted_at": "2026-06-10T12:00:00Z",
+      "scraped_at": "2026-06-18T00:40:46.143979",
+      "raw_data": {
+        "id": "abc-1",
+        "text": "Frontend Developer",
+        "categories": {
+          "location": "Amsterdam, Netherlands",
+          "team": "Engineering",
+          "commitment": "Full-time"
+        },
+        "description": "<p>Build beautiful UIs...</p>",
+        "applyUrl": "https://jobs.lever.co/adyen/abc-1",
+        "createdAt": "2026-06-10T12:00:00Z"
+      }
+    },
+    {
+      "id": "a40fe653f6597c9a",
+      "title": "Customer Success Manager",
+      "company": "Adyen",
+      "company_id": "adyen",
+      "location": "Remote, Full-time",
+      "department": "Customer Success",
+      "description": "<p>Help customers...</p>",
+      "url": "https://jobs.lever.co/adyen/abc-3",
+      "platform": "lever",
+      "sector": "fintech",
+      "region": "Europe",
+      "country": "Netherlands",
+      "is_remote": true,
+      "is_us_based": false,
+      "posted_at": "2026-06-08T10:00:00Z",
+      "scraped_at": "2026-06-18T00:40:46.144016",
+      "raw_data": {
+        "id": "abc-3",
+        "text": "Customer Success Manager",
+        "categories": {
+          "location": "Remote",
+          "team": "Customer Success",
+          "commitment": "Full-time"
+        },
+        "description": "<p>Help customers...</p>",
+        "applyUrl": "https://jobs.lever.co/adyen/abc-3",
+        "createdAt": "2026-06-08T10:00:00Z"
+      }
+    }
+  ]
+}

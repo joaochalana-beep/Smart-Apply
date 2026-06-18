@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
+import ImportCompanyJobs from "@/components/ImportCompanyJobs";
 
 interface Job {
   id: string;
@@ -20,7 +21,7 @@ interface Job {
 }
 
 export default function DiscoverPage() {
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([])
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -181,6 +182,8 @@ export default function DiscoverPage() {
           </button>
         </div>
 
+        <ImportCompanyJobs />
+
         {/* DEBUG INFO */}
         {lastResponse?.debug && (
           <div className="bg-blue-900/30 border border-blue-800 rounded-lg p-4 mb-6 text-blue-300 text-xs font-mono">
@@ -271,7 +274,7 @@ export default function DiscoverPage() {
               </div>
 
               <p className="text-zinc-400 text-sm leading-relaxed mb-4 line-clamp-3">
-                {job.description.replace(/<[^>]*>/g, "").slice(0, 300)}...
+                {job.description.replace(/<<[^>]*>/g, "").slice(0, 300)}...
               </p>
 
               <div className="flex gap-3">

@@ -1,36 +1,146 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Smart Apply — Company Career Page Scraper
 
-## Getting Started
+## Phase 1: Curated Company Scraper (~65 companies)
 
-First, run the development server:
+### 📁 Files
+| File | Description |
+|------|-------------|
+| `companies_db.json` | Curated company database with 65 companies across Europe, AU, NZ, South America |
+| `scraper.py` | Main scraper engine with platform parsers |
+| `test_scraper.py` | Demo/test script with mock data (no API calls) |
+| `requirements.txt` | Python dependencies |
+
+### 🚀 Quick Start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# 1. Install dependencies
+pip install -r requirements.txt
+
+# 2. Run the demo (uses mock data, no API calls)
+python test_scraper.py
+
+# 3. Run live scraper (hits real APIs)
+python scraper.py companies_db.json
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 🏗️ Architecture
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│  companies_db   │────▶│  CompanyScraper │────▶│  PlatformParser │
+│   (JSON)        │     │  (orchestrator) │     │ (Greenhouse/    │
+└─────────────────┘     └─────────────────┘     │  Lever/RSS/     │
+                                                │  Workday)       │
+                                                └─────────────────┘
+                                                         │
+                                                         ▼
+                                                ┌─────────────────┐
+                                                │  US Filter      │
+                                                │  (auto-exclude) │
+                                                └─────────────────┘
+                                                         │
+                                                         ▼
+                                                ┌─────────────────┐
+                                                │  JobListing     │
+                                                │  (normalized)   │
+                                                └─────────────────┘
+                                                         │
+                                                         ▼
+                                                ┌─────────────────┐
+                                                │  DiscoverAPI    │
+                                                │  (integration)  │
+                                                └─────────────────┘
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 🌍 Coverage
 
-## Learn More
+| Region | Companies | Sectors |
+|--------|-----------|---------|
+| Europe | 47 | tech, fintech, health, HR, customer_support |
+| Australia | 5 | tech, fintech |
+| New Zealand | 3 | tech, fintech |
+| South America | 10 | tech, fintech |
 
-To learn more about Next.js, take a look at the following resources:
+### 🔧 Platform Support
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Platform | Status | Method |
+|----------|--------|--------|
+| Greenhouse | ✅ Ready | Public JSON API |
+| Lever | ✅ Ready | Public JSON API |
+| RSS/Atom | ✅ Ready | feedparser |
+| Workday | ⚠️ Stub | Needs Selenium/Playwright |
+| Ashby | ⚠️ Stub | Needs special handling |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 🛡️ US Filter
 
-## Deploy on Vercel
+Automatically excludes jobs with:
+- US state names (California, Texas, etc.)
+- US cities (San Francisco, New York, etc.)
+- US zip codes
+- US timezones (EST, PST, etc.)
+- Keywords: "United States", "USA", "US-based"
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 📋 Next Steps (Phase 2)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **Workday parser** — Add Selenium/Playwright support
+2. **Auto-detect platform** — Given a careers URL, detect if it's Greenhouse/Lever/Workday
+3. **Expand to 500+ companies** — Use the auto-detector
+4. **Scheduling** — Add cron/APScheduler for periodic scraping
+5. **Admin UI** — Web interface to add/remove companies
+
+### 💡 Integration with Discover API
+
+```python
+from scraper import CompanyScraper, DiscoverAPI
+
+scraper = CompanyScraper('companies_db.json')
+jobs = scraper.scrape_all()
+discover_format = DiscoverAPI.transform_batch(jobs)
+# POST discover_format to your existing API
+```
+
+
+## Phase 2: Universal Browser Scraper (NEW)
+
+### What it does
+Scrapes **Workday**, **SmartRecruiters**, and **custom career pages** using a headless browser.
+
+### Setup (one-time)
+```powershell
+# Install new dependencies
+py -m pip install -r requirements.txt
+
+# Install Playwright browser
+py -m playwright install chromium
+```
+
+Or run the setup script:
+```powershell
+setup.bat
+```
+
+### Usage
+```powershell
+# Combined scraper (API + Browser)
+py combined_scraper.py
+
+# Or use universal scraper standalone
+py universal_scraper.py
+```
+
+### Supported Platforms
+| Platform | Method | Status |
+|----------|--------|--------|
+| Greenhouse | API (fast) | ✅ |
+| Lever | API (fast) | ✅ |
+| RSS/Atom | feedparser | ✅ |
+| Workday | Browser (Playwright) | ✅ NEW |
+| SmartRecruiters | Browser (Playwright) | ✅ NEW |
+| Custom/Unknown | Browser + heuristics | ✅ NEW |
+
+### Files Added in Phase 2
+| File | Description |
+|------|-------------|
+| `universal_scraper.py` | Browser-based scraper for JS-rendered pages |
+| `combined_scraper.py` | Runs both API + browser scrapers together |
+| `setup.bat` | One-click setup script for Windows |
