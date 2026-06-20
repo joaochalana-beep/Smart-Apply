@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
-import ImportCompanyJobs from "@/components/ImportCompanyJobs";
 
 interface Job {
   id: string;
@@ -21,13 +20,13 @@ interface Job {
 }
 
 export default function DiscoverPage() {
-  const [jobs, setJobs] = useState<Job[]>([])
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [profileError, setProfileError] = useState<string | null>(null);
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
   const [authReady, setAuthReady] = useState(false);
-  const [lastResponse, setLastResponse] = useState<any>(null);
+  const [importStatus, setImportStatus] = useState<string | null>(null);
   const router = useRouter();
   const { isLoaded, isSignedIn } = useAuth();
 
@@ -41,21 +40,56 @@ export default function DiscoverPage() {
     }
   }, [isLoaded, isSignedIn, router]);
 
+  // Auto-import scraped jobs on first load
+  const autoImportJobs = useCallback(async () => {
+    try {
+      setImportStatus("Checking for new jobs...");
+      const res = await fetch("/api/discover-companies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setImportStatus(`Imported ${data.imported} jobs`);
+      } else if (data.error?.includes("No jobs found")) {
+        setImportStatus(null);
+      } else {
+        setImportStatus(null);
+      }
+    } catch (err) {
+      setImportStatus(null);
+    }
+  }, []);
+
   const fetchJobs = useCallback(async () => {
     if (!authReady) return;
-    
+
     setLoading(true);
     setError("");
     setProfileError(null);
 
     try {
-      const res = await fetch("/api/discover");
-      const data = await res.json();
-      setLastResponse(data);
+      let res = await fetch("/api/discover");
+      let data = await res.json();
+
+      // Handle 401 - Clerk session might still be initializing
+      if (!res.ok && res.status === 401) {
+        console.log("[Discover] 401 on first attempt, waiting for auth...");
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        res = await fetch("/api/discover");
+        data = await res.json();
+      }
 
       if (!res.ok) {
         if (data.needsProfileUpdate) {
           setProfileError(data.message || "Please complete your profile to discover jobs.");
+          setJobs([]);
+          setLoading(false);
+          return;
+        }
+        if (res.status === 401) {
+          console.warn("[Discover] Still unauthorized after retry");
           setJobs([]);
           setLoading(false);
           return;
@@ -86,11 +120,12 @@ export default function DiscoverPage() {
     setLoading(false);
   }, [authReady]);
 
+  // Auto-import on mount, then fetch jobs
   useEffect(() => {
     if (authReady) {
-      fetchJobs();
+      autoImportJobs().then(() => fetchJobs());
     }
-  }, [authReady, fetchJobs]);
+  }, [authReady, autoImportJobs, fetchJobs]);
 
   async function prepareApplication(job: Job) {
     setGeneratingFor(job.id);
@@ -156,6 +191,7 @@ export default function DiscoverPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
           <p className="text-zinc-400">Scanning for jobs that match your profile...</p>
+          {importStatus && <p className="text-zinc-500 text-sm mt-2">{importStatus}</p>}
         </div>
       </div>
     );
@@ -172,6 +208,9 @@ export default function DiscoverPage() {
                 ? `Found ${jobs.length} jobs matching your profile`
                 : "Find jobs that match your skills and preferences"}
             </p>
+            {importStatus && (
+              <p className="text-zinc-500 text-xs mt-1">{importStatus}</p>
+            )}
           </div>
           <button
             onClick={fetchJobs}
@@ -181,30 +220,6 @@ export default function DiscoverPage() {
             {loading ? "Loading..." : "Refresh"}
           </button>
         </div>
-
-        <ImportCompanyJobs />
-
-        {/* DEBUG INFO */}
-        {lastResponse?.debug && (
-          <div className="bg-blue-900/30 border border-blue-800 rounded-lg p-4 mb-6 text-blue-300 text-xs font-mono">
-            <p className="font-bold mb-2">Debug Info:</p>
-            <p>Raw Location: {lastResponse.debug.rawLocation || "empty"}</p>
-            <p>Parsed Location: {lastResponse.debug.parsedLocation || "empty"}</p>
-            <p>Is Remote: {lastResponse.debug.isRemote ? "Yes" : "No"}</p>
-            <p>Using Arbeitnow Primary: {lastResponse.debug.useArbeitnowPrimary ? "Yes" : "No"}</p>
-            <p>Adzuna Configured: {lastResponse.debug.adzunaConfigured ? "Yes" : "No"}</p>
-            <p>Primary Source: {lastResponse.source || "unknown"}</p>
-            <p>Fallback Used: {lastResponse.fallbackUsed ? "Yes" : "No"}</p>
-            <p>Total Jobs Found: {lastResponse.debug.totalJobsFound || 0}</p>
-            <p>Jobs After Deduplication: {lastResponse.debug.jobsAfterDedup || 0}</p>
-            {lastResponse.debug.adzunaError && (
-              <p className="text-red-400 mt-2">Adzuna Error: {lastResponse.debug.adzunaError}</p>
-            )}
-            {lastResponse.debug.arbeitnowError && (
-              <p className="text-red-400 mt-2">Arbeitnow Error: {lastResponse.debug.arbeitnowError}</p>
-            )}
-          </div>
-        )}
 
         {profileError && (
           <div className="bg-amber-900/50 border border-amber-800 rounded-lg p-6 text-amber-400 mb-6">

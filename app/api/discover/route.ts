@@ -48,13 +48,139 @@ const countryMap: Record<string, string> = {
   "finland": "fi", "helsinki": "fi",
 };
 
+// City to country mapping for location validation
+const CITY_TO_COUNTRY: Record<string, string> = {
+  "lisbon": "portugal", "porto": "portugal", "lisboa": "portugal",
+  "madrid": "spain", "barcelona": "spain", "valencia": "spain",
+  "rome": "italy", "milan": "italy", "milano": "italy", "turin": "italy", "torino": "italy",
+  "naples": "italy", "napoli": "italy",
+  "berlin": "germany", "munich": "germany", "munchen": "germany", "hamburg": "germany",
+  "cologne": "germany", "koln": "germany", "frankfurt": "germany", "stuttgart": "germany",
+  "paris": "france", "lyon": "france", "marseille": "france",
+  "amsterdam": "netherlands", "rotterdam": "netherlands",
+  "brussels": "belgium",
+  "vienna": "austria", "wien": "austria",
+  "dublin": "ireland",
+  "zurich": "switzerland", "geneva": "switzerland",
+  "warsaw": "poland",
+  "stockholm": "sweden",
+  "copenhagen": "denmark",
+  "oslo": "norway",
+  "helsinki": "finland",
+  "london": "uk", "manchester": "uk", "birmingham": "uk",
+  "toronto": "canada", "vancouver": "canada", "montreal": "canada",
+  "new york": "usa", "san francisco": "usa", "los angeles": "usa", "chicago": "usa",
+  "sydney": "australia", "melbourne": "australia",
+  "tokyo": "japan", "osaka": "japan",
+  "sao paulo": "brazil", "rio de janeiro": "brazil",
+  "mexico city": "mexico",
+  "buenos aires": "argentina",
+};
+
+// European countries used to validate "Europe" / "EU" / "EMEA" location preferences
+const EU_COUNTRIES = [
+  "austria", "belgium", "bulgaria", "croatia", "cyprus", "czech republic", "czechia",
+  "denmark", "estonia", "finland", "france", "germany", "greece", "hungary", "ireland",
+  "italy", "latvia", "lithuania", "luxembourg", "malta", "netherlands", "poland",
+  "portugal", "romania", "slovakia", "slovenia", "spain", "sweden",
+  // Common non-EU European countries users usually include when saying "Europe"
+  "uk", "united kingdom", "great britain", "england", "scotland", "wales", "northern ireland",
+  "switzerland", "norway", "iceland", "liechtenstein", "serbia", "bosnia", "montenegro",
+  "north macedonia", "albania", "ukraine", "moldova", "belarus", "russia",
+];
+
+// ============================================================================
+// STRICT LOCATION FILTER - Only allows user\'s desired locations
+// ============================================================================
+function isLocationAllowed(location: string, profile?: any): boolean {
+  if (!location) return true;
+  const locLower = location.toLowerCase().trim();
+
+  const userDesiredLocs = (profile?.desired_location || "").toLowerCase().trim();
+  if (!userDesiredLocs) return true;
+
+  const userLocs = userDesiredLocs.split(/[,;]+/).map((s: string) => s.trim()).filter((s: string) => s.length > 0);
+  if (userLocs.length === 0) return true;
+
+  // Always allow worldwide/global
+  if (locLower.includes("worldwide") || locLower.includes("global") || locLower.includes("anywhere")) {
+    return true;
+  }
+
+  // Build allowed terms from user preferences + city mappings
+  const allowedTerms = new Set<string>();
+  for (const loc of userLocs) {
+    allowedTerms.add(loc);
+    if (CITY_TO_COUNTRY[loc]) allowedTerms.add(CITY_TO_COUNTRY[loc]);
+  }
+
+  const userWantsEu = userLocs.some((l: string) => l.includes("eu") || l.includes("europe") || l.includes("emea"));
+
+  // Check if location directly mentions an allowed term
+  for (const term of allowedTerms) {
+    if (locLower.includes(term)) return true;
+  }
+
+  // If user wants Europe/EU/EMEA, allow any specific European country location
+  if (userWantsEu) {
+    for (const country of EU_COUNTRIES) {
+      if (locLower.includes(country)) return true;
+    }
+  }
+
+  // For remote jobs: if they specify a country, that country MUST be allowed
+  const isRemoteJob = locLower.includes("remote") || locLower.includes("work from home") || locLower.includes("wfh");
+  if (isRemoteJob) {
+    // Countries to check against: all countries we know about, plus European countries when user wants Europe
+    const checkCountries = userWantsEu
+      ? [...new Set([...Object.values(CITY_TO_COUNTRY), ...EU_COUNTRIES])]
+      : [...new Set(Object.values(CITY_TO_COUNTRY))];
+
+    let specifiesNonAllowedCountry = false;
+    for (const c of checkCountries) {
+      if (locLower.includes(c) && !allowedTerms.has(c)) {
+        specifiesNonAllowedCountry = true;
+        break;
+      }
+    }
+
+    // If it specifies a non-allowed country, reject it immediately
+    if (specifiesNonAllowedCountry) return false;
+
+    // If user explicitly wants remote, allow generic remote
+    const userWantsRemote = userLocs.includes("remote");
+    if (userWantsRemote) return true;
+
+    // If user wants EU and job is generic EU remote, allow
+    if (userWantsEu && (locLower.includes("eu") || locLower.includes("europe") || locLower.includes("emea"))) {
+      return true;
+    }
+
+    // Generic remote without country specified - reject if user has specific countries
+    // (they said Portugal/Spain/Italy, not "remote")
+    return false;
+  }
+
+  // Check EU/Europe/EMEA if user wants it
+  if (userWantsEu && (locLower.includes("eu") || locLower.includes("europe") || locLower.includes("emea"))) {
+    return true;
+  }
+
+  return false;
+}
+
+function getLocationPenalty(location: string, profile?: any): number {
+  if (isLocationAllowed(location, profile)) return 0;
+  return -50;
+}
+
 function stripHtml(html: string): string {
   if (!html) return "";
   return html
     .replace(/<\/li>/gi, "\n")
     .replace(/<\/p>|<\/h[1-6]>/gi, "\n\n")
     .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
+    .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
@@ -126,7 +252,7 @@ function scoreTitleMatch(jobTitle: string, desiredRoles: string[]): number {
       continue;
     }
 
-    const roleWords = roleLower.split(/\s+/).filter(w => w.length >= 3);
+    const roleWords = roleLower.split(/\s+/).filter((w: string) => w.length >= 3);
     let matchedWords = 0;
     for (const word of roleWords) {
       if (title.includes(word)) matchedWords++;
@@ -157,7 +283,7 @@ function scoreDescriptionMatch(jobDesc: string, desiredRoles: string[]): number 
       continue;
     }
 
-    const words = roleLower.split(/\s+/).filter(w => w.length >= 3);
+    const words = roleLower.split(/\s+/).filter((w: string) => w.length >= 3);
     for (const word of words) {
       if (desc.includes(word)) score += 5;
     }
@@ -181,10 +307,10 @@ function scoreExperienceLevel(jobTitle: string, jobDesc: string, userLevel: stri
   const isUserSenior = userLevelLower.includes("senior") || userLevelLower.includes("lead") || userLevelLower.includes("principal");
 
   if (isUserEntry) {
-    if (hasSenior) return -60;
-    if (hasMid) return -30;
+    if (hasSenior) return -40;
+    if (hasMid) return -15;
     if (hasEntry) return 25;
-    return 0;
+    return 5; // Slight positive for entry-level seekers on unmarked jobs
   }
 
   if (isUserMid) {
@@ -218,20 +344,22 @@ function scoreLocation(jobLoc: string, desiredLoc: string, isRemote: boolean): n
 
   if (desiredLower.includes("portugal") || desiredLower.includes("lisbon") || desiredLower.includes("porto")) {
     if (jobLower.includes("portugal") || jobLower.includes("lisbon") || jobLower.includes("porto") || jobLower.includes("lisboa")) return 25;
-    if (jobLower.includes("remote")) return 15;
   }
 
   if (desiredLower.includes("spain") || desiredLower.includes("madrid") || desiredLower.includes("barcelona")) {
     if (jobLower.includes("spain") || jobLower.includes("madrid") || jobLower.includes("barcelona") || jobLower.includes("valencia")) return 25;
   }
 
+  if (desiredLower.includes("italy") || desiredLower.includes("rome") || desiredLower.includes("milan")) {
+    if (jobLower.includes("italy") || jobLower.includes("rome") || jobLower.includes("milan") || jobLower.includes("milano")) return 25;
+  }
+
   if (desiredLower.includes("germany") || desiredLower.includes("berlin")) {
     if (jobLower.includes("germany") || jobLower.includes("berlin") || jobLower.includes("munich") || jobLower.includes("hamburg")) return 25;
   }
 
-  if (desiredLower.includes("europe") || desiredLower.includes("eu")) {
-    const euCountries = ["germany", "france", "netherlands", "italy", "spain", "portugal", "belgium", "austria", "switzerland", "ireland", "poland", "sweden", "denmark", "norway", "finland"];
-    if (euCountries.some(c => jobLower.includes(c))) return 20;
+  if (desiredLower.includes("europe") || desiredLower.includes("eu") || desiredLower.includes("emea")) {
+    if (EU_COUNTRIES.some(c => jobLower.includes(c))) return 20;
   }
 
   return 0;
@@ -283,7 +411,7 @@ function scoreLanguage(jobTitle: string, jobDesc: string, userLanguages: string[
   if (!userLanguages || userLanguages.length === 0) return { score: 0, missing: [] };
 
   const fullText = `${jobTitle} ${jobDesc}`.toLowerCase();
-  const userLangsLower = userLanguages.map(l => l.toLowerCase());
+  const userLangsLower = userLanguages.map((l: string) => l.toLowerCase());
 
   const languagePatterns: Record<string, RegExp[]> = {
     german: [
@@ -424,6 +552,39 @@ function calculateMatchScore(job: any, profile: any): { score: number; reasons: 
   else if (locScore >= 10) reasons.push("Location OK");
   else if (locScore < 0) reasons.push("Wrong location type");
 
+  // 4b. LOCATION WHITELIST PENALTY
+  const locPenalty = getLocationPenalty(jobLoc, profile);
+  score += locPenalty;
+  if (locPenalty < 0) reasons.push("Location outside preferred regions");
+
+  // 4c. BOOST for preferred countries (only if user actually wants them)
+  const preferredCountries = ["portugal", "spain", "italy", "lisbon", "porto", "lisboa", "madrid", "barcelona", "valencia", "rome", "milan", "milano", "turin", "torino", "naples", "napoli"];
+  const jobLocLower = jobLoc.toLowerCase();
+
+  const userDesiredLocs = (profile.desired_location || "").toLowerCase().split(/[,;\s]+/).filter((s: string) => s.length > 0);
+  const userWantsPortugal = userDesiredLocs.some((l: string) => l.includes("portugal") || l.includes("lisbon") || l.includes("porto"));
+  const userWantsSpain = userDesiredLocs.some((l: string) => l.includes("spain") || l.includes("madrid") || l.includes("barcelona"));
+  const userWantsItaly = userDesiredLocs.some((l: string) => l.includes("italy") || l.includes("rome") || l.includes("milan"));
+
+  for (const country of preferredCountries) {
+    if (jobLocLower.includes(country)) {
+      if ((country.includes("portugal") || country.includes("lisbon") || country.includes("porto") || country.includes("lisboa")) && !userWantsPortugal) continue;
+      if ((country.includes("spain") || country.includes("madrid") || country.includes("barcelona") || country.includes("valencia")) && !userWantsSpain) continue;
+      if ((country.includes("italy") || country.includes("rome") || country.includes("milan") || country.includes("milano") || country.includes("turin") || country.includes("torino") || country.includes("naples") || country.includes("napoli")) && !userWantsItaly) continue;
+      score += 30;
+      reasons.push("Preferred country/region");
+      break;
+    }
+  }
+
+  // 4d. BOOST for remote EU jobs - ONLY if user wants EU-wide remote
+  const userWantsEuWide = userDesiredLocs.some((l: string) => l.includes("eu") || l.includes("europe") || l.includes("emea"));
+  const isEuRemote = jobLocLower.includes("remote") && EU_COUNTRIES.some(c => jobLocLower.includes(c));
+  if (isEuRemote && !preferredCountries.some(c => jobLocLower.includes(c)) && userWantsEuWide) {
+    score += 10;
+    reasons.push("Remote EU job");
+  }
+
   // 5. WORK TYPE (max 15, min -15)
   const workScore = scoreWorkType(job, isRemote, userWorkType);
   score += workScore;
@@ -438,11 +599,11 @@ function calculateMatchScore(job: any, profile: any): { score: number; reasons: 
   const langResult = scoreLanguage(title, desc, userLanguages);
   score += langResult.score;
   if (langResult.missing.length > 0) {
-    reasons.push(`Requires ${langResult.missing.join(", ")} (you don't speak it)`);
+    reasons.push(`Requires ${langResult.missing.join(", ")} (you don\'t speak it)`);
   }
 
   // HARD FILTERS
-  if (expScore <= -30 && titleScore < 20) {
+  if (expScore <= -40 && titleScore < 20) {
     score = Math.min(score, 15);
     reasons.push("Likely overqualified role");
   }
@@ -463,51 +624,99 @@ function calculateMatchScore(job: any, profile: any): { score: number; reasons: 
 }
 
 // ============================================================================
-// COMPANY JOBS FETCHER (PRIMARY SOURCE)
+// COMPANY JOBS FETCHER (PRIMARY SOURCE) - BROAD QUERY
 // ============================================================================
-async function fetchCompanyJobs(searchTerms: string[], location: string, isRemote: boolean, limit: number = 100) {
-  console.log(`[CompanyJobs] Searching for: ${searchTerms.join(", ")} in ${location || "any location"}`);
+async function fetchCompanyJobs(searchTerms: string[], location: string, isRemote: boolean, profile: any, limit: number = 500) {
+  console.log(`[CompanyJobs] BROAD SEARCH: fetching up to ${limit} company jobs, then scoring against: ${searchTerms.join(", ")}`);
 
-  // Build ILIKE conditions for title matching
+  // Build ILIKE conditions for title matching (for priority ordering)
   const titleConditions = searchTerms.map(term => {
-    const cleanTerm = term.replace(/[%_]/g, "\$&");
+    const cleanTerm = term.replace(/[%_]/g, "\\$&");
     return `role.ilike.%${cleanTerm}%`;
   }).join(",");
 
-  // Build location conditions
-  const locLower = location.toLowerCase().trim();
-  let locationFilter = "";
+  // Also match company name
+  const companyConditions = searchTerms.map(term => {
+    const cleanTerm = term.replace(/[%_]/g, "\\$&");
+    return `company.ilike.%${cleanTerm}%`;
+  }).join(",");
 
-  if (locLower && !locLower.includes("europe") && !locLower.includes("eu") && !locLower.includes("anywhere") && !locLower.includes("remote")) {
-    const locTerms = locLower.split(/\s+/).filter(Boolean);
-    const locConditions = locTerms.map(term => `location.ilike.%${term}%`).join(",");
-    locationFilter = locConditions;
+  // Location handling - location is space-separated list of countries
+  const locParts = location.toLowerCase().split(/\s+/).filter((s: string) => s.length > 0);
+  const locLower = locParts.join(" ");
+  let locationQuery: string | null = null;
+
+  if (locLower && !locLower.includes("europe") && !locLower.includes("eu") && !locLower.includes("anywhere") && !locLower.includes("global")) {
+    const locConditions = locParts.map((term: string) => `location.ilike.%${term}%`).join(",");
+    // Only include remote in query if user wants remote
+    if (isRemote) {
+      locationQuery = `${locConditions},location.ilike.%remote%`;
+    } else {
+      locationQuery = locConditions;
+    }
   }
 
-  // Query 1: company careers from all three sources
-  let query = supabase
-    .from("jobs")
-    .select("*")
-    .or(`source.eq.company_careers_greenhouse,source.eq.company_careers_lever,source.eq.company_careers_unknown`)
-    .or(titleConditions)
-    .limit(limit);
+  // Query 1: Try to get matching jobs first (prioritized)
+  let matchingJobs: any[] = [];
+  try {
+    let query1 = supabase
+      .from("jobs")
+      .select("*")
+      .or(`source.eq.company_careers_greenhouse,source.eq.company_careers_lever,source.eq.company_careers_unknown`)
+      .or(titleConditions)
+      .limit(Math.floor(limit * 0.6));
 
-  if (locationFilter) {
-    query = query.or(locationFilter);
+    if (locationQuery) {
+      query1 = query1.or(locationQuery);
+    }
+
+    const { data: data1, error: error1 } = await query1;
+    if (!error1 && data1) matchingJobs = data1;
+  } catch (e) {
+    console.error("[CompanyJobs] Priority query failed:", e);
   }
 
-  const { data, error } = await query;
+  // Query 2: Get ALL remaining company jobs (the broad sweep) - also constrained by location
+  let allJobs: any[] = [];
+  try {
+    let query2 = supabase
+      .from("jobs")
+      .select("*")
+      .or(`source.eq.company_careers_greenhouse,source.eq.company_careers_lever,source.eq.company_careers_unknown`)
+      .limit(limit);
 
-  if (error) {
-    console.error("[CompanyJobs] Error:", error);
-    throw new Error(`Company jobs fetch failed: ${error.message}`);
+    if (locationQuery) {
+      query2 = query2.or(locationQuery);
+    }
+
+    const { data: data2, error: error2 } = await query2;
+    if (!error2 && data2) allJobs = data2;
+  } catch (e) {
+    console.error("[CompanyJobs] Broad query failed:", e);
   }
 
-  const jobs = data || [];
-  console.log(`[CompanyJobs] Found ${jobs.length} company jobs`);
+  // Merge: matching jobs first, then the rest - STRICT location filter using profile
+  const seenIds = new Set<string>();
+  const merged: any[] = [];
+
+  for (const job of matchingJobs) {
+    if (!seenIds.has(job.id) && isLocationAllowed(job.location, profile)) {
+      seenIds.add(job.id);
+      merged.push({ ...job, _priority: 1 });
+    }
+  }
+
+  for (const job of allJobs) {
+    if (!seenIds.has(job.id) && isLocationAllowed(job.location, profile)) {
+      seenIds.add(job.id);
+      merged.push({ ...job, _priority: 0 });
+    }
+  }
+
+  console.log(`[CompanyJobs] Found ${merged.length} total company jobs (priority matches: ${matchingJobs.length})`);
 
   // Normalize company jobs to unified format
-  return jobs.map((job: any) => ({
+  return merged.map((job: any) => ({
     id: job.id,
     title: job.role || "Unknown Role",
     company: job.company || "Unknown",
@@ -521,7 +730,7 @@ async function fetchCompanyJobs(searchTerms: string[], location: string, isRemot
     postedAt: job.created_at,
     datePosted: job.created_at,
     created_at: job.created_at,
-    // Preserve original fields for scoring
+    _priority: job._priority || 0,
     role: job.role,
     work_type: job.work_type,
     job_type: job.job_type,
@@ -550,10 +759,12 @@ export async function GET(req: NextRequest) {
     }
 
     // Use defaults if profile is missing — never block job discovery
+    // Default to "europe" so the Europe results page shows a broad range of
+    // companies and locations rather than only remote postings.
     const safeProfile = rawProfile || {};
     const effectiveProfile = {
       desired_role: safeProfile.desired_role || "software engineer",
-      desired_location: safeProfile.desired_location || "remote",
+      desired_location: safeProfile.desired_location || "europe",
       work_type: safeProfile.work_type || "remote",
       experience_level: String(safeProfile.experience_level || "mid"),
       languages: Array.isArray(safeProfile.languages) ? safeProfile.languages : [],
@@ -562,9 +773,10 @@ export async function GET(req: NextRequest) {
     };
 
     const searchTerms = getSearchTerms(effectiveProfile);
-    const rawLocation = (effectiveProfile.desired_location || "").toLowerCase().trim().replace(/\s+/g, " ");
+    const rawLocation = (effectiveProfile.desired_location || "").toLowerCase().trim();
     const isRemote = rawLocation.includes("remote") || (effectiveProfile.work_type || "").toLowerCase() === "remote";
-    const location = rawLocation.replace(/remote/g, "").replace(/,/g, " ").trim();
+    const locationParts = (rawLocation.split(/[,;]/) as string[]).map((l: string) => l.trim()).filter((s: string) => s.length > 0);
+    const location = locationParts.filter((l: string) => l !== "remote").join(" ");
 
     const apifyCountry = getApifyCountry(rawLocation);
     const adzunaSupported = isAdzunaSupported(rawLocation);
@@ -580,7 +792,7 @@ export async function GET(req: NextRequest) {
     // STEP 1: COMPANY JOBS (PRIMARY)
     // ============================================================================
     try {
-      const companyJobs = await fetchCompanyJobs(searchTerms, location, isRemote, 150);
+      const companyJobs = await fetchCompanyJobs(searchTerms, location, isRemote, effectiveProfile, 200);
       for (const job of companyJobs) {
         if (!seenUrls.has(job.url)) {
           seenUrls.add(job.url);
@@ -650,7 +862,7 @@ export async function GET(req: NextRequest) {
     }
 
     // ============================================================================
-    // STEP 4: LEGACY APIFY FALLBACK (only if everything else failed)
+    // STEP 4: APIFY/INDEED (LAST RESORT FALLBACK - paid, skip if no token)
     // ============================================================================
     if (allJobs.length === 0 && APIFY_API_TOKEN) {
       try {
@@ -702,11 +914,41 @@ export async function GET(req: NextRequest) {
     });
 
     const filtered = scored.filter((j: any) => {
+      // HARD FILTER: Reject jobs in non-allowed locations
+      if (!isLocationAllowed(j.location, effectiveProfile)) return false;
+
+      // Company jobs still need reasonable relevance
+      const isCompanyJob = j.source && (j.source.includes("Greenhouse") || j.source.includes("Lever") || j.source.includes("Unknown") || j.source === "Company" || j.source === "Company Careers");
+
+      // For company jobs: require at least some title match or location match
+      if (isCompanyJob) {
+        // Must have either decent score OR explicit location match to user\'s desired countries
+        const userDesiredLocs = (effectiveProfile.desired_location || "").toLowerCase();
+        const jobLocLower = j.location.toLowerCase();
+        const locationMatchesUser = userDesiredLocs.split(/[,;\s]+/).some((loc: string) => 
+          loc.length > 2 && jobLocLower.includes(loc)
+        );
+
+        // Entry-level users: reject senior roles even from company jobs
+        const isEntryLevel = (effectiveProfile.experience_level || "").toLowerCase().includes("entry");
+        const isSeniorRole = /\b(senior|sr\.|lead|principal|staff|head of|director|vp)\b/i.test(j.title);
+
+        if (isEntryLevel && isSeniorRole && j.score < 30) {
+          return false; // Block senior roles for entry-level users
+        }
+
+        if (j.score >= 20) return true;
+        if (locationMatchesUser && j.score >= 10) return true;
+        return false; // Don\'t show irrelevant company jobs
+      }
+
+      // For external API jobs: stricter
       if (j.score >= 20) return true;
+
       const title = j.title.toLowerCase();
       const roles = getSearchTerms(effectiveProfile);
       for (const role of roles) {
-        const words = role.toLowerCase().split(/\s+/).filter(w => w.length >= 3);
+        const words = role.toLowerCase().split(/\s+/).filter((w: string) => w.length >= 3);
         for (const word of words) {
           if (title.includes(word)) return true;
         }
@@ -727,10 +969,10 @@ export async function GET(req: NextRequest) {
     });
 
     // ============================================================================
-    // SAVE TO USER'S JOBS TABLE (only non-company jobs, or update if needed)
+    // SAVE TO USER\'S JOBS TABLE (only non-company jobs, or update if needed)
     // ============================================================================
     const toUpsert = deduped
-      .filter((j: any) => !j.id.startsWith("company_")) // Don't re-save company jobs that are already in DB
+      .filter((j: any) => !j.id.startsWith("company_")) // Don\'t re-save company jobs that are already in DB
       .map((j: any) => ({
         job_id: j.id,
         title: j.title,
@@ -759,9 +1001,10 @@ export async function GET(req: NextRequest) {
       searchTerms,
       location: location || "any",
       isRemote,
-      debug: {
+      debug: process.env.NODE_ENV === "development" ? {
         rawLocation: effectiveProfile.desired_location,
         parsedLocation: location,
+        locationParts: locationParts,
         isRemote,
         userExpLevel: effectiveProfile.experience_level,
         userLanguages: effectiveProfile.languages || [],
@@ -782,7 +1025,7 @@ export async function GET(req: NextRequest) {
         jobsAfterScoring: scored.length,
         jobsAfterFilter: filtered.length,
         jobsAfterDedup: deduped.length,
-      }
+      } : undefined
     });
   } catch (err: any) {
     console.error("Discover error:", err);
