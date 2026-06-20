@@ -38,10 +38,13 @@ const countryMap: Record<string, string> = {
   "italy": "it", "rome": "it", "milano": "it", "milan": "it",
   "belgium": "be", "brussels": "be",
   "austria": "at", "vienna": "at", "wien": "at",
-  "ireland": "ie", "dublin": "ie",
+  "ireland": "ie", "dublin": "ie", "cork": "ie", "galway": "ie",
+  "limerick": "ie", "waterford": "ie",
   "switzerland": "ch", "zurich": "ch", "geneva": "ch",
   "poland": "pl", "warsaw": "pl",
   "portugal": "pt", "lisbon": "pt", "lisboa": "pt", "porto": "pt",
+  "braga": "pt", "coimbra": "pt", "faro": "pt", "aveiro": "pt",
+  "setubal": "pt", "leiria": "pt", "funchal": "pt",
   "sweden": "se", "stockholm": "se",
   "denmark": "dk", "copenhagen": "dk",
   "norway": "no", "oslo": "no",
@@ -51,6 +54,9 @@ const countryMap: Record<string, string> = {
 // City to country mapping for location validation
 const CITY_TO_COUNTRY: Record<string, string> = {
   "lisbon": "portugal", "porto": "portugal", "lisboa": "portugal",
+  "braga": "portugal", "coimbra": "portugal", "faro": "portugal",
+  "aveiro": "portugal", "setubal": "portugal", "leiria": "portugal",
+  "funchal": "portugal",
   "madrid": "spain", "barcelona": "spain", "valencia": "spain",
   "rome": "italy", "milan": "italy", "milano": "italy", "turin": "italy", "torino": "italy",
   "naples": "italy", "napoli": "italy",
@@ -60,7 +66,8 @@ const CITY_TO_COUNTRY: Record<string, string> = {
   "amsterdam": "netherlands", "rotterdam": "netherlands",
   "brussels": "belgium",
   "vienna": "austria", "wien": "austria",
-  "dublin": "ireland",
+  "dublin": "ireland", "cork": "ireland", "galway": "ireland",
+  "limerick": "ireland", "waterford": "ireland",
   "zurich": "switzerland", "geneva": "switzerland",
   "warsaw": "poland",
   "stockholm": "sweden",
@@ -88,6 +95,37 @@ const EU_COUNTRIES = [
   "switzerland", "norway", "iceland", "liechtenstein", "serbia", "bosnia", "montenegro",
   "north macedonia", "albania", "ukraine", "moldova", "belarus", "russia",
 ];
+
+// Portugal-headquartered or major Portugal employers to prioritise when the user
+// searches for Portugal.
+const PORTUGAL_COMPANIES = new Set([
+  "Caixa Geral de Depositos", "Millennium BCP", "Novo Banco", "Banco BPI", "Montepio",
+  "NOS", "MEO", "EDP", "Galp Energia", "REN", "Jeronimo Martins", "Sonae", "Delta Cafes",
+  "BIAL", "Hovione", "Tecnimede", "Grifols", "OutSystems", "Talkdesk", "Feedzai",
+  "Sword Health", "Unbabel", "Farfetch", "Landing.jobs", "Blip", "Mindera", "Celfocus",
+  "Primavera BSS", "Glintt", "Softinsa", "Critical Software", "WIT Software", "SCC",
+  "Tessi", "Noesis", "Devoteam", "Inetum", "everis", "anchor", "Dare", "Redlight",
+  "NOWO", "Oni Telecom", "Mota-Engil", "Teixeira Duarte", "Soares da Costa", "Conduril",
+  "Martifer", "Bosch", "Siemens", "Vodafone", "Ericsson", "Nokia"
+].map(c => c.toLowerCase()));
+
+// Major Ireland employers to prioritise when the user searches for Ireland.
+const IRELAND_COMPANIES = new Set([
+  "Stripe", "HubSpot", "Google", "Microsoft", "Amazon", "Apple", "Meta", "Twitter", "X",
+  "LinkedIn", "TikTok", "Pfizer", "Intel", "Dell", "IBM", "Cisco", "Salesforce", "Workday",
+  "Indeed", "Intercom", "Fenergo", "FINEOS", "Vilocys", "Poppulo", "Teamwork", "Keelvar",
+  "Altada", "Clavis Insight", "PMD Solutions", "SoapBox Labs", "Nuritas", "LearnUpon",
+  "Brightflag", "AssureHedge", "TransferMate", "Fexco", "Ding", "CarTrawler", "Hostelworld",
+  "Ryanair", "Aer Lingus", "Kingspan", "CRH", "Musgrave", "Greencore", "Glanbia", "Kerry Group",
+  "Smurfit Kappa", "Paddy Power Betfair", "Flutter Entertainment", "DraftKings",
+  "Keywords Studios", "Digit Game Studios", "Romero Games", "Demonware", "Havok",
+  "Nine Lives Media", "StoryToys", "Sugru", "Cubic Telecom", "Snap", "Shopify", "Zalando",
+  "Personio", "Contentful", "HelloFresh", "N26", "Klarna", "Revolut", "Bunq", "Monzo", "Wise",
+  "MongoDB", "Datadog", "Twilio", "Elastic", "Cloudflare", "Dropbox", "Spotify", "Netflix",
+  "Uber", "Airbnb", "Booking.com", "SAP", "Oracle", "VMware", "Red Hat", "Fastly",
+  "JPMorgan Chase", "Goldman Sachs", "Morgan Stanley", "Bank of America", "Citigroup",
+  "HSBC", "Barclays", "AIB", "Bank of Ireland", "Ulster Bank", "Permanent TSB"
+].map(c => c.toLowerCase()));
 
 // ============================================================================
 // STRICT LOCATION FILTER - Only allows user\'s desired locations
@@ -236,170 +274,425 @@ function isAdzunaSupported(loc: string): boolean {
 }
 
 // ============================================================================
-// REALISTIC JOB MATCHING ENGINE
+// WEIGHTED JOB MATCHING ENGINE
 // ============================================================================
+//
+// Final score = weighted sum of independent 0-1 components:
+//   roleMatch      * 0.30
+//   workTypeMatch  * 0.20
+//   locationMatch  * 0.20
+//   experienceMatch* 0.10
+//   salaryMatch    * 0.10
+//   industryMatch  * 0.05
+//   jobTypeMatch   * 0.05
+// multiplied by 100, with small recency bonus and language penalties.
 
-function scoreTitleMatch(jobTitle: string, desiredRoles: string[]): number {
+// Expand a role with common synonyms and related terms so custom/typed roles
+// still match relevant job titles.
+function expandRoleTerms(role: string): string[] {
+  const terms = new Set<string>();
+  const lower = role.toLowerCase().trim();
+  if (lower.length < 2) return [];
+
+  terms.add(lower);
+
+  // Drop common filler words and keep the keyword form
+  const keywordForm = lower
+    .replace(/\b(analyst|specialist|officer|manager|engineer|developer|representative|coordinator|associate)\b/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (keywordForm && keywordForm !== lower && keywordForm.length >= 2) {
+    terms.add(keywordForm);
+  }
+
+  // Engineer / Developer equivalence
+  if (/\bengineer\b/.test(lower)) {
+    terms.add(lower.replace(/\bengineer\b/g, "developer"));
+  }
+  if (/\bdeveloper\b/.test(lower)) {
+    terms.add(lower.replace(/\bdeveloper\b/g, "engineer"));
+  }
+
+  // Support family
+  if (lower.includes("customer support") || lower.includes("technical support")) {
+    terms.add("support");
+    terms.add("customer service");
+  }
+  if (lower.includes("support")) {
+    terms.add("customer support");
+  }
+
+  // Trust & Safety / Content Moderation / Safety
+  if (lower.includes("trust") || lower.includes("safety")) {
+    terms.add("trust & safety");
+    terms.add("trust and safety");
+    terms.add("content moderator");
+    terms.add("content moderation");
+    terms.add("safety");
+  }
+  if (lower.includes("content moderator") || lower.includes("content moderation")) {
+    terms.add("trust & safety");
+    terms.add("trust and safety");
+  }
+
+  // Risk family
+  if (lower.includes("risk")) {
+    terms.add("risk analyst");
+    terms.add("risk specialist");
+    terms.add("risk manager");
+  }
+
+  // Compliance family
+  if (lower.includes("compliance")) {
+    terms.add("compliance");
+    terms.add("regulatory");
+    terms.add("compliance analyst");
+  }
+
+  // KYC / AML / Fraud family
+  if (lower.includes("kyc")) {
+    terms.add("kyc");
+    terms.add("know your customer");
+    terms.add("kyc analyst");
+    terms.add("kyc specialist");
+  }
+  if (lower.includes("aml")) {
+    terms.add("aml");
+    terms.add("anti money laundering");
+    terms.add("aml analyst");
+  }
+  if (lower.includes("fraud")) {
+    terms.add("fraud");
+    terms.add("fraud analyst");
+    terms.add("risk");
+  }
+
+  // Manager / Management
+  if (/\bmanager\b/.test(lower)) {
+    terms.add(lower.replace(/\bmanager\b/g, "management"));
+  }
+
+  // QA / Quality Assurance
+  if (/\bqa\b/.test(lower)) {
+    terms.add(lower.replace(/\bqa\b/g, "quality assurance"));
+  }
+
+  // Implementation / Project / Business Analyst bridges
+  if (lower.includes("implementation")) {
+    terms.add("implementation");
+    terms.add("project");
+  }
+  if (lower.includes("business analyst")) {
+    terms.add("business analysis");
+    terms.add("analyst");
+  }
+
+  return Array.from(terms);
+}
+
+function scoreRoleMatch(jobTitle: string, jobDesc: string, desiredRoles: string[]): number {
   const title = jobTitle.toLowerCase();
+  const desc = jobDesc.toLowerCase();
   let bestScore = 0;
 
   for (const role of desiredRoles) {
-    const roleLower = role.toLowerCase().trim();
-    if (roleLower.length < 2) continue;
+    const expandedTerms = expandRoleTerms(role);
+    let roleBestScore = 0;
 
-    if (title.includes(roleLower)) {
-      bestScore = Math.max(bestScore, 50);
-      continue;
+    for (const term of expandedTerms) {
+      const termLower = term.toLowerCase().trim();
+      if (termLower.length < 2) continue;
+
+      // Full term appears in title (best signal)
+      if (title.includes(termLower)) {
+        roleBestScore = Math.max(roleBestScore, 1.0);
+        continue;
+      }
+
+      // All significant words appear in title
+      const roleWords = termLower.split(/\s+/).filter((w: string) => w.length >= 3);
+      if (roleWords.length > 0) {
+        const matchedWords = roleWords.filter(w => title.includes(w)).length;
+        if (matchedWords === roleWords.length) {
+          roleBestScore = Math.max(roleBestScore, 0.85);
+        } else if (matchedWords >= 2) {
+          roleBestScore = Math.max(roleBestScore, 0.55 + (matchedWords / roleWords.length) * 0.2);
+        } else if (matchedWords === 1) {
+          roleBestScore = Math.max(roleBestScore, 0.35);
+        }
+      }
+
+      // Full term appears in description
+      if (desc.includes(termLower)) {
+        roleBestScore = Math.max(roleBestScore, 0.55);
+      } else if (roleWords.length > 0) {
+        const descMatched = roleWords.filter(w => desc.includes(w)).length;
+        if (descMatched >= 2) {
+          roleBestScore = Math.max(roleBestScore, 0.35);
+        } else if (descMatched === 1) {
+          roleBestScore = Math.max(roleBestScore, 0.2);
+        }
+      }
     }
 
-    const roleWords = roleLower.split(/\s+/).filter((w: string) => w.length >= 3);
-    let matchedWords = 0;
-    for (const word of roleWords) {
-      if (title.includes(word)) matchedWords++;
-    }
-
-    if (roleWords.length >= 2 && matchedWords === roleWords.length) {
-      bestScore = Math.max(bestScore, 40);
-    } else if (matchedWords >= 2) {
-      bestScore = Math.max(bestScore, 25);
-    } else if (matchedWords === 1) {
-      bestScore = Math.max(bestScore, 10);
-    }
+    bestScore = Math.max(bestScore, roleBestScore);
   }
 
   return bestScore;
 }
 
-function scoreDescriptionMatch(jobDesc: string, desiredRoles: string[]): number {
-  const desc = jobDesc.toLowerCase();
-  let score = 0;
-
-  for (const role of desiredRoles) {
-    const roleLower = role.toLowerCase().trim();
-    if (roleLower.length < 2) continue;
-
-    if (desc.includes(roleLower)) {
-      score += 15;
-      continue;
-    }
-
-    const words = roleLower.split(/\s+/).filter((w: string) => w.length >= 3);
-    for (const word of words) {
-      if (desc.includes(word)) score += 5;
-    }
-  }
-
-  return Math.min(30, score);
+function detectWorkType(job: any): "remote" | "hybrid" | "onsite" | "unknown" {
+  const text = `${job.title || ""} ${job.description || ""} ${job.location || ""} ${job.work_type || ""}`.toLowerCase();
+  if (text.includes("remote") || text.includes("work from home") || text.includes("wfh") || text.includes("home office") || text.includes("anywhere")) return "remote";
+  if (text.includes("hybrid")) return "hybrid";
+  if (text.includes("on-site") || text.includes("onsite") || text.includes("in office") || text.includes("in-office") || text.includes("on site")) return "onsite";
+  return "unknown";
 }
 
-function scoreExperienceLevel(jobTitle: string, jobDesc: string, userLevel: string): number {
-  const fullText = `${jobTitle} ${jobDesc}`.toLowerCase();
-  const userLevelLower = userLevel.toLowerCase().trim();
-
-  if (!userLevelLower || userLevelLower === "any") return 0;
-
-  const hasSenior = /\b(senior|sr\.?|lead|principal|staff|head of|director|vp|chief|architect|manager|5\+ years|6\+ years|7\+ years|8\+ years|10\+ years)\b/i.test(fullText);
-  const hasMid = /\b(mid|mid-level|intermediate|2-5 years|3\+ years|4\+ years|level 2|level ii)\b/i.test(fullText);
-  const hasEntry = /\b(entry|entry-level|junior|jr\.?|graduate|grad|intern|trainee|0-2|1-2|1\+ years|no experience|early career|fresh)\b/i.test(fullText);
-
-  const isUserEntry = userLevelLower.includes("entry") || userLevelLower.includes("junior") || userLevelLower.includes("grad") || userLevelLower.includes("intern");
-  const isUserMid = userLevelLower.includes("mid") || userLevelLower.includes("intermediate");
-  const isUserSenior = userLevelLower.includes("senior") || userLevelLower.includes("lead") || userLevelLower.includes("principal");
-
-  if (isUserEntry) {
-    if (hasSenior) return -40;
-    if (hasMid) return -15;
-    if (hasEntry) return 25;
-    return 5; // Slight positive for entry-level seekers on unmarked jobs
-  }
-
-  if (isUserMid) {
-    if (hasSenior) return -20;
-    if (hasEntry) return 10;
-    if (hasMid) return 20;
-    return 0;
-  }
-
-  if (isUserSenior) {
-    if (hasEntry) return -15;
-    if (hasMid) return 10;
-    if (hasSenior) return 25;
-    return 0;
-  }
-
-  return 0;
-}
-
-function scoreLocation(jobLoc: string, desiredLoc: string, isRemote: boolean): number {
-  if (!desiredLoc || desiredLoc.trim() === "") return 0;
-
-  const jobLower = (jobLoc || "").toLowerCase();
-  const desiredLower = desiredLoc.toLowerCase();
-
-  if (isRemote) {
-    if (jobLower.includes("remote") || jobLower.includes("work from home") || jobLower.includes("wfh")) return 20;
-    if (jobLower.includes("hybrid")) return 10;
-    if (jobLower.includes("on-site") || jobLower.includes("onsite")) return -10;
-  }
-
-  if (desiredLower.includes("portugal") || desiredLower.includes("lisbon") || desiredLower.includes("porto")) {
-    if (jobLower.includes("portugal") || jobLower.includes("lisbon") || jobLower.includes("porto") || jobLower.includes("lisboa")) return 25;
-  }
-
-  if (desiredLower.includes("spain") || desiredLower.includes("madrid") || desiredLower.includes("barcelona")) {
-    if (jobLower.includes("spain") || jobLower.includes("madrid") || jobLower.includes("barcelona") || jobLower.includes("valencia")) return 25;
-  }
-
-  if (desiredLower.includes("italy") || desiredLower.includes("rome") || desiredLower.includes("milan")) {
-    if (jobLower.includes("italy") || jobLower.includes("rome") || jobLower.includes("milan") || jobLower.includes("milano")) return 25;
-  }
-
-  if (desiredLower.includes("germany") || desiredLower.includes("berlin")) {
-    if (jobLower.includes("germany") || jobLower.includes("berlin") || jobLower.includes("munich") || jobLower.includes("hamburg")) return 25;
-  }
-
-  if (desiredLower.includes("europe") || desiredLower.includes("eu") || desiredLower.includes("emea")) {
-    if (EU_COUNTRIES.some(c => jobLower.includes(c))) return 20;
-  }
-
-  return 0;
-}
-
-function scoreWorkType(job: any, isRemote: boolean, userWorkType: string): number {
-  const text = `${job.title || ""} ${job.description || ""} ${job.location || ""}`.toLowerCase();
+function scoreWorkType(job: any, userWorkType: string): number {
+  const jobWT = detectWorkType(job);
   const userWT = (userWorkType || "").toLowerCase();
 
-  const isJobRemote = text.includes("remote") || text.includes("work from home") || text.includes("wfh") || text.includes("home office");
-  const isJobHybrid = text.includes("hybrid");
-  const isJobOnsite = text.includes("on-site") || text.includes("onsite") || text.includes("in office") || text.includes("in-office");
+  if (!userWT || userWT === "any") {
+    return jobWT === "unknown" ? 0.75 : 0.85;
+  }
 
   if (userWT.includes("remote")) {
-    if (isJobRemote) return 15;
-    if (isJobHybrid) return 5;
-    if (isJobOnsite) return -15;
+    if (jobWT === "remote") return 1.0;
+    if (jobWT === "hybrid") return 0.6;
+    if (jobWT === "onsite") return 0.0;
+    return 0.5;
   }
 
   if (userWT.includes("hybrid")) {
-    if (isJobHybrid) return 15;
-    if (isJobRemote) return 10;
-    if (isJobOnsite) return 0;
+    if (jobWT === "hybrid") return 1.0;
+    if (jobWT === "remote") return 0.7;
+    if (jobWT === "onsite") return 0.3;
+    return 0.65;
   }
 
   if (userWT.includes("on-site") || userWT.includes("onsite")) {
-    if (isJobOnsite) return 15;
-    if (isJobHybrid) return 5;
-    if (isJobRemote) return -10;
+    if (jobWT === "onsite") return 1.0;
+    if (jobWT === "hybrid") return 0.6;
+    if (jobWT === "remote") return 0.1;
+    return 0.65;
   }
 
-  return 0;
+  return 0.75;
+}
+
+function scoreLocation(jobLoc: string, desiredLoc: string): number {
+  if (!desiredLoc || desiredLoc.trim() === "") return 0.75;
+  if (!jobLoc) return 0.0;
+
+  const jobLower = jobLoc.toLowerCase();
+  const desiredLower = desiredLoc.toLowerCase();
+  const desiredLocs = desiredLower.split(/[,;\s]+/).filter((s: string) => s.length > 2);
+
+  // Remote is a valid work-type preference, not a location, but we still allow
+  // generic remote postings to score well when the user wants remote.
+  const userWantsRemote = desiredLower.includes("remote") || desiredLower.includes("anywhere") || desiredLower.includes("global");
+
+  for (const loc of desiredLocs) {
+    // Direct match in job location
+    if (jobLower.includes(loc)) return 1.0;
+
+    // Desired city maps to a country that appears in job location
+    const cityCountry = CITY_TO_COUNTRY[loc];
+    if (cityCountry && jobLower.includes(cityCountry)) return 1.0;
+
+    // Job location is a known city whose country matches desired location
+    for (const [city, country] of Object.entries(CITY_TO_COUNTRY)) {
+      if (jobLower.includes(city) && (loc === country || country.includes(loc))) return 1.0;
+    }
+  }
+
+  // Europe / EU / EMEA region match
+  if (desiredLower.includes("europe") || desiredLower.includes("eu") || desiredLower.includes("emea")) {
+    if (EU_COUNTRIES.some(c => jobLower.includes(c))) return 0.8;
+  }
+
+  // Remote jobs satisfy remote preference
+  if (userWantsRemote && (jobLower.includes("remote") || jobLower.includes("anywhere") || jobLower.includes("global"))) {
+    return 0.9;
+  }
+
+  return 0.0;
+}
+
+function scoreExperienceLevel(jobTitle: string, jobDesc: string, userLevel: string): number {
+  const text = `${jobTitle} ${jobDesc}`.toLowerCase();
+  const userLevelLower = (userLevel || "").toLowerCase().trim();
+
+  if (!userLevelLower || userLevelLower === "any") return 0.75;
+
+  const hasSenior = /\b(senior|sr\.?|lead|principal|staff|head of|director|vp|vice president|chief|architect|5\+ years|6\+ years|7\+ years|8\+ years|10\+ years)\b/i.test(text);
+  const hasMid = /\b(mid|mid-level|intermediate|2-5 years|3\+ years|4\+ years|level 2|level ii)\b/i.test(text);
+  const hasEntry = /\b(entry|entry-level|junior|jr\.?|graduate|grad|intern|trainee|0-2|1-2|1\+ years|no experience|early career|fresh|associate i?)\b/i.test(text);
+
+  if (userLevelLower.includes("entry") || userLevelLower.includes("junior") || userLevelLower.includes("grad") || userLevelLower.includes("intern")) {
+    if (hasEntry) return 1.0;
+    if (hasMid) return 0.3;
+    if (hasSenior) return 0.0;
+    return 0.7;
+  }
+
+  if (userLevelLower.includes("mid") || userLevelLower.includes("intermediate")) {
+    if (hasMid) return 1.0;
+    if (hasSenior) return 0.6;
+    if (hasEntry) return 0.5;
+    return 0.75;
+  }
+
+  if (userLevelLower.includes("senior") || userLevelLower.includes("lead") || userLevelLower.includes("principal")) {
+    if (hasSenior) return 1.0;
+    if (hasMid) return 0.7;
+    if (hasEntry) return 0.2;
+    return 0.75;
+  }
+
+  return 0.75;
+}
+
+function parseSalaryToMonthly(salaryStr: string): { min: number; max: number } | null {
+  if (!salaryStr || salaryStr.toLowerCase().includes("not specified") || salaryStr.toLowerCase().includes("competitive")) return null;
+
+  const matches = salaryStr.match(/\d[\d\s,]*(?:k)?/gi);
+  if (!matches || matches.length === 0) return null;
+
+  const numbers: number[] = [];
+  for (const m of matches) {
+    const raw = m.replace(/,/g, "").replace(/\s/g, "").toLowerCase();
+    let num = parseFloat(raw);
+    if (raw.includes("k")) num *= 1000;
+    if (!isNaN(num) && num > 0) numbers.push(num);
+  }
+
+  if (numbers.length === 0) return null;
+
+  const avg = numbers.reduce((a, b) => a + b, 0) / numbers.length;
+  let min = Math.min(...numbers);
+  let max = Math.max(...numbers);
+
+  // Heuristic: values >= 10,000 are treated as annual and converted to monthly.
+  if (avg >= 10000) {
+    min /= 12;
+    max /= 12;
+  }
+
+  return { min, max };
+}
+
+function scoreSalary(jobSalary: string | number | null, profile: any): number {
+  const profileMin = profile.desired_salary_min;
+  const profileMax = profile.desired_salary_max;
+
+  if ((profileMin === undefined || profileMin === null || profileMin === "") &&
+      (profileMax === undefined || profileMax === null || profileMax === "")) {
+    return 0.75;
+  }
+
+  const parsed = parseSalaryToMonthly(String(jobSalary || ""));
+  if (!parsed) return 0.65;
+
+  const pMin = Number(profileMin) || 0;
+  const pMax = Number(profileMax) || Infinity;
+
+  // Normalize profile if it looks annual (>= 10,000)
+  const profileAvg = pMin + (pMax === Infinity ? pMin : pMax);
+  const isAnnual = profileAvg >= 20000;
+  const normProfileMin = isAnnual ? pMin / 12 : pMin;
+  const normProfileMax = pMax === Infinity ? Infinity : (isAnnual ? pMax / 12 : pMax);
+
+  // Overlap
+  if (parsed.max >= normProfileMin && parsed.min <= normProfileMax) return 1.0;
+
+  // Job salary above desired range
+  if (parsed.min > normProfileMax && normProfileMax !== Infinity) {
+    return Math.max(0, (normProfileMax / parsed.min) * 0.6);
+  }
+
+  // Job salary below desired range
+  if (parsed.max < normProfileMin) {
+    return Math.max(0, (parsed.max / normProfileMin) * 0.6);
+  }
+
+  return 0.5;
+}
+
+function getProfileIndustries(profile: any): string[] {
+  const val = profile.industries || "";
+  if (!val) return [];
+  if (Array.isArray(val)) return val.map((s: string) => s.toLowerCase().trim());
+  return val.split(/[,;]/).map((s: string) => s.toLowerCase().trim()).filter(Boolean);
+}
+
+function scoreIndustry(jobSector: string | undefined, profile: any): number {
+  const industries = getProfileIndustries(profile);
+  if (industries.length === 0) return 0.75;
+
+  const sector = (jobSector || "").toLowerCase();
+
+  const sectorToIndustry: Record<string, string[]> = {
+    fintech: ["fintech", "finance", "technology", "financial services"],
+    tech: ["technology", "software", "saas", "internet", "e-commerce", "consulting"],
+    technology: ["technology", "software", "saas", "internet", "e-commerce"],
+    banking: ["banking", "finance", "financial services"],
+    finance: ["finance", "banking", "fintech", "financial services"],
+    healthcare: ["healthcare", "pharmaceuticals", "biotech", "medical"],
+    pharmaceuticals: ["pharmaceuticals", "healthcare", "biotech"],
+    retail: ["retail", "e-commerce", "consumer goods"],
+    "e-commerce": ["e-commerce", "retail", "technology"],
+    consulting: ["consulting", "professional services", "technology"],
+    telecommunications: ["telecommunications", "telecom", "technology"],
+    energy: ["energy", "utilities", "oil and gas"],
+    government: ["government", "public sector"],
+    insurance: ["insurance", "finance", "fintech"],
+    "real estate": ["real estate", "property"],
+    gaming: ["gaming", "technology", "entertainment"],
+    crypto: ["crypto", "fintech", "technology"],
+    food: ["food", "retail", "consumer goods"],
+    construction: ["construction", "engineering", "real estate"],
+    engineering: ["engineering", "manufacturing", "technology"],
+    manufacturing: ["manufacturing", "engineering"],
+    chemicals: ["chemicals", "manufacturing"],
+    media: ["media", "entertainment", "technology"],
+    transportation: ["transportation", "logistics"],
+    logistics: ["logistics", "transportation", "supply chain"],
+  };
+
+  for (const ind of industries) {
+    if (sector === ind) return 1.0;
+    const related = sectorToIndustry[sector] || [];
+    if (related.includes(ind)) return 0.85;
+  }
+
+  return 0.0;
+}
+
+function scoreJobType(jobType: string | undefined, profile: any): number {
+  const userType = (profile.job_type || "").toLowerCase();
+  if (!userType || userType === "any") return 0.85;
+
+  const job = (jobType || "").toLowerCase();
+  const normalize = (t: string) => t.replace(/[-\s]/g, "");
+
+  if (normalize(job).includes(normalize(userType))) return 1.0;
+  if (userType.includes("full-time") && job.includes("full")) return 1.0;
+  if (userType.includes("part-time") && job.includes("part")) return 1.0;
+  if (userType.includes("contract") && job.includes("contract")) return 1.0;
+  if (userType.includes("internship") && (job.includes("intern") || job.includes("trainee"))) return 1.0;
+
+  return 0.25;
 }
 
 function scoreRecency(job: any): number {
   const posted = new Date(job.postedAt || job.datePosted || job.created_at || Date.now());
   const days = (Date.now() - posted.getTime()) / (1000 * 60 * 60 * 24);
-  if (days < 1) return 5;
-  if (days < 3) return 3;
-  if (days < 7) return 2;
+  if (days < 1) return 3;
+  if (days < 3) return 2;
+  if (days < 7) return 1;
   return 0;
 }
 
@@ -491,24 +784,16 @@ function scoreLanguage(jobTitle: string, jobDesc: string, userLanguages: string[
     const userHasIt = userLangsLower.includes(lang);
 
     if (isRequired && !userHasIt) {
-      penalty -= 30;
+      penalty -= 25;
       missingLanguages.push(lang);
     }
   }
 
-  // Extra penalty for explicit "required" language statements
-  if (/german.*required|required.*german|must.*german|german.*must|fluent.*german.*required|native.*german/i.test(fullText)) {
-    if (!userLangsLower.includes("german")) {
-      penalty -= 40;
-      if (!missingLanguages.includes("german")) missingLanguages.push("german");
-    }
-  }
-
-  return { score: Math.max(-80, penalty), missing: missingLanguages };
+  return { score: Math.max(-60, penalty), missing: missingLanguages };
 }
 
 // ============================================================================
-// FINAL SCORE CALCULATION
+// FINAL WEIGHTED SCORE CALCULATION
 // ============================================================================
 
 function calculateMatchScore(job: any, profile: any): { score: number; reasons: string[] } {
@@ -519,106 +804,77 @@ function calculateMatchScore(job: any, profile: any): { score: number; reasons: 
   const desiredRoles = getSearchTerms(profile);
   const userExpLevel = String(profile.experience_level || "").toLowerCase().trim();
   const desiredLoc = (profile.desired_location || "").toLowerCase();
-  const isRemote = desiredLoc.includes("remote") || (profile.work_type || "").toLowerCase() === "remote";
   const userWorkType = profile.work_type || "";
   const userLanguages = profile.languages || [];
 
   const reasons: string[] = [];
-  let score = 0;
 
-  // 1. TITLE MATCH (most important - max 50)
-  const titleScore = scoreTitleMatch(title, desiredRoles);
-  score += titleScore;
-  if (titleScore >= 40) reasons.push("Exact title match");
-  else if (titleScore >= 25) reasons.push("Good title match");
-  else if (titleScore >= 10) reasons.push("Partial title match");
+  const roleScore = scoreRoleMatch(title, desc, desiredRoles);
+  const workTypeScore = scoreWorkType(job, userWorkType);
+  const locationScore = scoreLocation(jobLoc, desiredLoc);
+  const experienceScore = scoreExperienceLevel(title, desc, userExpLevel);
+  const salaryScore = scoreSalary(job.salary, profile);
+  const industryScore = scoreIndustry(job.sector, profile);
+  const jobTypeScore = scoreJobType(job.job_type, profile);
 
-  // 2. DESCRIPTION MATCH (max 30)
-  const descScore = scoreDescriptionMatch(desc, desiredRoles);
-  score += descScore;
-  if (descScore >= 15) reasons.push("Role mentioned in description");
+  let score = (
+    roleScore * 0.30 +
+    workTypeScore * 0.20 +
+    locationScore * 0.20 +
+    experienceScore * 0.10 +
+    salaryScore * 0.10 +
+    industryScore * 0.05 +
+    jobTypeScore * 0.05
+  ) * 100;
 
-  // 3. EXPERIENCE LEVEL (can be negative!)
-  const expScore = scoreExperienceLevel(title, desc, userExpLevel);
-  score += expScore;
-  if (expScore >= 20) reasons.push("Matches your experience level");
-  else if (expScore <= -30) reasons.push("Wrong experience level (too senior)");
-  else if (expScore <= -15) reasons.push("May require more experience");
+  if (roleScore >= 0.9) reasons.push("Strong role match");
+  else if (roleScore >= 0.6) reasons.push("Good role match");
+  else if (roleScore >= 0.35) reasons.push("Partial role match");
 
-  // 4. LOCATION (max 25)
-  const locScore = scoreLocation(jobLoc, desiredLoc, isRemote);
-  score += locScore;
-  if (locScore >= 20) reasons.push("Great location match");
-  else if (locScore >= 10) reasons.push("Location OK");
-  else if (locScore < 0) reasons.push("Wrong location type");
+  if (workTypeScore >= 0.9) reasons.push("Matches work type preference");
+  else if (workTypeScore <= 0.2) reasons.push("Work type mismatch");
 
-  // 4b. LOCATION WHITELIST PENALTY
+  if (locationScore >= 0.9) reasons.push("Great location match");
+  else if (locationScore >= 0.6) reasons.push("Location OK");
+  else if (locationScore === 0) reasons.push("Location mismatch");
+
+  if (experienceScore >= 0.8) reasons.push("Matches experience level");
+  else if (experienceScore <= 0.2) reasons.push("Experience level mismatch");
+
+  if (salaryScore >= 0.9) reasons.push("Salary in range");
+
+  if (industryScore >= 0.8) reasons.push("Industry match");
+
+  if (jobTypeScore >= 0.9) reasons.push("Job type match");
+
+  // Penalise badly mismatched work type so wrong-type jobs never rank high
+  if (workTypeScore < 0.25) {
+    score -= 30;
+    if (!reasons.includes("Work type mismatch")) reasons.push("Work type mismatch");
+  }
+
+  // Penalise badly mismatched experience level for entry seekers
+  if (userExpLevel.includes("entry") && experienceScore < 0.25) {
+    score -= 25;
+  }
+
+  // Small recency bonus
+  const recencyScore = scoreRecency(job);
+  score += recencyScore;
+
+  // Language penalty
+  const langResult = scoreLanguage(title, desc, userLanguages);
+  score += langResult.score;
+  if (langResult.missing.length > 0) {
+    reasons.push(`Requires ${langResult.missing.join(", ")}`);
+  }
+
+  // Location whitelist hard guard
   const locPenalty = getLocationPenalty(jobLoc, profile);
   score += locPenalty;
   if (locPenalty < 0) reasons.push("Location outside preferred regions");
 
-  // 4c. BOOST for preferred countries (only if user actually wants them)
-  const preferredCountries = ["portugal", "spain", "italy", "lisbon", "porto", "lisboa", "madrid", "barcelona", "valencia", "rome", "milan", "milano", "turin", "torino", "naples", "napoli"];
-  const jobLocLower = jobLoc.toLowerCase();
-
-  const userDesiredLocs = (profile.desired_location || "").toLowerCase().split(/[,;\s]+/).filter((s: string) => s.length > 0);
-  const userWantsPortugal = userDesiredLocs.some((l: string) => l.includes("portugal") || l.includes("lisbon") || l.includes("porto"));
-  const userWantsSpain = userDesiredLocs.some((l: string) => l.includes("spain") || l.includes("madrid") || l.includes("barcelona"));
-  const userWantsItaly = userDesiredLocs.some((l: string) => l.includes("italy") || l.includes("rome") || l.includes("milan"));
-
-  for (const country of preferredCountries) {
-    if (jobLocLower.includes(country)) {
-      if ((country.includes("portugal") || country.includes("lisbon") || country.includes("porto") || country.includes("lisboa")) && !userWantsPortugal) continue;
-      if ((country.includes("spain") || country.includes("madrid") || country.includes("barcelona") || country.includes("valencia")) && !userWantsSpain) continue;
-      if ((country.includes("italy") || country.includes("rome") || country.includes("milan") || country.includes("milano") || country.includes("turin") || country.includes("torino") || country.includes("naples") || country.includes("napoli")) && !userWantsItaly) continue;
-      score += 30;
-      reasons.push("Preferred country/region");
-      break;
-    }
-  }
-
-  // 4d. BOOST for remote EU jobs - ONLY if user wants EU-wide remote
-  const userWantsEuWide = userDesiredLocs.some((l: string) => l.includes("eu") || l.includes("europe") || l.includes("emea"));
-  const isEuRemote = jobLocLower.includes("remote") && EU_COUNTRIES.some(c => jobLocLower.includes(c));
-  if (isEuRemote && !preferredCountries.some(c => jobLocLower.includes(c)) && userWantsEuWide) {
-    score += 10;
-    reasons.push("Remote EU job");
-  }
-
-  // 5. WORK TYPE (max 15, min -15)
-  const workScore = scoreWorkType(job, isRemote, userWorkType);
-  score += workScore;
-  if (workScore >= 10) reasons.push("Matches work type preference");
-  else if (workScore < 0) reasons.push("Wrong work type");
-
-  // 6. RECENCY (max 5)
-  const recencyScore = scoreRecency(job);
-  score += recencyScore;
-
-  // 7. LANGUAGE (can be negative!)
-  const langResult = scoreLanguage(title, desc, userLanguages);
-  score += langResult.score;
-  if (langResult.missing.length > 0) {
-    reasons.push(`Requires ${langResult.missing.join(", ")} (you don\'t speak it)`);
-  }
-
-  // HARD FILTERS
-  if (expScore <= -40 && titleScore < 20) {
-    score = Math.min(score, 15);
-    reasons.push("Likely overqualified role");
-  }
-
-  if (titleScore === 0 && descScore === 0) {
-    score = Math.min(score, 10);
-    reasons.push("No role relevance detected");
-  }
-
-  if (langResult.score <= -40) {
-    score = Math.min(score, 20);
-    reasons.push("Language barrier");
-  }
-
-  score = Math.max(0, Math.min(100, score));
+  score = Math.max(0, Math.min(100, Math.round(score)));
 
   return { score, reasons };
 }
@@ -913,57 +1169,29 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    const filtered = scored.filter((j: any) => {
-      // HARD FILTER: Reject jobs in non-allowed locations
-      if (!isLocationAllowed(j.location, effectiveProfile)) return false;
+    // Apply strict location whitelist first
+    let afterLocation = scored.filter((j: any) => isLocationAllowed(j.location, effectiveProfile));
 
-      // Company jobs still need reasonable relevance
-      const isCompanyJob = j.source && (j.source.includes("Greenhouse") || j.source.includes("Lever") || j.source.includes("Unknown") || j.source === "Company" || j.source === "Company Careers");
-
-      // For company jobs: require at least some title match or location match
-      if (isCompanyJob) {
-        // Must have either decent score OR explicit location match to user\'s desired countries
-        const userDesiredLocs = (effectiveProfile.desired_location || "").toLowerCase();
-        const jobLocLower = j.location.toLowerCase();
-        const locationMatchesUser = userDesiredLocs.split(/[,;\s]+/).some((loc: string) => 
-          loc.length > 2 && jobLocLower.includes(loc)
-        );
-
-        // Entry-level users: reject senior roles even from company jobs
-        const isEntryLevel = (effectiveProfile.experience_level || "").toLowerCase().includes("entry");
-        const isSeniorRole = /\b(senior|sr\.|lead|principal|staff|head of|director|vp)\b/i.test(j.title);
-
-        if (isEntryLevel && isSeniorRole && j.score < 30) {
-          return false; // Block senior roles for entry-level users
-        }
-
-        if (j.score >= 20) return true;
-        if (locationMatchesUser && j.score >= 10) return true;
-        return false; // Don\'t show irrelevant company jobs
-      }
-
-      // For external API jobs: stricter
-      if (j.score >= 20) return true;
-
-      const title = j.title.toLowerCase();
-      const roles = getSearchTerms(effectiveProfile);
-      for (const role of roles) {
-        const words = role.toLowerCase().split(/\s+/).filter((w: string) => w.length >= 3);
-        for (const word of words) {
-          if (title.includes(word)) return true;
-        }
-      }
-      return false;
-    });
-
-    const seen = new Set();
-    const deduped = filtered.filter((j: any) => {
-      if (seen.has(j.url)) return false;
-      seen.add(j.url);
+    // Dedupe by URL before filtering on score so we keep the best duplicate
+    const seenJobUrls = new Set();
+    const deduped = afterLocation.filter((j: any) => {
+      if (seenJobUrls.has(j.url)) return false;
+      seenJobUrls.add(j.url);
       return true;
     });
 
-    deduped.sort((a: any, b: any) => {
+    // Primary filter: drop obviously irrelevant jobs (score < 25)
+    let filtered = deduped.filter((j: any) => j.score >= 25);
+    let relaxedFilters = false;
+
+    // If we have very few strong matches (< 5 jobs at 40%+), relax to show
+    // the closest results but mark the response accordingly.
+    if (filtered.filter((j: any) => j.score >= 40).length < 5) {
+      filtered = deduped.filter((j: any) => j.score >= 15);
+      relaxedFilters = true;
+    }
+
+    filtered.sort((a: any, b: any) => {
       if (b.score !== a.score) return b.score - a.score;
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
@@ -971,7 +1199,7 @@ export async function GET(req: NextRequest) {
     // ============================================================================
     // SAVE TO USER\'S JOBS TABLE (only non-company jobs, or update if needed)
     // ============================================================================
-    const toUpsert = deduped
+    const toUpsert = filtered
       .filter((j: any) => !j.id.startsWith("company_")) // Don\'t re-save company jobs that are already in DB
       .map((j: any) => ({
         job_id: j.id,
@@ -994,13 +1222,14 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({
-      jobs: deduped.slice(0, 50),
-      count: deduped.length,
+      jobs: filtered.slice(0, 50),
+      count: filtered.length,
       source: primarySource,
       sourcesUsed,
       searchTerms,
       location: location || "any",
       isRemote,
+      relaxedFilters,
       debug: process.env.NODE_ENV === "development" ? {
         rawLocation: effectiveProfile.desired_location,
         parsedLocation: location,
@@ -1014,10 +1243,10 @@ export async function GET(req: NextRequest) {
         apifyConfigured: !!APIFY_API_TOKEN,
         adzunaConfigured: !!(ADZUNA_APP_ID && ADZUNA_APP_KEY),
         scoreDistribution: {
-          excellent: deduped.filter((j: any) => j.score >= 80).length,
-          good: deduped.filter((j: any) => j.score >= 60 && j.score < 80).length,
-          decent: deduped.filter((j: any) => j.score >= 40 && j.score < 60).length,
-          low: deduped.filter((j: any) => j.score >= 20 && j.score < 40).length,
+          excellent: filtered.filter((j: any) => j.score >= 80).length,
+          good: filtered.filter((j: any) => j.score >= 60 && j.score < 80).length,
+          decent: filtered.filter((j: any) => j.score >= 40 && j.score < 60).length,
+          low: filtered.filter((j: any) => j.score >= 20 && j.score < 40).length,
           filtered: scored.length - filtered.length,
         },
         errors,

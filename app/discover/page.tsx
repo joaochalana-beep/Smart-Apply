@@ -27,6 +27,7 @@ export default function DiscoverPage() {
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [relaxedFilters, setRelaxedFilters] = useState(false);
   const router = useRouter();
   const { isLoaded, isSignedIn } = useAuth();
 
@@ -105,13 +106,14 @@ export default function DiscoverPage() {
         description: job.description,
         salary: job.salary,
         url: job.url,
-        work_type: job.remote ? "Remote" : "On-site",
-        job_type: "Full-time",
-        experience_level: "",
+        work_type: job.work_type || (job.remote ? "Remote" : "On-site"),
+        job_type: job.job_type || "Full-time",
+        experience_level: job.experience_level || "",
         match_score: job.match_score || 0,
         date_posted: job.created_at,
       }));
 
+      setRelaxedFilters(!!data.relaxedFilters);
       setJobs(mappedJobs);
     } catch (err: any) {
       setError(err.message || "Failed to load jobs");
@@ -170,8 +172,8 @@ export default function DiscoverPage() {
 
   function getScoreColor(score: number): string {
     if (score >= 80) return "bg-green-500";
-    if (score >= 60) return "bg-yellow-500";
-    return "bg-zinc-500";
+    if (score >= 50) return "bg-yellow-500";
+    return "bg-red-500";
   }
 
   if (!isLoaded || !authReady) {
@@ -243,6 +245,12 @@ export default function DiscoverPage() {
             >
               Try Again
             </button>
+          </div>
+        )}
+
+        {relaxedFilters && jobs.length > 0 && (
+          <div className="bg-amber-900/30 border border-amber-800 rounded-lg p-4 text-amber-400 mb-6">
+            <p className="font-medium">No strong matches found. Showing closest results.</p>
           </div>
         )}
 
