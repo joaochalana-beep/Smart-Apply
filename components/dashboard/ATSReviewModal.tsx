@@ -1,0 +1,247 @@
+"use client";
+
+import { useState } from "react";
+import { X, FileText, PenTool, Rocket, CheckCircle } from "lucide-react";
+import { ATSResult } from "@/lib/ats-engine";
+import { downloadText, downloadPDF, downloadDOCX } from "@/lib/document-export";
+
+interface ATSReviewModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  jobTitle: string;
+  companyName: string;
+  result: ATSResult;
+  onSubmit: () => void;
+  submitting?: boolean;
+}
+
+function scoreColor(score: number): string {
+  if (score >= 80) return "text-green-400";
+  if (score >= 60) return "text-yellow-400";
+  return "text-red-400";
+}
+
+function progressColor(score: number): string {
+  if (score >= 80) return "bg-green-500";
+  if (score >= 60) return "bg-yellow-500";
+  return "bg-red-500";
+}
+
+export function ATSReviewModal({
+  isOpen,
+  onClose,
+  jobTitle,
+  companyName,
+  result,
+  onSubmit,
+  submitting = false,
+}: ATSReviewModalProps) {
+  const [activeTab, setActiveTab] = useState<"score" | "cv" | "cover">("score");
+
+  if (!isOpen) return null;
+
+  const matched = result.matchedKeywords.slice(0, 14);
+  const missing = result.missingKeywords.slice(0, 6);
+  const totalJobKw = Math.max(1, result.matchedKeywords.length + result.missingKeywords.length);
+  const matchedCount = result.matchedKeywords.length;
+  const matchPercent = Math.round((matchedCount / totalJobKw) * 100);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+        {/* Header */}
+        <div className="p-6 border-b border-zinc-800 flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-white">Review Your Application</h2>
+            <p className="text-sm text-zinc-400">
+              {jobTitle} at {companyName}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b border-zinc-800">
+          {[
+            { id: "score", label: "ATS Score", icon: CheckCircle },
+            { id: "cv", label: "CV", icon: FileText },
+            { id: "cover", label: "Cover Letter", icon: PenTool },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as "score" | "cv" | "cover")}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition ${
+                activeTab === tab.id
+                  ? "bg-zinc-800 text-white border-b-2 border-white"
+                  : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
+              }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {activeTab === "score" && (
+            <div className="space-y-6">
+              <div className="text-center">
+                <p className={`text-5xl font-bold ${scoreColor(result.atsScore)}`}>
+                  {result.atsScore}/100
+                </p>
+                <p className="text-zinc-400 text-sm mt-1">ATS Optimization Score</p>
+              </div>
+
+              <div className="w-full bg-zinc-800 rounded-full h-3 overflow-hidden">
+                <div
+                  className={`h-full ${progressColor(result.atsScore)} transition-all duration-500`}
+                  style={{ width: `${result.atsScore}%` }}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-zinc-800/50 rounded-xl p-4">
+                  <p className="text-xs text-zinc-500 uppercase">Keywords</p>
+                  <p className="text-lg font-bold text-white">{result.scoreBreakdown.keywords}/40</p>
+                </div>
+                <div className="bg-zinc-800/50 rounded-xl p-4">
+                  <p className="text-xs text-zinc-500 uppercase">Experience</p>
+                  <p className="text-lg font-bold text-white">{result.scoreBreakdown.experience}/25</p>
+                </div>
+                <div className="bg-zinc-800/50 rounded-xl p-4">
+                  <p className="text-xs text-zinc-500 uppercase">Skills</p>
+                  <p className="text-lg font-bold text-white">{result.scoreBreakdown.skills}/20</p>
+                </div>
+                <div className="bg-zinc-800/50 rounded-xl p-4">
+                  <p className="text-xs text-zinc-500 uppercase">Education & Format</p>
+                  <p className="text-lg font-bold text-white">{result.scoreBreakdown.education + result.scoreBreakdown.format}/15</p>
+                </div>
+              </div>
+
+              <div className="bg-zinc-800/30 border border-zinc-800 rounded-xl p-4">
+                <p className="text-sm font-medium text-white mb-2">
+                  ✅ Keywords Matched: {matchedCount}/{totalJobKw} ({matchPercent}%)
+                </p>
+                <p className="text-xs text-zinc-400">
+                  {matched.join(" • ") || "No keyword matches found"}
+                </p>
+              </div>
+
+              {missing.length > 0 && (
+                <div className="bg-amber-900/20 border border-amber-900/40 rounded-xl p-4">
+                  <p className="text-sm font-medium text-amber-400 mb-2">⚠️ Gaps to Address</p>
+                  <ul className="text-xs text-amber-200/80 space-y-1">
+                    {missing.map((m, i) => (
+                      <li key={i}>• {m} — add if you have it</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div className="bg-blue-900/20 border border-blue-900/40 rounded-xl p-4">
+                <p className="text-sm font-medium text-blue-400 mb-2">💡 Tips to reach 95%+</p>
+                <ul className="text-xs text-blue-200/80 space-y-1">
+                  <li>• Quantify one more achievement in your experience</li>
+                  <li>• Add any online training related to missing skills</li>
+                  <li>• Mirror exact phrasing from the job post</li>
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "cv" && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-zinc-400">Preview your ATS-optimized CV</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => downloadText(result.cv, `${companyName}_${jobTitle}_CV.txt`)}
+                    className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded transition"
+                  >
+                    .txt
+                  </button>
+                  <button
+                    onClick={() => downloadPDF(result.cv, `${companyName}_${jobTitle}_CV.pdf`)}
+                    className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded transition"
+                  >
+                    .pdf
+                  </button>
+                  <button
+                    onClick={() => downloadDOCX(result.cv, `${companyName}_${jobTitle}_CV.docx`)}
+                    className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded transition"
+                  >
+                    .docx
+                  </button>
+                </div>
+              </div>
+              <pre className="whitespace-pre-wrap text-sm text-zinc-300 bg-zinc-950 border border-zinc-800 rounded-xl p-4 font-mono leading-relaxed">
+                {result.cv}
+              </pre>
+            </div>
+          )}
+
+          {activeTab === "cover" && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-zinc-400">Preview your cover letter</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => downloadText(result.coverLetter, `${companyName}_${jobTitle}_Cover_Letter.txt`)}
+                    className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded transition"
+                  >
+                    .txt
+                  </button>
+                  <button
+                    onClick={() => downloadPDF(result.coverLetter, `${companyName}_${jobTitle}_Cover_Letter.pdf`)}
+                    className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded transition"
+                  >
+                    .pdf
+                  </button>
+                  <button
+                    onClick={() => downloadDOCX(result.coverLetter, `${companyName}_${jobTitle}_Cover_Letter.docx`)}
+                    className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded transition"
+                  >
+                    .docx
+                  </button>
+                </div>
+              </div>
+              <pre className="whitespace-pre-wrap text-sm text-zinc-300 bg-zinc-950 border border-zinc-800 rounded-xl p-4 font-mono leading-relaxed">
+                {result.coverLetter}
+              </pre>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-6 border-t border-zinc-800 flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="px-5 py-2.5 rounded-full text-sm font-medium text-zinc-300 hover:bg-zinc-800 transition"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onSubmit}
+            disabled={submitting}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-medium bg-white text-zinc-900 hover:bg-zinc-200 transition disabled:opacity-50"
+          >
+            {submitting ? (
+              <>Submitting...</>
+            ) : (
+              <>
+                <Rocket className="w-4 h-4" />
+                Submit Application
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

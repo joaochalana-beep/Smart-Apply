@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import { sendEmail, textToHtml } from "@/lib/email";
 
 export async function GET() {
   const { userId } = await auth();
@@ -28,10 +29,15 @@ export async function POST(req: Request) {
   const body = await req.json();
   const supabase = await createClient();
 
+  // Strip source prefixes (company_, arbeitnow_, adzuna_, indeed_) before storing
+  // so UUID columns never receive prefixed IDs.
+  const cleanJobId = (id: string | undefined) =>
+    id ? id.replace(/^company_/, "").replace(/^arbeitnow_/, "").replace(/^adzuna_/, "").replace(/^indeed_/, "") : null;
+
   // Build insert with all available fields, with fallbacks
   const insertData: any = {
     user_id: userId,
-    job_id: body.job_id || null,
+    job_id: cleanJobId(body.job_id) || null,
     company: body.company || body.job?.company || extractCompanyFromUrl(body.job_url) || "Unknown Company",
     role: body.role || body.job?.title || "Unknown Role",
     resume_text: body.resume_text || body.tailored_resume || null,
@@ -54,6 +60,40 @@ export async function POST(req: Request) {
   if (error) {
     console.error("Supabase insert error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Send real email confirmation to the user
+  try {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("email, full_name")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const userEmail = profile?.email || body.user_email;
+    if (userEmail) {
+      const company = data.company || "the company";
+      const role = data.role || "the role";
+      const subject = `Application submitted to ${company} for ${role}`;
+      const text =
+        `Hi ${profile?.full_name || "there"},\n\n` +
+        `Your ATS-optimized application for ${role} at ${company} has been submitted successfully.\n\n` +
+        `ATS Score: ${body.ats_score || "N/A"}\n` +
+        `Submitted on: ${new Date(data.sent_at).toLocaleString()}\n\n` +
+        `We will notify you when the employer responds. Good luck!\n\n` +
+        `- ApplyFlow`;
+
+      await sendEmail({
+        to: userEmail,
+        subject,
+        text,
+        html: textToHtml(text),
+      });
+    }
+  } catch (emailErr) {
+    console.error("[Applications] confirmation email failed:", emailErr);
   }
 
   return NextResponse.json(data, { status: 201 });

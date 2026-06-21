@@ -3,6 +3,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
+import { useInbox } from "@/context/InboxContext";
+import { ATSReviewModal } from "@/components/dashboard/ATSReviewModal";
+import { runATSEngine, cleanJobId, ATSResult, JobData, UserProfile } from "@/lib/ats-engine";
 
 interface Job {
   id: string;
@@ -19,6 +22,25 @@ interface Job {
   date_posted: string;
 }
 
+interface StoredApplication {
+  id: string;
+  jobId: string;
+  jobTitle: string;
+  companyName: string;
+  companyId: string;
+  location: string;
+  coverLetter: string;
+  cvContent: string;
+  atsScore: number;
+  status: string;
+  appliedAt: string;
+  matchScore: number;
+  followUpDate: string | null;
+  isAutoApplied: boolean;
+}
+
+const APPLICATIONS_STORAGE_KEY = "applyflow-applications";
+
 export default function DiscoverPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,7 +50,13 @@ export default function DiscoverPage() {
   const [authReady, setAuthReady] = useState(false);
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [relaxedFilters, setRelaxedFilters] = useState(false);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [reviewJob, setReviewJob] = useState<Job | null>(null);
+  const [reviewResult, setReviewResult] = useState<ATSResult | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const router = useRouter();
+  const { addMessage } = useInbox();
   const { isLoaded, isSignedIn } = useAuth();
 
   useEffect(() => {
@@ -58,8 +86,18 @@ export default function DiscoverPage() {
       } else {
         setImportStatus(null);
       }
-    } catch (err) {
+    } catch {
       setImportStatus(null);
+    }
+  }, []);
+
+  const fetchProfile = useCallback(async () => {
+    try {
+      const res = await fetch("/api/profile");
+      const data = await res.json();
+      if (res.ok) setProfile(data);
+    } catch (err) {
+      console.error("[Discover] Profile fetch error:", err);
     }
   }, []);
 
@@ -74,9 +112,7 @@ export default function DiscoverPage() {
       let res = await fetch("/api/discover");
       let data = await res.json();
 
-      // Handle 401 - Clerk session might still be initializing
       if (!res.ok && res.status === 401) {
-        console.log("[Discover] 401 on first attempt, waiting for auth...");
         await new Promise((resolve) => setTimeout(resolve, 800));
         res = await fetch("/api/discover");
         data = await res.json();
@@ -90,7 +126,6 @@ export default function DiscoverPage() {
           return;
         }
         if (res.status === 401) {
-          console.warn("[Discover] Still unauthorized after retry");
           setJobs([]);
           setLoading(false);
           return;
@@ -98,7 +133,7 @@ export default function DiscoverPage() {
         throw new Error(data.error || data.message || `Failed to load jobs (${res.status})`);
       }
 
-      const mappedJobs = (data.jobs || []).map((job: any) => ({
+      const mappedJobs = (data.jobs || []).map((job: Record<string, unknown>) => ({
         id: job.id,
         title: job.title,
         company: job.company,
@@ -115,59 +150,138 @@ export default function DiscoverPage() {
 
       setRelaxedFilters(!!data.relaxedFilters);
       setJobs(mappedJobs);
-    } catch (err: any) {
-      setError(err.message || "Failed to load jobs");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load jobs");
       console.error("Discover fetch error:", err);
     }
     setLoading(false);
   }, [authReady]);
 
-  // Auto-import on mount, then fetch jobs
   useEffect(() => {
     if (authReady) {
+      fetchProfile();
       autoImportJobs().then(() => fetchJobs());
     }
-  }, [authReady, autoImportJobs, fetchJobs]);
+  }, [authReady, autoImportJobs, fetchJobs, fetchProfile]);
+
+  function ensureProfile(): UserProfile {
+    return (
+      profile || {
+        full_name: "Candidate",
+        email: "",
+        skills: "",
+        experience: "[]",
+        education: "[]",
+      }
+    );
+  }
+
+  function generateDocs(job: Job): ATSResult {
+    const jobData: JobData = {
+      id: job.id,
+      title: job.title,
+      company: job.company,
+      location: job.location,
+      description: job.description,
+      url: job.url,
+      match_score: job.match_score,
+    };
+    return runATSEngine(jobData, ensureProfile());
+  }
+
+  async function saveApplicationToServer(job: Job, result: ATSResult, isAutoApplied = false) {
+    const cleanId = cleanJobId(job.id);
+    const appRes = await fetch("/api/applications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        job_id: cleanId,
+        company: job.company,
+        role: job.title,
+        job_url: job.url,
+        resume_text: result.cv,
+        cover_letter: result.coverLetter,
+        ats_score: result.atsScore,
+        method: isAutoApplied ? "auto" : "one_click",
+        status: "sent",
+      }),
+    });
+
+    if (!appRes.ok) {
+      const appData = await appRes.json();
+      throw new Error(appData.error || "Failed to save application");
+    }
+
+    const saved = await appRes.json();
+
+    // Store in localStorage
+    const stored: StoredApplication = {
+      id: saved.id || `local_${Date.now()}`,
+      jobId: cleanId,
+      jobTitle: job.title,
+      companyName: job.company,
+      companyId: cleanId,
+      location: job.location,
+      coverLetter: result.coverLetter,
+      cvContent: result.cv,
+      atsScore: result.atsScore,
+      status: "applied",
+      appliedAt: new Date().toISOString(),
+      matchScore: job.match_score,
+      followUpDate: null,
+      isAutoApplied,
+    };
+
+    if (typeof window !== "undefined") {
+      const existing = JSON.parse(localStorage.getItem(APPLICATIONS_STORAGE_KEY) || "[]");
+      existing.push(stored);
+      localStorage.setItem(APPLICATIONS_STORAGE_KEY, JSON.stringify(existing));
+    }
+
+    // Add inbox confirmation
+    addMessage({
+      applicationId: saved.id || stored.id,
+      jobTitle: job.title,
+      companyName: job.company,
+      subject: `Application submitted to ${job.company} for ${job.title}`,
+      body: `Your ATS-optimized application (Score: ${result.atsScore}%) was submitted on ${new Date().toLocaleDateString()}. We will notify you when the employer responds.`,
+      type: "confirmation",
+      status: "unread",
+      from: "system",
+    });
+
+    return saved;
+  }
 
   async function prepareApplication(job: Job) {
     setGeneratingFor(job.id);
     try {
-      const res = await fetch("/api/generate-tailored-docs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jobUrl: job.url,
-          jobDescription: job.description,
-        }),
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-
-      const appRes = await fetch("/api/applications", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          job_id: job.id,
-          company: job.company,
-          role: job.title,
-          job_url: job.url,
-          resume_text: data.resume,
-          cover_letter: data.coverLetter,
-          method: "one_click",
-          status: "prepared",
-        }),
-      });
-
-      if (!appRes.ok) {
-        const appData = await appRes.json();
-        throw new Error(appData.error || "Failed to save application");
-      }
-
-      window.open(job.url, "_blank");
-    } catch (err: any) {
-      alert("Failed to prepare application: " + err.message);
+      const result = generateDocs(job);
+      setReviewJob(job);
+      setReviewResult(result);
+    } catch (err: unknown) {
+      alert("Failed to prepare application: " + (err instanceof Error ? err.message : String(err)));
     }
     setGeneratingFor(null);
+  }
+
+  async function submitApplication() {
+    if (!reviewJob || !reviewResult) return;
+    setSubmitting(true);
+    try {
+      await saveApplicationToServer(reviewJob, reviewResult, false);
+      setReviewJob(null);
+      setReviewResult(null);
+      showToast(`Application submitted to ${reviewJob.company}!`);
+    } catch (err: unknown) {
+      alert("Failed to submit application: " + (err instanceof Error ? err.message : String(err)));
+    }
+    setSubmitting(false);
+  }
+
+  function showToast(message: string) {
+    setToast(message);
+    setTimeout(() => setToast(null), 4000);
   }
 
   function getScoreColor(score: number): string {
@@ -210,9 +324,7 @@ export default function DiscoverPage() {
                 ? `Found ${jobs.length} jobs matching your profile`
                 : "Find jobs that match your skills and preferences"}
             </p>
-            {importStatus && (
-              <p className="text-zinc-500 text-xs mt-1">{importStatus}</p>
-            )}
+            {importStatus && <p className="text-zinc-500 text-xs mt-1">{importStatus}</p>}
           </div>
           <button
             onClick={fetchJobs}
@@ -300,7 +412,7 @@ export default function DiscoverPage() {
                 {job.description.replace(/<<[^>]*>/g, "").slice(0, 300)}...
               </p>
 
-              <div className="flex gap-3">
+              <div className="flex gap-3 flex-wrap">
                 <button
                   onClick={() => prepareApplication(job)}
                   disabled={generatingFor === job.id}
@@ -337,6 +449,27 @@ export default function DiscoverPage() {
           </div>
         )}
       </div>
+
+      {reviewJob && reviewResult && (
+        <ATSReviewModal
+          isOpen={!!reviewJob}
+          onClose={() => {
+            setReviewJob(null);
+            setReviewResult(null);
+          }}
+          jobTitle={reviewJob.title}
+          companyName={reviewJob.company}
+          result={reviewResult}
+          onSubmit={submitApplication}
+          submitting={submitting}
+        />
+      )}
+
+      {toast && (
+        <div className="fixed bottom-6 right-6 bg-green-600 text-white px-5 py-3 rounded-xl shadow-lg z-50 animate-slide-up">
+          {toast}
+        </div>
+      )}
     </div>
   );
 }

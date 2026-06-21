@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import { sendEmail, textToHtml } from "@/lib/email";
 
 const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
 
@@ -133,6 +134,44 @@ export async function POST() {
     if (insertError) {
       console.error("[Messages Seed] insert error:", insertError);
       return NextResponse.json({ error: insertError.message }, { status: 500 });
+    }
+
+    // Send real emails for company messages created by the seeder
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("email, full_name")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const userEmail = profile?.email;
+      if (userEmail) {
+        for (const msg of messagesToInsert) {
+          if (msg.from === "company" || msg.type === "interview_invite" || msg.type === "offer" || msg.type === "rejection") {
+            const fromName = msg.from === "company" ? msg.company_name : "ApplyFlow";
+            const text =
+              `Hi ${profile?.full_name || "there"},\n\n` +
+              `You have a new message from ${fromName} regarding the ${msg.job_title} position.\n\n` +
+              `${msg.body}\n\n` +
+              `View it in your ApplyFlow inbox: ${process.env.NEXT_PUBLIC_APP_URL || ""}/inbox\n\n` +
+              `- ${fromName}`;
+
+            await sendEmail({
+              to: userEmail,
+              subject: msg.subject,
+              text,
+              html: textToHtml(text),
+              from: msg.from === "company"
+                ? `${msg.company_name} via ApplyFlow <onboarding@resend.dev>`
+                : undefined,
+            });
+          }
+        }
+      }
+    } catch (emailErr) {
+      console.error("[Messages Seed] email send failed:", emailErr);
     }
   }
 
