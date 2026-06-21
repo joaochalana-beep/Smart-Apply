@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Smart Apply — Import Scraped Jobs Script
+ * ApplyWise — Import Scraped Jobs Script
  * ========================================
  * Run this after py combined_scraper.py to import jobs into your app.
  * 
@@ -20,7 +20,7 @@ const limitArg = parseInt(args.find(a => a.startsWith('--limit='))?.split('=')[1
 
 const filePath = path.resolve(fileArg);
 
-console.log('Smart Apply — Import Scraped Jobs');
+console.log('ApplyWise — Import Scraped Jobs');
 console.log('='.repeat(50));
 console.log(`File: ${filePath}`);
 console.log(`Limit: ${limitArg === 999999 ? 'unlimited' : limitArg}`);

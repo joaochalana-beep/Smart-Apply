@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { randomUUID } from "crypto";
+import { getCompanyHrEmail, getCompanyType } from "@/lib/companies";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -52,6 +53,8 @@ interface ScrapedJob {
   sector?: string;
   region?: string;
   country?: string;
+  hr_email?: string;
+  company_type?: string;
 }
 
 function findJobsFile(): { filePath: string; jobs: ScrapedJob[]; source: string } | null {
@@ -86,11 +89,12 @@ function findJobsFile(): { filePath: string; jobs: ScrapedJob[]; source: string 
 
 function mapJob(job: ScrapedJob) {
   const id = randomUUID();
+  const company = job.company || job.company_name || "Unknown Company";
 
   return {
     id,
     user_id: null,
-    company: job.company || job.company_name || "Unknown Company",
+    company,
     role: job.title || job.role || job.job_title || "Unknown Role",
     description: job.description || job.job_description || "",
     url: job.url || job.job_url || job.apply_url || job.link || "",
@@ -103,6 +107,8 @@ function mapJob(job: ScrapedJob) {
     experience_level: job.experience_level || null,
     source: platformToSource[(job.platform || job.source || "unknown").toLowerCase()] || "company_careers_unknown",
     match_score: 0,
+    hr_email: job.hr_email || getCompanyHrEmail(company),
+    company_type: job.company_type || getCompanyType(company),
   };
 }
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Smart Apply — Demo / Test Script
-==================================
+ApplyWise — Demo / Test Script
+===============================
 Quick test of the scraper without hitting live APIs.
 Shows the data flow: load DB -> mock fetch -> parse -> filter -> export.
 """

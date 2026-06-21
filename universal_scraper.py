@@ -1,7 +1,7 @@
 
 """
-Smart Apply — Universal Career Page Scraper (Selenium/Playwright)
-==================================================================
+ApplyWise — Universal Career Page Scraper (Selenium/Playwright)
+================================================================
 Scrapes ANY careers page by detecting the ATS platform automatically.
 Falls back to generic HTML parsing if platform is unknown.
 
@@ -835,7 +835,7 @@ if __name__ == '__main__':
         'active': True,
     }
 
-    print("🚀 Smart Apply — Universal Career Page Scraper")
+    print("🚀 ApplyWise — Universal Career Page Scraper")
     print("=" * 50)
     print(f"Target: {test_company['name']} ({test_company['careers_url']})")
     print("=" * 50 + "\n")

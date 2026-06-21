@@ -3,27 +3,59 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { Inbox, MailOpen, Trash2, CheckCheck, Search, Filter, ArrowLeft } from "lucide-react";
+import {
+  Inbox,
+  MailOpen,
+  Trash2,
+  CheckCheck,
+  Search,
+  ArrowLeft,
+  Send,
+  FileText,
+  RotateCw,
+  Briefcase,
+} from "lucide-react";
 import { useInbox, InboxMessage, MessageType } from "@/context/InboxContext";
 import { formatDistanceToNow, format } from "date-fns";
 
-const typeLabels: Record<MessageType | "all", string> = {
-  all: "All",
-  confirmation: "Confirmation",
-  response: "Response",
-  interview_invite: "Interview",
-  rejection: "Rejection",
-  offer: "Offer",
-  follow_up: "Follow-up",
-};
+type FilterTab = "all" | "unread" | "application_sent" | "company_reply" | "interview" | "offer" | "rejection";
 
-const typeBadge: Record<MessageType, string> = {
+const filterTabs: { key: FilterTab; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "unread", label: "Unread" },
+  { key: "application_sent", label: "Application Sent" },
+  { key: "company_reply", label: "Company Replies" },
+  { key: "interview", label: "Interview" },
+  { key: "offer", label: "Offers" },
+  { key: "rejection", label: "Rejections" },
+];
+
+const typeBadge: Record<string, string> = {
+  application_sent: "bg-blue-500/20 text-blue-400",
+  company_reply: "bg-zinc-500/20 text-zinc-400",
   confirmation: "bg-blue-500/20 text-blue-400",
-  response: "bg-zinc-500/20 text-zinc-400",
-  interview_invite: "bg-emerald-500/20 text-emerald-400",
+  interview: "bg-emerald-500/20 text-emerald-400",
   rejection: "bg-red-500/20 text-red-400",
   offer: "bg-amber-500/20 text-amber-400",
+  screening: "bg-purple-500/20 text-purple-400",
+  general: "bg-zinc-500/20 text-zinc-400",
+  response: "bg-zinc-500/20 text-zinc-400",
+  interview_invite: "bg-emerald-500/20 text-emerald-400",
   follow_up: "bg-purple-500/20 text-purple-400",
+};
+
+const typeLabel: Record<string, string> = {
+  application_sent: "Application Sent",
+  company_reply: "Company Reply",
+  confirmation: "Confirmation",
+  interview: "Interview",
+  rejection: "Rejection",
+  offer: "Offer",
+  screening: "Screening",
+  general: "General",
+  response: "Response",
+  interview_invite: "Interview",
+  follow_up: "Follow-up",
 };
 
 function MessageRow({
@@ -35,6 +67,17 @@ function MessageRow({
   isSelected: boolean;
   onClick: () => void;
 }) {
+  const isApplicationSent = message.type === "application_sent";
+  const title = isApplicationSent
+    ? `Application sent to ${message.companyName}`
+    : message.subject;
+  const subtitle = `${message.jobTitle}${message.referenceNumber ? ` • ${message.referenceNumber}` : ""}`;
+  const statusText = isApplicationSent
+    ? "⏳ Awaiting response"
+    : message.status === "unread"
+    ? "🟢 New reply"
+    : "✓ Read";
+
   return (
     <button
       onClick={onClick}
@@ -43,15 +86,11 @@ function MessageRow({
       } ${message.status === "unread" ? "bg-zinc-900/60" : ""}`}
     >
       <div className="flex items-start gap-3">
-        <div
-          className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${
-            message.status === "unread" ? "bg-indigo-400" : "bg-zinc-700"
-          }`}
-        />
+        <div className="mt-1 text-lg flex-shrink-0">{isApplicationSent ? "📤" : "📧"}</div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2 mb-1">
             <span className="font-medium text-white truncate">
-              {message.companyName}
+              {isApplicationSent ? "ApplyWise" : message.fromName || message.companyName}
             </span>
             <span className="text-xs text-zinc-500 flex-shrink-0">
               {formatDistanceToNow(new Date(message.sentAt), { addSuffix: true })}
@@ -62,12 +101,76 @@ function MessageRow({
               message.status === "unread" ? "text-white font-medium" : "text-zinc-400"
             }`}
           >
-            {message.subject}
+            {title}
           </p>
-          <p className="text-xs text-zinc-500 truncate mt-1">{message.jobTitle}</p>
+          <p className="text-xs text-zinc-500 truncate mt-1">{subtitle}</p>
+          <p className="text-xs text-zinc-600 mt-1">{statusText}</p>
         </div>
       </div>
     </button>
+  );
+}
+
+function ApplicationSentDetail({ message }: { message: InboxMessage }) {
+  const lines = message.body.split("\n");
+  const details: Record<string, string> = {};
+  lines.forEach((line) => {
+    const match = line.match(/^•\s*(.+?):\s*(.+)$/);
+    if (match) details[match[1].trim()] = match[2].trim();
+  });
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-5">
+        <h3 className="text-green-400 font-semibold text-lg mb-2">
+          ✅ Your application has been sent to {message.companyName}!
+        </h3>
+        <p className="text-zinc-400 text-sm">
+          The company can reply directly to this thread and you will see it here.
+        </p>
+      </div>
+
+      <div>
+        <h4 className="text-sm font-medium text-zinc-300 mb-3">📋 Details</h4>
+        <ul className="space-y-2 text-sm text-zinc-400">
+          <li>• Position: {details["Position"] || message.jobTitle}</li>
+          <li>• Sent to: {details["Sent to"] || message.to}</li>
+          <li>• Your email: {details["Your email"] || message.from}</li>
+          {message.referenceNumber && <li>• Reference: {message.referenceNumber}</li>}
+          {message.atsScore !== undefined && <li>• ATS Score: {message.atsScore}%</li>}
+        </ul>
+      </div>
+
+      <div className="flex items-center gap-2 text-zinc-500 text-sm">
+        <RotateCw className="w-4 h-4" />
+        <span>⏳ Waiting for company response...</span>
+      </div>
+
+      <div className="bg-zinc-800/50 rounded-xl p-4">
+        <h4 className="text-sm font-medium text-zinc-300 mb-2">💡 Note</h4>
+        <p className="text-zinc-500 text-sm">
+          Company replies will arrive in your inbox here. You can track the application status from
+          your dashboard.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <a
+          href="/applications"
+          className="inline-flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+        >
+          <Briefcase className="w-4 h-4" />
+          View Application
+        </a>
+        <button
+          onClick={() => window.location.reload()}
+          className="inline-flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+        >
+          <RotateCw className="w-4 h-4" />
+          Check Status
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -86,6 +189,7 @@ export default function InboxPage() {
   } = useInbox();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState<FilterTab>("all");
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -93,11 +197,26 @@ export default function InboxPage() {
     }
   }, [isLoaded, isSignedIn, router]);
 
+  useEffect(() => {
+    // Sync the InboxContext filter with the local tab state
+    if (activeTab === "all") {
+      setFilter((f) => ({ ...f, type: "all", status: "all", category: "all" }));
+    } else if (activeTab === "unread") {
+      setFilter((f) => ({ ...f, type: "all", status: "unread", category: "all" }));
+    } else if (activeTab === "application_sent") {
+      setFilter((f) => ({ ...f, type: "application_sent", status: "all", category: "all" }));
+    } else if (activeTab === "company_reply") {
+      setFilter((f) => ({ ...f, type: "all", status: "all", category: "company_reply" }));
+    } else {
+      setFilter((f) => ({ ...f, type: activeTab as MessageType, status: "all", category: "all" }));
+    }
+  }, [activeTab, setFilter]);
+
   const selectedMessage = filteredMessages.find((m) => m.id === selectedId) || null;
 
   const displayedMessages = filteredMessages.filter((m) =>
-    [m.subject, m.companyName, m.jobTitle, m.body].some((field) =>
-      field.toLowerCase().includes(search.toLowerCase())
+    [m.subject, m.companyName, m.jobTitle, m.body, m.fromName].some((field) =>
+      (field || "").toLowerCase().includes(search.toLowerCase())
     )
   );
 
@@ -161,46 +280,17 @@ export default function InboxPage() {
                 />
               </div>
               <div className="flex flex-wrap gap-2">
-                {(["all", "unread", "read"] as const).map((status) => (
+                {filterTabs.map((tab) => (
                   <button
-                    key={status}
-                    onClick={() => setFilter((f) => ({ ...f, status }))}
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key)}
                     className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-                      filter.status === status
+                      activeTab === tab.key
                         ? "bg-indigo-500/20 border-indigo-500 text-indigo-300"
                         : "border-zinc-700 text-zinc-400 hover:border-zinc-600"
                     }`}
                   >
-                    {status === "all" ? "All" : status === "unread" ? "Unread" : "Read"}
-                  </button>
-                ))}
-                <div className="w-px h-5 bg-zinc-800 mx-1" />
-                {(["all", "today", "week"] as const).map((timeframe) => (
-                  <button
-                    key={timeframe}
-                    onClick={() => setFilter((f) => ({ ...f, timeframe }))}
-                    className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-                      filter.timeframe === timeframe
-                        ? "bg-indigo-500/20 border-indigo-500 text-indigo-300"
-                        : "border-zinc-700 text-zinc-400 hover:border-zinc-600"
-                    }`}
-                  >
-                    {timeframe === "all" ? "All time" : timeframe === "today" ? "Today" : "This week"}
-                  </button>
-                ))}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {(Object.keys(typeLabels) as (MessageType | "all")[]).map((type) => (
-                  <button
-                    key={type}
-                    onClick={() => setFilter((f) => ({ ...f, type }))}
-                    className={`px-2 py-1 text-xs rounded border transition-colors ${
-                      filter.type === type
-                        ? "bg-zinc-800 border-zinc-500 text-white"
-                        : "border-zinc-800 text-zinc-500 hover:border-zinc-600"
-                    }`}
-                  >
-                    {typeLabels[type]}
+                    {tab.label}
                   </button>
                 ))}
               </div>
@@ -253,7 +343,7 @@ export default function InboxPage() {
                         typeBadge[selectedMessage.type]
                       }`}
                     >
-                      {typeLabels[selectedMessage.type]}
+                      {typeLabel[selectedMessage.type]}
                     </span>
                     <button
                       onClick={() =>
@@ -279,13 +369,42 @@ export default function InboxPage() {
                   </div>
                 </div>
                 <div className="p-6 overflow-y-auto flex-1">
-                  <div className="flex items-center justify-between mb-6 text-sm text-zinc-500">
-                    <span>From: {selectedMessage.from === "company" ? selectedMessage.companyName : "ApplyFlow"}</span>
-                    <span>{format(new Date(selectedMessage.sentAt), "PPP p")}</span>
+                  {/* Email header */}
+                  <div className="flex items-center justify-between mb-6 text-sm border-b border-zinc-800 pb-4">
+                    <div className="space-y-1 text-zinc-400">
+                      <p>
+                        <span className="text-zinc-500">From:</span>{" "}
+                        {selectedMessage.fromName || selectedMessage.from}{" "}
+                        {selectedMessage.from.includes("@") && (
+                          <span className="text-zinc-600">&lt;{selectedMessage.from}&gt;</span>
+                        )}
+                      </p>
+                      <p>
+                        <span className="text-zinc-500">To:</span>{" "}
+                        {selectedMessage.toName || selectedMessage.to}
+                      </p>
+                      <p>
+                        <span className="text-zinc-500">Subject:</span> {selectedMessage.subject}
+                      </p>
+                      {selectedMessage.referenceNumber && (
+                        <p>
+                          <span className="text-zinc-500">Reference:</span>{" "}
+                          {selectedMessage.referenceNumber}
+                        </p>
+                      )}
+                    </div>
+                    <span className="text-zinc-500 flex-shrink-0">
+                      {format(new Date(selectedMessage.sentAt), "PPP p")}
+                    </span>
                   </div>
-                  <div className="prose prose-invert max-w-none whitespace-pre-line text-zinc-300 leading-relaxed">
-                    {selectedMessage.body}
-                  </div>
+
+                  {selectedMessage.type === "application_sent" ? (
+                    <ApplicationSentDetail message={selectedMessage} />
+                  ) : (
+                    <div className="prose prose-invert max-w-none whitespace-pre-line text-zinc-300 leading-relaxed">
+                      {selectedMessage.body}
+                    </div>
+                  )}
                 </div>
               </>
             ) : (

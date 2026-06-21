@@ -3,7 +3,7 @@
     "version": "2.0",
     "last_updated": "2026-06-20",
     "total_companies": 252,
-    "description": "Global company database for Smart Apply job discovery"
+    "description": "Global company database for ApplyWise job discovery"
   },
   "companies": [
     {
@@ -16,7 +16,9 @@
       "careers_url": "https://www.sumup.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/sumup/jobs",
       "active": true,
-      "notes": "Germany-based, fintech"
+      "notes": "Germany-based, fintech",
+      "hrEmail": "careers@sumup.com",
+      "type": "fintech"
     },
     {
       "name": "MongoDB",
@@ -28,7 +30,9 @@
       "careers_url": "https://www.mongodb.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/mongodb/jobs",
       "active": true,
-      "notes": "Ireland-based, tech"
+      "notes": "Ireland-based, tech",
+      "hrEmail": "careers@mongodb.com",
+      "type": "tech"
     },
     {
       "name": "Datadog",
@@ -40,7 +44,9 @@
       "careers_url": "https://www.datadoghq.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/datadog/jobs",
       "active": true,
-      "notes": "France-based, tech"
+      "notes": "France-based, tech",
+      "hrEmail": "jobs@datadoghq.com",
+      "type": "tech"
     },
     {
       "name": "HelloFresh",
@@ -52,7 +58,9 @@
       "careers_url": "https://www.hellofresh.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/hellofresh/jobs",
       "active": true,
-      "notes": "Germany-based, tech"
+      "notes": "Germany-based, tech",
+      "hrEmail": "careers@hellofresh.com",
+      "type": "tech"
     },
     {
       "name": "Canonical",
@@ -64,7 +72,9 @@
       "careers_url": "https://canonical.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/canonical/jobs",
       "active": true,
-      "notes": "UK-based, tech"
+      "notes": "UK-based, tech",
+      "hrEmail": "careers@canonical.com",
+      "type": "tech"
     },
     {
       "name": "Wolt",
@@ -76,7 +86,9 @@
       "careers_url": "https://wolt.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/wolt/jobs",
       "active": true,
-      "notes": "Finland-based, tech"
+      "notes": "Finland-based, tech",
+      "hrEmail": "careers@wolt.com",
+      "type": "tech"
     },
     {
       "name": "Elastic",
@@ -88,7 +100,9 @@
       "careers_url": "https://www.elastic.co/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/elastic/jobs",
       "active": true,
-      "notes": "Netherlands-based, tech"
+      "notes": "Netherlands-based, tech",
+      "hrEmail": "careers@elastic.com",
+      "type": "tech"
     },
     {
       "name": "Doctolib",
@@ -100,7 +114,9 @@
       "careers_url": "https://www.doctolib.fr/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/doctolib/jobs",
       "active": true,
-      "notes": "France-based, tech"
+      "notes": "France-based, tech",
+      "hrEmail": "careers@doctolib.com",
+      "type": "tech"
     },
     {
       "name": "Figma",
@@ -112,7 +128,9 @@
       "careers_url": "https://www.figma.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/figma/jobs",
       "active": true,
-      "notes": "Remote-based, tech"
+      "notes": "Remote-based, tech",
+      "hrEmail": "careers@figma.com",
+      "type": "tech"
     },
     {
       "name": "Twilio",
@@ -124,7 +142,9 @@
       "careers_url": "https://www.twilio.com/company/work",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/twilio/jobs",
       "active": true,
-      "notes": "Remote-based, tech"
+      "notes": "Remote-based, tech",
+      "hrEmail": "careers@twilio.com",
+      "type": "tech"
     },
     {
       "name": "Vercel",
@@ -136,7 +156,9 @@
       "careers_url": "https://vercel.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/vercel/jobs",
       "active": true,
-      "notes": "Remote-based, tech"
+      "notes": "Remote-based, tech",
+      "hrEmail": "careers@vercel.com",
+      "type": "tech"
     },
     {
       "name": "Monzo",
@@ -148,7 +170,9 @@
       "careers_url": "https://monzo.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/monzo/jobs",
       "active": true,
-      "notes": "UK-based, fintech"
+      "notes": "UK-based, fintech",
+      "hrEmail": "careers@monzo.com",
+      "type": "fintech"
     },
     {
       "name": "Cabify",
@@ -160,7 +184,9 @@
       "careers_url": "https://cabify.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/cabify/jobs",
       "active": true,
-      "notes": "Spain-based, tech"
+      "notes": "Spain-based, tech",
+      "hrEmail": "careers@cabify.com",
+      "type": "tech"
     },
     {
       "name": "GetYourGuide",
@@ -172,7 +198,9 @@
       "careers_url": "https://www.getyourguide.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/getyourguide/jobs",
       "active": true,
-      "notes": "Germany-based, tech"
+      "notes": "Germany-based, tech",
+      "hrEmail": "careers@getyourguide.com",
+      "type": "tech"
     },
     {
       "name": "Contentful",
@@ -184,7 +212,9 @@
       "careers_url": "https://www.contentful.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/contentful/jobs",
       "active": true,
-      "notes": "Germany-based, tech"
+      "notes": "Germany-based, tech",
+      "hrEmail": "careers@contentful.com",
+      "type": "tech"
     },
     {
       "name": "PandaDoc",
@@ -196,7 +226,9 @@
       "careers_url": "https://www.pandadoc.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/pandadoc/jobs",
       "active": true,
-      "notes": "Remote-based, tech"
+      "notes": "Remote-based, tech",
+      "hrEmail": "careers@pandadoc.com",
+      "type": "tech"
     },
     {
       "name": "Mirakl",
@@ -208,7 +240,9 @@
       "careers_url": "https://www.mirakl.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/mirakl/jobs",
       "active": true,
-      "notes": "France-based, tech"
+      "notes": "France-based, tech",
+      "hrEmail": "careers@mirakl.com",
+      "type": "tech"
     },
     {
       "name": "Marqeta",
@@ -220,7 +254,9 @@
       "careers_url": "https://www.marqeta.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/marqeta/jobs",
       "active": true,
-      "notes": "Remote-based, fintech"
+      "notes": "Remote-based, fintech",
+      "hrEmail": "careers@marqeta.com",
+      "type": "fintech"
     },
     {
       "name": "Trivago",
@@ -232,7 +268,9 @@
       "careers_url": "https://www.trivago.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/trivago/jobs",
       "active": true,
-      "notes": "Germany-based, tech"
+      "notes": "Germany-based, tech",
+      "hrEmail": "careers@trivago.com",
+      "type": "tech"
     },
     {
       "name": "Wallapop",
@@ -244,7 +282,9 @@
       "careers_url": "https://www.wallapop.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/wallapop/jobs",
       "active": true,
-      "notes": "Spain-based, tech"
+      "notes": "Spain-based, tech",
+      "hrEmail": "careers@wallapop.com",
+      "type": "tech"
     },
     {
       "name": "Lattice",
@@ -256,7 +296,9 @@
       "careers_url": "https://lattice.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/lattice/jobs",
       "active": true,
-      "notes": "Remote-based, tech"
+      "notes": "Remote-based, tech",
+      "hrEmail": "careers@lattice.com",
+      "type": "tech"
     },
     {
       "name": "N26",
@@ -268,7 +310,9 @@
       "careers_url": "https://n26.com/en-eu/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/n26/jobs",
       "active": true,
-      "notes": "Germany-based, fintech"
+      "notes": "Germany-based, fintech",
+      "hrEmail": "careers@n26.com",
+      "type": "fintech"
     },
     {
       "name": "Typeform",
@@ -280,7 +324,9 @@
       "careers_url": "https://www.typeform.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/typeform/jobs",
       "active": true,
-      "notes": "Spain-based, tech"
+      "notes": "Spain-based, tech",
+      "hrEmail": "careers@typeform.com",
+      "type": "tech"
     },
     {
       "name": "Coinbase",
@@ -292,7 +338,9 @@
       "careers_url": "https://www.coinbase.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/coinbase/jobs",
       "active": true,
-      "notes": "Ireland-based, fintech"
+      "notes": "Ireland-based, fintech",
+      "hrEmail": "careers@coinbase.com",
+      "type": "fintech"
     },
     {
       "name": "GitLab",
@@ -304,7 +352,9 @@
       "careers_url": "https://about.gitlab.com/jobs",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/gitlab/jobs",
       "active": true,
-      "notes": "Remote-based, tech"
+      "notes": "Remote-based, tech",
+      "hrEmail": "careers@gitlab.com",
+      "type": "tech"
     },
     {
       "name": "Talkdesk",
@@ -316,7 +366,9 @@
       "careers_url": "https://www.talkdesk.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/talkdesk2/jobs",
       "active": true,
-      "notes": "Portugal-based, tech"
+      "notes": "Portugal-based, tech",
+      "hrEmail": "careers@talkdesk.com",
+      "type": "startup"
     },
     {
       "name": "Adyen",
@@ -328,7 +380,9 @@
       "careers_url": "https://www.adyen.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/adyen/jobs",
       "active": true,
-      "notes": "Netherlands-based, fintech"
+      "notes": "Netherlands-based, fintech",
+      "hrEmail": "careers@adyen.com",
+      "type": "fintech"
     },
     {
       "name": "Bitpanda",
@@ -340,7 +394,9 @@
       "careers_url": "https://www.bitpanda.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/bitpanda/jobs",
       "active": true,
-      "notes": "Austria-based, fintech"
+      "notes": "Austria-based, fintech",
+      "hrEmail": "careers@bitpanda.com",
+      "type": "fintech"
     },
     {
       "name": "GoStudent",
@@ -352,7 +408,9 @@
       "careers_url": "https://www.gostudent.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/gostudent/jobs",
       "active": true,
-      "notes": "Austria-based, tech"
+      "notes": "Austria-based, tech",
+      "hrEmail": "careers@gostudent.com",
+      "type": "tech"
     },
     {
       "name": "Storyblok",
@@ -364,7 +422,9 @@
       "careers_url": "https://www.storyblok.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/storyblok/jobs",
       "active": true,
-      "notes": "Austria-based, tech"
+      "notes": "Austria-based, tech",
+      "hrEmail": "careers@storyblok.com",
+      "type": "tech"
     },
     {
       "name": "Amenitiz",
@@ -376,7 +436,9 @@
       "careers_url": "https://www.amenitiz.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/amenitiz/jobs",
       "active": true,
-      "notes": "Spain-based, tech"
+      "notes": "Spain-based, tech",
+      "hrEmail": "careers@amenitiz.com",
+      "type": "tech"
     },
     {
       "name": "Factorial",
@@ -388,7 +450,9 @@
       "careers_url": "https://www.factorialhr.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/factorialhr/jobs",
       "active": true,
-      "notes": "Spain-based, tech"
+      "notes": "Spain-based, tech",
+      "hrEmail": "careers@factorial.com",
+      "type": "tech"
     },
     {
       "name": "TravelPerk",
@@ -400,7 +464,9 @@
       "careers_url": "https://www.travelperk.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/travelperk/jobs",
       "active": true,
-      "notes": "Spain-based, tech"
+      "notes": "Spain-based, tech",
+      "hrEmail": "careers@travelperk.com",
+      "type": "tech"
     },
     {
       "name": "Klaviyo",
@@ -412,7 +478,9 @@
       "careers_url": "https://www.klaviyo.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/klaviyo/jobs",
       "active": true,
-      "notes": "UK-based, tech"
+      "notes": "UK-based, tech",
+      "hrEmail": "careers@klaviyo.com",
+      "type": "tech"
     },
     {
       "name": "TrueLayer",
@@ -424,7 +492,9 @@
       "careers_url": "https://www.truelayer.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/truelayer/jobs",
       "active": true,
-      "notes": "UK-based, fintech"
+      "notes": "UK-based, fintech",
+      "hrEmail": "careers@truelayer.com",
+      "type": "fintech"
     },
     {
       "name": "Remote.com",
@@ -436,7 +506,9 @@
       "careers_url": "https://remote.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/remote/jobs",
       "active": true,
-      "notes": "Remote-based, tech"
+      "notes": "Remote-based, tech",
+      "hrEmail": "careers@remote-com.com",
+      "type": "tech"
     },
     {
       "name": "Stripe",
@@ -448,7 +520,9 @@
       "careers_url": "https://stripe.com/jobs",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/stripe/jobs",
       "active": true,
-      "notes": "Ireland-based, fintech"
+      "notes": "Ireland-based, fintech",
+      "hrEmail": "jobs@stripe.com",
+      "type": "fintech"
     },
     {
       "name": "Nintendo",
@@ -460,7 +534,9 @@
       "careers_url": "https://www.nintendo.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/nintendo/jobs",
       "active": true,
-      "notes": "Japan-based, tech"
+      "notes": "Japan-based, tech",
+      "hrEmail": "careers@nintendo.com",
+      "type": "tech"
     },
     {
       "name": "Bandai Namco",
@@ -472,7 +548,9 @@
       "careers_url": "https://www.bandainamco.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/bandainamco/jobs",
       "active": true,
-      "notes": "Japan-based, tech"
+      "notes": "Japan-based, tech",
+      "hrEmail": "careers@bandai-namco.com",
+      "type": "tech"
     },
     {
       "name": "Mercari",
@@ -484,7 +562,9 @@
       "careers_url": "https://www.mercari.com/jp/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/mercari/jobs",
       "active": true,
-      "notes": "Japan-based, tech"
+      "notes": "Japan-based, tech",
+      "hrEmail": "careers@mercari.com",
+      "type": "tech"
     },
     {
       "name": "PayPay",
@@ -496,7 +576,9 @@
       "careers_url": "https://www.paypay.co.jp/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/paypay/jobs",
       "active": true,
-      "notes": "Japan-based, fintech"
+      "notes": "Japan-based, fintech",
+      "hrEmail": "careers@paypay.com",
+      "type": "fintech"
     },
     {
       "name": "Coupang",
@@ -508,7 +590,9 @@
       "careers_url": "https://www.coupang.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/coupang/jobs",
       "active": true,
-      "notes": "South Korea-based, tech"
+      "notes": "South Korea-based, tech",
+      "hrEmail": "careers@coupang.com",
+      "type": "tech"
     },
     {
       "name": "Krafton",
@@ -520,7 +604,9 @@
       "careers_url": "https://www.krafton.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/krafton/jobs",
       "active": true,
-      "notes": "South Korea-based, tech"
+      "notes": "South Korea-based, tech",
+      "hrEmail": "careers@krafton.com",
+      "type": "tech"
     },
     {
       "name": "Culture Amp",
@@ -532,7 +618,9 @@
       "careers_url": "https://www.cultureamp.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/cultureamp/jobs",
       "active": true,
-      "notes": "Australia-based, tech"
+      "notes": "Australia-based, tech",
+      "hrEmail": "careers@culture-amp.com",
+      "type": "tech"
     },
     {
       "name": "Pushpay",
@@ -544,7 +632,9 @@
       "careers_url": "https://www.pushpay.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/pushpay/jobs",
       "active": true,
-      "notes": "New Zealand-based, fintech"
+      "notes": "New Zealand-based, fintech",
+      "hrEmail": "careers@pushpay.com",
+      "type": "fintech"
     },
     {
       "name": "Rocket Lab",
@@ -556,7 +646,9 @@
       "careers_url": "https://www.rocketlabusa.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/rocketlab/jobs",
       "active": true,
-      "notes": "New Zealand-based, tech"
+      "notes": "New Zealand-based, tech",
+      "hrEmail": "careers@rocket-lab.com",
+      "type": "tech"
     },
     {
       "name": "Luno",
@@ -568,7 +660,9 @@
       "careers_url": "https://www.luno.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/luno/jobs",
       "active": true,
-      "notes": "South Africa-based, fintech"
+      "notes": "South Africa-based, fintech",
+      "hrEmail": "careers@luno.com",
+      "type": "fintech"
     },
     {
       "name": "Ozow",
@@ -580,7 +674,9 @@
       "careers_url": "https://www.ozow.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/ozow/jobs",
       "active": true,
-      "notes": "South Africa-based, fintech"
+      "notes": "South Africa-based, fintech",
+      "hrEmail": "careers@ozow.com",
+      "type": "fintech"
     },
     {
       "name": "Careem",
@@ -592,7 +688,9 @@
       "careers_url": "https://www.careem.com/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/careem/jobs",
       "active": true,
-      "notes": "UAE-based, tech"
+      "notes": "UAE-based, tech",
+      "hrEmail": "careers@careem.com",
+      "type": "tech"
     },
     {
       "name": "Nubank",
@@ -604,7 +702,9 @@
       "careers_url": "https://www.nubank.com.br/careers",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/nubank/jobs",
       "active": true,
-      "notes": "Brazil-based, fintech"
+      "notes": "Brazil-based, fintech",
+      "hrEmail": "careers@nubank.com",
+      "type": "fintech"
     },
     {
       "name": "Google",
@@ -615,7 +715,9 @@
       "platform": "unknown",
       "careers_url": "https://careers.google.com",
       "active": true,
-      "notes": "Global tech giant"
+      "notes": "Global tech giant",
+      "hrEmail": "careers@google.com",
+      "type": "tech"
     },
     {
       "name": "Microsoft",
@@ -626,7 +728,9 @@
       "platform": "unknown",
       "careers_url": "https://careers.microsoft.com",
       "active": true,
-      "notes": "Global tech giant"
+      "notes": "Global tech giant",
+      "hrEmail": "careers@microsoft.com",
+      "type": "tech"
     },
     {
       "name": "Amazon",
@@ -637,7 +741,9 @@
       "platform": "unknown",
       "careers_url": "https://www.amazon.jobs",
       "active": true,
-      "notes": "Global tech/e-commerce giant"
+      "notes": "Global tech/e-commerce giant",
+      "hrEmail": "careers@amazon.com",
+      "type": "tech"
     },
     {
       "name": "Apple",
@@ -648,7 +754,9 @@
       "platform": "unknown",
       "careers_url": "https://jobs.apple.com",
       "active": true,
-      "notes": "Global tech giant"
+      "notes": "Global tech giant",
+      "hrEmail": "careers@apple.com",
+      "type": "tech"
     },
     {
       "name": "Meta",
@@ -659,7 +767,9 @@
       "platform": "unknown",
       "careers_url": "https://www.meta.com/careers",
       "active": true,
-      "notes": "Social media/tech"
+      "notes": "Social media/tech",
+      "hrEmail": "careers@meta.com",
+      "type": "tech"
     },
     {
       "name": "Salesforce",
@@ -670,7 +780,9 @@
       "platform": "unknown",
       "careers_url": "https://www.salesforce.com/company/careers",
       "active": true,
-      "notes": "CRM/enterprise SaaS"
+      "notes": "CRM/enterprise SaaS",
+      "hrEmail": "careers@salesforce.com",
+      "type": "tech"
     },
     {
       "name": "HubSpot",
@@ -681,7 +793,9 @@
       "platform": "unknown",
       "careers_url": "https://www.hubspot.com/careers",
       "active": true,
-      "notes": "Marketing/sales SaaS"
+      "notes": "Marketing/sales SaaS",
+      "hrEmail": "careers@hubspot.com",
+      "type": "tech"
     },
     {
       "name": "Shopify",
@@ -692,7 +806,9 @@
       "platform": "unknown",
       "careers_url": "https://www.shopify.com/careers",
       "active": true,
-      "notes": "E-commerce platform"
+      "notes": "E-commerce platform",
+      "hrEmail": "careers@shopify.com",
+      "type": "tech"
     },
     {
       "name": "Atlassian",
@@ -703,7 +819,9 @@
       "platform": "unknown",
       "careers_url": "https://www.atlassian.com/company/careers",
       "active": true,
-      "notes": "Collaboration software"
+      "notes": "Collaboration software",
+      "hrEmail": "careers@atlassian.com",
+      "type": "tech"
     },
     {
       "name": "Slack",
@@ -714,7 +832,9 @@
       "platform": "unknown",
       "careers_url": "https://slack.com/careers",
       "active": true,
-      "notes": "Business messaging"
+      "notes": "Business messaging",
+      "hrEmail": "careers@slack.com",
+      "type": "tech"
     },
     {
       "name": "Zoom",
@@ -725,7 +845,9 @@
       "platform": "unknown",
       "careers_url": "https://careers.zoom.us",
       "active": true,
-      "notes": "Video conferencing"
+      "notes": "Video conferencing",
+      "hrEmail": "careers@zoom.com",
+      "type": "tech"
     },
     {
       "name": "Dropbox",
@@ -736,7 +858,9 @@
       "platform": "unknown",
       "careers_url": "https://www.dropbox.com/jobs",
       "active": true,
-      "notes": "Cloud storage"
+      "notes": "Cloud storage",
+      "hrEmail": "careers@dropbox.com",
+      "type": "tech"
     },
     {
       "name": "Spotify",
@@ -748,7 +872,9 @@
       "careers_url": "https://www.spotify.com/jobs",
       "api_endpoint": "https://boards-api.greenhouse.io/v1/boards/spotify/jobs",
       "active": true,
-      "notes": "Audio streaming"
+      "notes": "Audio streaming",
+      "hrEmail": "careers@spotify.com",
+      "type": "tech"
     },
     {
       "name": "Netflix",
@@ -759,7 +885,9 @@
       "platform": "unknown",
       "careers_url": "https://jobs.netflix.com",
       "active": true,
-      "notes": "Streaming entertainment"
+      "notes": "Streaming entertainment",
+      "hrEmail": "careers@netflix.com",
+      "type": "tech"
     },
     {
       "name": "Uber",
@@ -770,7 +898,9 @@
       "platform": "unknown",
       "careers_url": "https://www.uber.com/careers",
       "active": true,
-      "notes": "Ride-sharing/tech"
+      "notes": "Ride-sharing/tech",
+      "hrEmail": "careers@uber.com",
+      "type": "tech"
     },
     {
       "name": "Airbnb",
@@ -781,7 +911,9 @@
       "platform": "unknown",
       "careers_url": "https://careers.airbnb.com",
       "active": true,
-      "notes": "Travel/tech"
+      "notes": "Travel/tech",
+      "hrEmail": "careers@airbnb.com",
+      "type": "tech"
     },
     {
       "name": "Booking.com",
@@ -792,7 +924,9 @@
       "platform": "unknown",
       "careers_url": "https://jobs.booking.com",
       "active": true,
-      "notes": "Travel/tech"
+      "notes": "Travel/tech",
+      "hrEmail": "careers@booking-com.com",
+      "type": "tech"
     },
     {
       "name": "SAP",
@@ -803,7 +937,9 @@
       "platform": "unknown",
       "careers_url": "https://jobs.sap.com",
       "active": true,
-      "notes": "Enterprise software"
+      "notes": "Enterprise software",
+      "hrEmail": "careers@sap.com",
+      "type": "tech"
     },
     {
       "name": "Oracle",
@@ -814,7 +950,9 @@
       "platform": "unknown",
       "careers_url": "https://www.oracle.com/careers",
       "active": true,
-      "notes": "Enterprise software"
+      "notes": "Enterprise software",
+      "hrEmail": "careers@oracle.com",
+      "type": "tech"
     },
     {
       "name": "IBM",
@@ -825,7 +963,9 @@
       "platform": "unknown",
       "careers_url": "https://www.ibm.com/careers",
       "active": true,
-      "notes": "Enterprise tech"
+      "notes": "Enterprise tech",
+      "hrEmail": "careers@ibm.com",
+      "type": "tech"
     },
     {
       "name": "Intel",
@@ -836,7 +976,9 @@
       "platform": "unknown",
       "careers_url": "https://www.intel.com/jobs",
       "active": true,
-      "notes": "Semiconductors"
+      "notes": "Semiconductors",
+      "hrEmail": "careers@intel.com",
+      "type": "tech"
     },
     {
       "name": "Cisco",
@@ -847,7 +989,9 @@
       "platform": "unknown",
       "careers_url": "https://www.cisco.com/c/en/us/about/careers.html",
       "active": true,
-      "notes": "Networking/tech"
+      "notes": "Networking/tech",
+      "hrEmail": "careers@cisco.com",
+      "type": "tech"
     },
     {
       "name": "VMware",
@@ -858,7 +1002,9 @@
       "platform": "unknown",
       "careers_url": "https://careers.vmware.com",
       "active": true,
-      "notes": "Cloud/virtualization"
+      "notes": "Cloud/virtualization",
+      "hrEmail": "careers@vmware.com",
+      "type": "tech"
     },
     {
       "name": "Red Hat",
@@ -869,7 +1015,9 @@
       "platform": "unknown",
       "careers_url": "https://www.redhat.com/en/jobs",
       "active": true,
-      "notes": "Open-source software"
+      "notes": "Open-source software",
+      "hrEmail": "careers@red-hat.com",
+      "type": "tech"
     },
     {
       "name": "Cloudflare",
@@ -880,7 +1028,9 @@
       "platform": "unknown",
       "careers_url": "https://www.cloudflare.com/careers",
       "active": true,
-      "notes": "Web infrastructure"
+      "notes": "Web infrastructure",
+      "hrEmail": "careers@cloudflare.com",
+      "type": "tech"
     },
     {
       "name": "Fastly",
@@ -891,7 +1041,9 @@
       "platform": "unknown",
       "careers_url": "https://www.fastly.com/about/careers",
       "active": true,
-      "notes": "Edge cloud"
+      "notes": "Edge cloud",
+      "hrEmail": "careers@fastly.com",
+      "type": "tech"
     },
     {
       "name": "Wise",
@@ -902,7 +1054,9 @@
       "platform": "unknown",
       "careers_url": "https://wise.jobs",
       "active": true,
-      "notes": "Money transfer/fintech"
+      "notes": "Money transfer/fintech",
+      "hrEmail": "jobs@wise.com",
+      "type": "fintech"
     },
     {
       "name": "Revolut",
@@ -913,7 +1067,9 @@
       "platform": "unknown",
       "careers_url": "https://www.revolut.com/careers",
       "active": true,
-      "notes": "Digital banking/fintech"
+      "notes": "Digital banking/fintech",
+      "hrEmail": "join@revolut.com",
+      "type": "fintech"
     },
     {
       "name": "Klarna",
@@ -924,7 +1080,9 @@
       "platform": "unknown",
       "careers_url": "https://www.klarna.com/careers",
       "active": true,
-      "notes": "Buy-now-pay-later/fintech"
+      "notes": "Buy-now-pay-later/fintech",
+      "hrEmail": "careers@klarna.com",
+      "type": "fintech"
     },
     {
       "name": "Farfetch",
@@ -935,7 +1093,9 @@
       "platform": "unknown",
       "careers_url": "https://www.farfetch.com/careers",
       "active": true,
-      "notes": "Luxury e-commerce, Portugal-based"
+      "notes": "Luxury e-commerce, Portugal-based",
+      "hrEmail": "careers@farfetch.com",
+      "type": "tech"
     },
     {
       "name": "OutSystems",
@@ -946,7 +1106,9 @@
       "platform": "unknown",
       "careers_url": "https://www.outsystems.com/careers",
       "active": true,
-      "notes": "Low-code platform, Portugal-based"
+      "notes": "Low-code platform, Portugal-based",
+      "hrEmail": "careers@outsystems.com",
+      "type": "tech"
     },
     {
       "name": "Unbabel",
@@ -957,7 +1119,9 @@
       "platform": "unknown",
       "careers_url": "https://unbabel.com/careers",
       "active": true,
-      "notes": "AI translation, Portugal-based"
+      "notes": "AI translation, Portugal-based",
+      "hrEmail": "careers@unbabel.com",
+      "type": "startup"
     },
     {
       "name": "Landing.jobs",
@@ -968,7 +1132,9 @@
       "platform": "unknown",
       "careers_url": "https://landing.jobs",
       "active": true,
-      "notes": "Tech recruitment, Portugal-based"
+      "notes": "Tech recruitment, Portugal-based",
+      "hrEmail": "careers@landing-jobs.com",
+      "type": "startup"
     },
     {
       "name": "JPMorgan Chase",
@@ -979,7 +1145,9 @@
       "platform": "unknown",
       "careers_url": "https://www.jpmorganchase.com/careers",
       "active": true,
-      "notes": "Global investment bank"
+      "notes": "Global investment bank",
+      "hrEmail": "careers@jpmorgan-chase.com",
+      "type": "banking"
     },
     {
       "name": "Goldman Sachs",
@@ -990,7 +1158,9 @@
       "platform": "unknown",
       "careers_url": "https://www.goldmansachs.com/careers",
       "active": true,
-      "notes": "Global investment bank"
+      "notes": "Global investment bank",
+      "hrEmail": "careers@goldman-sachs.com",
+      "type": "banking"
     },
     {
       "name": "Morgan Stanley",
@@ -1001,7 +1171,9 @@
       "platform": "unknown",
       "careers_url": "https://www.morganstanley.com/careers",
       "active": true,
-      "notes": "Global investment bank"
+      "notes": "Global investment bank",
+      "hrEmail": "careers@morgan-stanley.com",
+      "type": "banking"
     },
     {
       "name": "Deutsche Bank",
@@ -1012,7 +1184,9 @@
       "platform": "unknown",
       "careers_url": "https://www.db.com/careers",
       "active": true,
-      "notes": "Global bank"
+      "notes": "Global bank",
+      "hrEmail": "careers@deutsche-bank.com",
+      "type": "banking"
     },
     {
       "name": "BNP Paribas",
@@ -1023,7 +1197,9 @@
       "platform": "unknown",
       "careers_url": "https://group.bnpparibas/careers",
       "active": true,
-      "notes": "Global bank"
+      "notes": "Global bank",
+      "hrEmail": "careers@bnp-paribas.com",
+      "type": "banking"
     },
     {
       "name": "HSBC",
@@ -1034,7 +1210,9 @@
       "platform": "unknown",
       "careers_url": "https://www.hsbc.com/careers",
       "active": true,
-      "notes": "Global bank"
+      "notes": "Global bank",
+      "hrEmail": "careers@hsbc.com",
+      "type": "banking"
     },
     {
       "name": "Barclays",
@@ -1045,7 +1223,9 @@
       "platform": "unknown",
       "careers_url": "https://home.barclays/careers",
       "active": true,
-      "notes": "Global bank"
+      "notes": "Global bank",
+      "hrEmail": "careers@barclays.com",
+      "type": "banking"
     },
     {
       "name": "Citigroup",
@@ -1056,7 +1236,9 @@
       "platform": "unknown",
       "careers_url": "https://jobs.citi.com",
       "active": true,
-      "notes": "Global bank"
+      "notes": "Global bank",
+      "hrEmail": "careers@citigroup.com",
+      "type": "banking"
     },
     {
       "name": "Wells Fargo",
@@ -1067,7 +1249,9 @@
       "platform": "unknown",
       "careers_url": "https://www.wellsfargo.com/careers",
       "active": true,
-      "notes": "US bank"
+      "notes": "US bank",
+      "hrEmail": "careers@wells-fargo.com",
+      "type": "banking"
     },
     {
       "name": "Santander",
@@ -1078,7 +1262,9 @@
       "platform": "unknown",
       "careers_url": "https://www.santander.com/careers",
       "active": true,
-      "notes": "Spanish bank"
+      "notes": "Spanish bank",
+      "hrEmail": "careers@santander.com",
+      "type": "banking"
     },
     {
       "name": "Caixa Geral de Depositos",
@@ -1089,7 +1275,9 @@
       "platform": "unknown",
       "careers_url": "https://www.cgd.pt",
       "active": true,
-      "notes": "Portuguese state bank"
+      "notes": "Portuguese state bank",
+      "hrEmail": "careers@caixa-geral-de-depositos.com",
+      "type": "banking"
     },
     {
       "name": "Millennium BCP",
@@ -1100,7 +1288,9 @@
       "platform": "unknown",
       "careers_url": "https://www.millenniumbcp.pt",
       "active": true,
-      "notes": "Portuguese bank"
+      "notes": "Portuguese bank",
+      "hrEmail": "careers@millennium-bcp.com",
+      "type": "banking"
     },
     {
       "name": "Novo Banco",
@@ -1111,7 +1301,9 @@
       "platform": "unknown",
       "careers_url": "https://www.novobanco.pt",
       "active": true,
-      "notes": "Portuguese bank"
+      "notes": "Portuguese bank",
+      "hrEmail": "careers@novo-banco.com",
+      "type": "banking"
     },
     {
       "name": "Montepio",
@@ -1122,7 +1314,9 @@
       "platform": "unknown",
       "careers_url": "https://www.montepio.pt",
       "active": true,
-      "notes": "Portuguese bank"
+      "notes": "Portuguese bank",
+      "hrEmail": "careers@montepio.com",
+      "type": "banking"
     },
     {
       "name": "Banco BPI",
@@ -1133,7 +1327,9 @@
       "platform": "unknown",
       "careers_url": "https://www.bancobpi.pt",
       "active": true,
-      "notes": "Portuguese bank"
+      "notes": "Portuguese bank",
+      "hrEmail": "careers@banco-bpi.com",
+      "type": "banking"
     },
     {
       "name": "Credit Suisse",
@@ -1144,7 +1340,9 @@
       "platform": "unknown",
       "careers_url": "https://www.credit-suisse.com/careers",
       "active": true,
-      "notes": "Swiss bank"
+      "notes": "Swiss bank",
+      "hrEmail": "careers@credit-suisse.com",
+      "type": "banking"
     },
     {
       "name": "UBS",
@@ -1155,7 +1353,9 @@
       "platform": "unknown",
       "careers_url": "https://www.ubs.com/careers",
       "active": true,
-      "notes": "Swiss bank"
+      "notes": "Swiss bank",
+      "hrEmail": "careers@ubs.com",
+      "type": "banking"
     },
     {
       "name": "ING",
@@ -1166,7 +1366,9 @@
       "platform": "unknown",
       "careers_url": "https://www.ing.jobs",
       "active": true,
-      "notes": "Dutch bank"
+      "notes": "Dutch bank",
+      "hrEmail": "careers@ing.com",
+      "type": "banking"
     },
     {
       "name": "Rabobank",
@@ -1177,7 +1379,9 @@
       "platform": "unknown",
       "careers_url": "https://werkenbij.rabobank.nl",
       "active": true,
-      "notes": "Dutch bank"
+      "notes": "Dutch bank",
+      "hrEmail": "careers@rabobank.com",
+      "type": "banking"
     },
     {
       "name": "Nordea",
@@ -1188,7 +1392,9 @@
       "platform": "unknown",
       "careers_url": "https://www.nordea.com/careers",
       "active": true,
-      "notes": "Nordic bank"
+      "notes": "Nordic bank",
+      "hrEmail": "careers@nordea.com",
+      "type": "banking"
     },
     {
       "name": "SEB",
@@ -1199,7 +1405,9 @@
       "platform": "unknown",
       "careers_url": "https://sebgroup.com/careers",
       "active": true,
-      "notes": "Nordic bank"
+      "notes": "Nordic bank",
+      "hrEmail": "careers@seb.com",
+      "type": "banking"
     },
     {
       "name": "Swedbank",
@@ -1210,7 +1418,9 @@
       "platform": "unknown",
       "careers_url": "https://www.swedbank.com/careers",
       "active": true,
-      "notes": "Nordic bank"
+      "notes": "Nordic bank",
+      "hrEmail": "careers@swedbank.com",
+      "type": "banking"
     },
     {
       "name": "Danske Bank",
@@ -1221,7 +1431,9 @@
       "platform": "unknown",
       "careers_url": "https://danskebank.com/careers",
       "active": true,
-      "notes": "Danish bank"
+      "notes": "Danish bank",
+      "hrEmail": "careers@danske-bank.com",
+      "type": "banking"
     },
     {
       "name": "McKinsey & Company",
@@ -1232,7 +1444,9 @@
       "platform": "unknown",
       "careers_url": "https://www.mckinsey.com/careers",
       "active": true,
-      "notes": "Strategy consulting"
+      "notes": "Strategy consulting",
+      "hrEmail": "careers@mckinsey-company.com",
+      "type": "corporate"
     },
     {
       "name": "Boston Consulting Group",
@@ -1243,7 +1457,9 @@
       "platform": "unknown",
       "careers_url": "https://www.bcg.com/careers",
       "active": true,
-      "notes": "Strategy consulting"
+      "notes": "Strategy consulting",
+      "hrEmail": "careers@boston-consulting-group.com",
+      "type": "corporate"
     },
     {
       "name": "Bain & Company",
@@ -1254,7 +1470,9 @@
       "platform": "unknown",
       "careers_url": "https://www.bain.com/careers",
       "active": true,
-      "notes": "Strategy consulting"
+      "notes": "Strategy consulting",
+      "hrEmail": "careers@bain-company.com",
+      "type": "corporate"
     },
     {
       "name": "Deloitte",
@@ -1265,7 +1483,9 @@
       "platform": "unknown",
       "careers_url": "https://www2.deloitte.com/us/en/careers",
       "active": true,
-      "notes": "Professional services"
+      "notes": "Professional services",
+      "hrEmail": "careers@deloitte.com",
+      "type": "corporate"
     },
     {
       "name": "PwC",
@@ -1276,7 +1496,9 @@
       "platform": "unknown",
       "careers_url": "https://www.pwc.com/us/en/careers.html",
       "active": true,
-      "notes": "Professional services"
+      "notes": "Professional services",
+      "hrEmail": "careers@pwc.com",
+      "type": "corporate"
     },
     {
       "name": "EY",
@@ -1287,7 +1509,9 @@
       "platform": "unknown",
       "careers_url": "https://www.ey.com/en_gl/careers",
       "active": true,
-      "notes": "Professional services"
+      "notes": "Professional services",
+      "hrEmail": "careers@ey.com",
+      "type": "corporate"
     },
     {
       "name": "KPMG",
@@ -1298,7 +1522,9 @@
       "platform": "unknown",
       "careers_url": "https://home.kpmg/careers",
       "active": true,
-      "notes": "Professional services"
+      "notes": "Professional services",
+      "hrEmail": "careers@kpmg.com",
+      "type": "corporate"
     },
     {
       "name": "Accenture",
@@ -1309,7 +1535,9 @@
       "platform": "unknown",
       "careers_url": "https://www.accenture.com/us-en/careers",
       "active": true,
-      "notes": "Technology consulting"
+      "notes": "Technology consulting",
+      "hrEmail": "careers@accenture.com",
+      "type": "corporate"
     },
     {
       "name": "Capgemini",
@@ -1320,7 +1548,9 @@
       "platform": "unknown",
       "careers_url": "https://www.capgemini.com/careers",
       "active": true,
-      "notes": "Technology consulting"
+      "notes": "Technology consulting",
+      "hrEmail": "careers@capgemini.com",
+      "type": "corporate"
     },
     {
       "name": "Cognizant",
@@ -1331,7 +1561,9 @@
       "platform": "unknown",
       "careers_url": "https://careers.cognizant.com",
       "active": true,
-      "notes": "Technology consulting"
+      "notes": "Technology consulting",
+      "hrEmail": "careers@cognizant.com",
+      "type": "corporate"
     },
     {
       "name": "Infosys",
@@ -1342,7 +1574,9 @@
       "platform": "unknown",
       "careers_url": "https://www.infosys.com/careers",
       "active": true,
-      "notes": "Technology consulting"
+      "notes": "Technology consulting",
+      "hrEmail": "careers@infosys.com",
+      "type": "corporate"
     },
     {
       "name": "Wipro",
@@ -1353,7 +1587,9 @@
       "platform": "unknown",
       "careers_url": "https://careers.wipro.com",
       "active": true,
-      "notes": "Technology consulting"
+      "notes": "Technology consulting",
+      "hrEmail": "careers@wipro.com",
+      "type": "corporate"
     },
     {
       "name": "TCS",
@@ -1364,7 +1600,9 @@
       "platform": "unknown",
       "careers_url": "https://www.tcs.com/careers",
       "active": true,
-      "notes": "Technology consulting"
+      "notes": "Technology consulting",
+      "hrEmail": "careers@tcs.com",
+      "type": "corporate"
     },
     {
       "name": "CGI",
@@ -1375,7 +1613,9 @@
       "platform": "unknown",
       "careers_url": "https://www.cgi.com/en/careers",
       "active": true,
-      "notes": "IT consulting"
+      "notes": "IT consulting",
+      "hrEmail": "careers@cgi.com",
+      "type": "corporate"
     },
     {
       "name": "Fujitsu",
@@ -1386,7 +1626,9 @@
       "platform": "unknown",
       "careers_url": "https://www.fujitsu.com/global/about/careers",
       "active": true,
-      "notes": "IT services"
+      "notes": "IT services",
+      "hrEmail": "careers@fujitsu.com",
+      "type": "corporate"
     },
     {
       "name": "NTT Data",
@@ -1397,7 +1639,9 @@
       "platform": "unknown",
       "careers_url": "https://www.nttdata.com/global/en/careers",
       "active": true,
-      "notes": "IT services"
+      "notes": "IT services",
+      "hrEmail": "careers@ntt-data.com",
+      "type": "corporate"
     },
     {
       "name": "SCC",
@@ -1408,7 +1652,9 @@
       "platform": "unknown",
       "careers_url": "https://www.scc.pt",
       "active": true,
-      "notes": "Portuguese IT services"
+      "notes": "Portuguese IT services",
+      "hrEmail": "careers@scc.com",
+      "type": "corporate"
     },
     {
       "name": "Softinsa",
@@ -1419,7 +1665,9 @@
       "platform": "unknown",
       "careers_url": "https://www.softinsa.pt",
       "active": true,
-      "notes": "Portuguese IT services"
+      "notes": "Portuguese IT services",
+      "hrEmail": "careers@softinsa.com",
+      "type": "corporate"
     },
     {
       "name": "Glintt",
@@ -1430,7 +1678,9 @@
       "platform": "unknown",
       "careers_url": "https://www.glintt.com",
       "active": true,
-      "notes": "Portuguese IT/healthcare services"
+      "notes": "Portuguese IT/healthcare services",
+      "hrEmail": "careers@glintt.com",
+      "type": "corporate"
     },
     {
       "name": "Primavera BSS",
@@ -1441,7 +1691,9 @@
       "platform": "unknown",
       "careers_url": "https://www.primaverabss.com",
       "active": true,
-      "notes": "Portuguese software/services"
+      "notes": "Portuguese software/services",
+      "hrEmail": "careers@primavera-bss.com",
+      "type": "corporate"
     },
     {
       "name": "Critical Software",
@@ -1452,7 +1704,9 @@
       "platform": "unknown",
       "careers_url": "https://www.criticalsoftware.com",
       "active": true,
-      "notes": "Portuguese critical systems"
+      "notes": "Portuguese critical systems",
+      "hrEmail": "careers@critical-software.com",
+      "type": "corporate"
     },
     {
       "name": "Tessi",
@@ -1463,7 +1717,9 @@
       "platform": "unknown",
       "careers_url": "https://www.tessi.pt",
       "active": true,
-      "notes": "Portuguese IT services"
+      "notes": "Portuguese IT services",
+      "hrEmail": "careers@tessi.com",
+      "type": "corporate"
     },
     {
       "name": "Celfocus",
@@ -1474,7 +1730,9 @@
       "platform": "unknown",
       "careers_url": "https://www.celfocus.com",
       "active": true,
-      "notes": "Portuguese IT consulting"
+      "notes": "Portuguese IT consulting",
+      "hrEmail": "careers@celfocus.com",
+      "type": "corporate"
     },
     {
       "name": "WIT Software",
@@ -1485,7 +1743,9 @@
       "platform": "unknown",
       "careers_url": "https://www.wit-software.com",
       "active": true,
-      "notes": "Portuguese software"
+      "notes": "Portuguese software",
+      "hrEmail": "careers@wit-software.com",
+      "type": "corporate"
     },
     {
       "name": "Pentest Limited",
@@ -1496,7 +1756,9 @@
       "platform": "unknown",
       "careers_url": "https://www.pentest.pt",
       "active": true,
-      "notes": "Portuguese cybersecurity"
+      "notes": "Portuguese cybersecurity",
+      "hrEmail": "careers@pentest-limited.com",
+      "type": "corporate"
     },
     {
       "name": "Devoteam",
@@ -1507,7 +1769,9 @@
       "platform": "unknown",
       "careers_url": "https://www.devoteam.com",
       "active": true,
-      "notes": "Tech consulting"
+      "notes": "Tech consulting",
+      "hrEmail": "careers@devoteam.com",
+      "type": "corporate"
     },
     {
       "name": "Inetum",
@@ -1518,7 +1782,9 @@
       "platform": "unknown",
       "careers_url": "https://www.inetum.com",
       "active": true,
-      "notes": "Tech consulting"
+      "notes": "Tech consulting",
+      "hrEmail": "careers@inetum.com",
+      "type": "corporate"
     },
     {
       "name": "everis",
@@ -1529,7 +1795,9 @@
       "platform": "unknown",
       "careers_url": "https://www.everis.com",
       "active": true,
-      "notes": "Tech consulting"
+      "notes": "Tech consulting",
+      "hrEmail": "careers@everis.com",
+      "type": "corporate"
     },
     {
       "name": "Noesis",
@@ -1540,7 +1808,9 @@
       "platform": "unknown",
       "careers_url": "https://www.noesis.pt",
       "active": true,
-      "notes": "Portuguese tech consulting"
+      "notes": "Portuguese tech consulting",
+      "hrEmail": "careers@noesis.com",
+      "type": "corporate"
     },
     {
       "name": "Mindera",
@@ -1551,7 +1821,9 @@
       "platform": "unknown",
       "careers_url": "https://mindera.com",
       "active": true,
-      "notes": "Portuguese software consulting"
+      "notes": "Portuguese software consulting",
+      "hrEmail": "careers@mindera.com",
+      "type": "corporate"
     },
     {
       "name": "Blip",
@@ -1562,7 +1834,9 @@
       "platform": "unknown",
       "careers_url": "https://www.blip.pt",
       "active": true,
-      "notes": "Portuguese software (Paddy Power Betfair)"
+      "notes": "Portuguese software (Paddy Power Betfair)",
+      "hrEmail": "careers@blip.com",
+      "type": "corporate"
     },
     {
       "name": "Feedzai",
@@ -1573,7 +1847,9 @@
       "platform": "unknown",
       "careers_url": "https://feedzai.com/careers",
       "active": true,
-      "notes": "Portuguese fraud/fintech"
+      "notes": "Portuguese fraud/fintech",
+      "hrEmail": "careers@feedzai.com",
+      "type": "fintech"
     },
     {
       "name": "Sword Health",
@@ -1584,7 +1860,9 @@
       "platform": "unknown",
       "careers_url": "https://swordhealth.com/careers",
       "active": true,
-      "notes": "Portuguese digital health"
+      "notes": "Portuguese digital health",
+      "hrEmail": "careers@sword-health.com",
+      "type": "startup"
     },
     {
       "name": "anchor",
@@ -1595,7 +1873,9 @@
       "platform": "unknown",
       "careers_url": "https://www.anchor.pt",
       "active": true,
-      "notes": "Portuguese agency"
+      "notes": "Portuguese agency",
+      "hrEmail": "careers@anchor.com",
+      "type": "corporate"
     },
     {
       "name": "Dare",
@@ -1606,7 +1886,9 @@
       "platform": "unknown",
       "careers_url": "https://www.dare.pt",
       "active": true,
-      "notes": "Portuguese agency"
+      "notes": "Portuguese agency",
+      "hrEmail": "careers@dare.com",
+      "type": "corporate"
     },
     {
       "name": "Redlight",
@@ -1617,7 +1899,9 @@
       "platform": "unknown",
       "careers_url": "https://redlight.dev",
       "active": true,
-      "notes": "Portuguese software"
+      "notes": "Portuguese software",
+      "hrEmail": "careers@redlight.com",
+      "type": "corporate"
     },
     {
       "name": "Wunderman Thompson",
@@ -1628,7 +1912,9 @@
       "platform": "unknown",
       "careers_url": "https://www.wundermanthompson.com",
       "active": true,
-      "notes": "Marketing/tech consulting"
+      "notes": "Marketing/tech consulting",
+      "hrEmail": "careers@wunderman-thompson.com",
+      "type": "corporate"
     },
     {
       "name": "Pfizer",
@@ -1639,7 +1925,9 @@
       "platform": "unknown",
       "careers_url": "https://www.pfizer.com/careers",
       "active": true,
-      "notes": "Pharmaceuticals"
+      "notes": "Pharmaceuticals",
+      "hrEmail": "careers@pfizer.com",
+      "type": "corporate"
     },
     {
       "name": "Roche",
@@ -1650,7 +1938,9 @@
       "platform": "unknown",
       "careers_url": "https://www.roche.com/careers",
       "active": true,
-      "notes": "Pharmaceuticals"
+      "notes": "Pharmaceuticals",
+      "hrEmail": "careers@roche.com",
+      "type": "tech"
     },
     {
       "name": "Novartis",
@@ -1661,7 +1951,9 @@
       "platform": "unknown",
       "careers_url": "https://www.novartis.com/careers",
       "active": true,
-      "notes": "Pharmaceuticals"
+      "notes": "Pharmaceuticals",
+      "hrEmail": "careers@novartis.com",
+      "type": "tech"
     },
     {
       "name": "Merck",
@@ -1672,7 +1964,9 @@
       "platform": "unknown",
       "careers_url": "https://www.merck.com/careers",
       "active": true,
-      "notes": "Pharmaceuticals"
+      "notes": "Pharmaceuticals",
+      "hrEmail": "careers@merck.com",
+      "type": "tech"
     },
     {
       "name": "AstraZeneca",
@@ -1683,7 +1977,9 @@
       "platform": "unknown",
       "careers_url": "https://www.astrazeneca.com/careers",
       "active": true,
-      "notes": "Pharmaceuticals"
+      "notes": "Pharmaceuticals",
+      "hrEmail": "careers@astrazeneca.com",
+      "type": "tech"
     },
     {
       "name": "Johnson & Johnson",
@@ -1694,7 +1990,9 @@
       "platform": "unknown",
       "careers_url": "https://www.jnj.com/careers",
       "active": true,
-      "notes": "Healthcare"
+      "notes": "Healthcare",
+      "hrEmail": "careers@johnson-johnson.com",
+      "type": "tech"
     },
     {
       "name": "GlaxoSmithKline",
@@ -1705,7 +2003,9 @@
       "platform": "unknown",
       "careers_url": "https://www.gsk.com/en-gb/careers",
       "active": true,
-      "notes": "Pharmaceuticals"
+      "notes": "Pharmaceuticals",
+      "hrEmail": "careers@glaxosmithkline.com",
+      "type": "tech"
     },
     {
       "name": "Sanofi",
@@ -1716,7 +2016,9 @@
       "platform": "unknown",
       "careers_url": "https://www.sanofi.com/en/careers",
       "active": true,
-      "notes": "Pharmaceuticals"
+      "notes": "Pharmaceuticals",
+      "hrEmail": "careers@sanofi.com",
+      "type": "tech"
     },
     {
       "name": "Bayer",
@@ -1727,7 +2029,9 @@
       "platform": "unknown",
       "careers_url": "https://www.bayer.com/en/careers",
       "active": true,
-      "notes": "Pharmaceuticals"
+      "notes": "Pharmaceuticals",
+      "hrEmail": "careers@bayer.com",
+      "type": "tech"
     },
     {
       "name": "Takeda",
@@ -1738,7 +2042,9 @@
       "platform": "unknown",
       "careers_url": "https://www.takeda.com/careers",
       "active": true,
-      "notes": "Pharmaceuticals"
+      "notes": "Pharmaceuticals",
+      "hrEmail": "careers@takeda.com",
+      "type": "tech"
     },
     {
       "name": "Boehringer Ingelheim",
@@ -1749,7 +2055,9 @@
       "platform": "unknown",
       "careers_url": "https://www.boehringer-ingelheim.com/careers",
       "active": true,
-      "notes": "Pharmaceuticals"
+      "notes": "Pharmaceuticals",
+      "hrEmail": "careers@boehringer-ingelheim.com",
+      "type": "tech"
     },
     {
       "name": "Grifols",
@@ -1760,7 +2068,9 @@
       "platform": "unknown",
       "careers_url": "https://www.grifols.com/careers",
       "active": true,
-      "notes": "Pharmaceuticals, also Portugal"
+      "notes": "Pharmaceuticals, also Portugal",
+      "hrEmail": "careers@grifols.com",
+      "type": "tech"
     },
     {
       "name": "BIAL",
@@ -1771,7 +2081,9 @@
       "platform": "unknown",
       "careers_url": "https://www.bial.com",
       "active": true,
-      "notes": "Portuguese pharmaceuticals"
+      "notes": "Portuguese pharmaceuticals",
+      "hrEmail": "careers@bial.com",
+      "type": "tech"
     },
     {
       "name": "Hovione",
@@ -1782,7 +2094,9 @@
       "platform": "unknown",
       "careers_url": "https://www.hovione.com",
       "active": true,
-      "notes": "Portuguese pharmaceuticals"
+      "notes": "Portuguese pharmaceuticals",
+      "hrEmail": "careers@hovione.com",
+      "type": "tech"
     },
     {
       "name": "Tecnimede",
@@ -1793,7 +2107,9 @@
       "platform": "unknown",
       "careers_url": "https://www.tecnimede.com",
       "active": true,
-      "notes": "Portuguese pharmaceuticals"
+      "notes": "Portuguese pharmaceuticals",
+      "hrEmail": "careers@tecnimede.com",
+      "type": "tech"
     },
     {
       "name": "Delta Cafes",
@@ -1804,7 +2120,9 @@
       "platform": "unknown",
       "careers_url": "https://www.deltacafes.pt",
       "active": true,
-      "notes": "Portuguese food/beverage corporate"
+      "notes": "Portuguese food/beverage corporate",
+      "hrEmail": "careers@delta-cafes.com",
+      "type": "tech"
     },
     {
       "name": "Jeronimo Martins",
@@ -1815,7 +2133,9 @@
       "platform": "unknown",
       "careers_url": "https://www.jeronimomartins.pt",
       "active": true,
-      "notes": "Portuguese retail group"
+      "notes": "Portuguese retail group",
+      "hrEmail": "careers@jeronimo-martins.com",
+      "type": "tech"
     },
     {
       "name": "Sonae",
@@ -1826,7 +2146,9 @@
       "platform": "unknown",
       "careers_url": "https://www.sonae.pt",
       "active": true,
-      "notes": "Portuguese retail/conglomerate"
+      "notes": "Portuguese retail/conglomerate",
+      "hrEmail": "careers@sonae.com",
+      "type": "tech"
     },
     {
       "name": "NOS",
@@ -1837,7 +2159,9 @@
       "platform": "unknown",
       "careers_url": "https://www.nos.pt",
       "active": true,
-      "notes": "Portuguese telecom"
+      "notes": "Portuguese telecom",
+      "hrEmail": "careers@nos.com",
+      "type": "corporate"
     },
     {
       "name": "MEO",
@@ -1848,7 +2172,9 @@
       "platform": "unknown",
       "careers_url": "https://www.meo.pt",
       "active": true,
-      "notes": "Portuguese telecom"
+      "notes": "Portuguese telecom",
+      "hrEmail": "careers@meo.com",
+      "type": "corporate"
     },
     {
       "name": "Siemens",
@@ -1859,7 +2185,9 @@
       "platform": "unknown",
       "careers_url": "https://www.siemens.com/careers",
       "active": true,
-      "notes": "Industrial engineering"
+      "notes": "Industrial engineering",
+      "hrEmail": "careers@siemens.com",
+      "type": "corporate"
     },
     {
       "name": "Bosch",
@@ -1870,7 +2198,9 @@
       "platform": "unknown",
       "careers_url": "https://www.bosch.com/careers",
       "active": true,
-      "notes": "Industrial engineering"
+      "notes": "Industrial engineering",
+      "hrEmail": "careers@bosch.com",
+      "type": "tech"
     },
     {
       "name": "ABB",
@@ -1881,7 +2211,9 @@
       "platform": "unknown",
       "careers_url": "https://global.abb/group/en/careers",
       "active": true,
-      "notes": "Industrial engineering"
+      "notes": "Industrial engineering",
+      "hrEmail": "careers@abb.com",
+      "type": "tech"
     },
     {
       "name": "Schneider Electric",
@@ -1892,7 +2224,9 @@
       "platform": "unknown",
       "careers_url": "https://www.se.com/careers",
       "active": true,
-      "notes": "Energy management"
+      "notes": "Energy management",
+      "hrEmail": "careers@schneider-electric.com",
+      "type": "tech"
     },
     {
       "name": "Philips",
@@ -1903,7 +2237,9 @@
       "platform": "unknown",
       "careers_url": "https://www.philips.com/careers",
       "active": true,
-      "notes": "Health technology"
+      "notes": "Health technology",
+      "hrEmail": "careers@philips.com",
+      "type": "corporate"
     },
     {
       "name": "3M",
@@ -1914,7 +2250,9 @@
       "platform": "unknown",
       "careers_url": "https://www.3m.com/careers",
       "active": true,
-      "notes": "Conglomerate"
+      "notes": "Conglomerate",
+      "hrEmail": "careers@3m.com",
+      "type": "tech"
     },
     {
       "name": "Honeywell",
@@ -1925,7 +2263,9 @@
       "platform": "unknown",
       "careers_url": "https://careers.honeywell.com",
       "active": true,
-      "notes": "Industrial technology"
+      "notes": "Industrial technology",
+      "hrEmail": "careers@honeywell.com",
+      "type": "tech"
     },
     {
       "name": "General Electric",
@@ -1936,7 +2276,9 @@
       "platform": "unknown",
       "careers_url": "https://www.ge.com/careers",
       "active": true,
-      "notes": "Industrial conglomerate"
+      "notes": "Industrial conglomerate",
+      "hrEmail": "careers@general-electric.com",
+      "type": "tech"
     },
     {
       "name": "Thyssenkrupp",
@@ -1947,7 +2289,9 @@
       "platform": "unknown",
       "careers_url": "https://www.thyssenkrupp.com/en/careers",
       "active": true,
-      "notes": "Industrial engineering"
+      "notes": "Industrial engineering",
+      "hrEmail": "careers@thyssenkrupp.com",
+      "type": "tech"
     },
     {
       "name": "Continental",
@@ -1958,7 +2302,9 @@
       "platform": "unknown",
       "careers_url": "https://www.continental.com/en/career",
       "active": true,
-      "notes": "Automotive engineering"
+      "notes": "Automotive engineering",
+      "hrEmail": "careers@continental.com",
+      "type": "tech"
     },
     {
       "name": "BASF",
@@ -1969,7 +2315,9 @@
       "platform": "unknown",
       "careers_url": "https://www.basf.com/global/en/careers",
       "active": true,
-      "notes": "Chemicals"
+      "notes": "Chemicals",
+      "hrEmail": "careers@basf.com",
+      "type": "tech"
     },
     {
       "name": "DSM",
@@ -1980,7 +2328,9 @@
       "platform": "unknown",
       "careers_url": "https://www.dsm.com/careers",
       "active": true,
-      "notes": "Health/nutrition/materials"
+      "notes": "Health/nutrition/materials",
+      "hrEmail": "careers@dsm.com",
+      "type": "tech"
     },
     {
       "name": "AkzoNobel",
@@ -1991,7 +2341,9 @@
       "platform": "unknown",
       "careers_url": "https://www.akzonobel.com/careers",
       "active": true,
-      "notes": "Paints/coatings"
+      "notes": "Paints/coatings",
+      "hrEmail": "careers@akzonobel.com",
+      "type": "tech"
     },
     {
       "name": "Galp Energia",
@@ -2002,7 +2354,9 @@
       "platform": "unknown",
       "careers_url": "https://www.galp.com",
       "active": true,
-      "notes": "Portuguese energy"
+      "notes": "Portuguese energy",
+      "hrEmail": "careers@galp-energia.com",
+      "type": "corporate"
     },
     {
       "name": "EDP",
@@ -2013,7 +2367,9 @@
       "platform": "unknown",
       "careers_url": "https://www.edp.com",
       "active": true,
-      "notes": "Portuguese energy utility"
+      "notes": "Portuguese energy utility",
+      "hrEmail": "careers@edp.com",
+      "type": "corporate"
     },
     {
       "name": "REN",
@@ -2024,7 +2380,9 @@
       "platform": "unknown",
       "careers_url": "https://www.ren.pt",
       "active": true,
-      "notes": "Portuguese energy networks"
+      "notes": "Portuguese energy networks",
+      "hrEmail": "careers@ren.com",
+      "type": "corporate"
     },
     {
       "name": "Martifer",
@@ -2035,7 +2393,9 @@
       "platform": "unknown",
       "careers_url": "https://www.martifer.com",
       "active": true,
-      "notes": "Portuguese engineering"
+      "notes": "Portuguese engineering",
+      "hrEmail": "careers@martifer.com",
+      "type": "tech"
     },
     {
       "name": "Mota-Engil",
@@ -2046,7 +2406,9 @@
       "platform": "unknown",
       "careers_url": "https://www.mota-engil.pt",
       "active": true,
-      "notes": "Portuguese construction"
+      "notes": "Portuguese construction",
+      "hrEmail": "careers@mota-engil.com",
+      "type": "tech"
     },
     {
       "name": "Teixeira Duarte",
@@ -2057,7 +2419,9 @@
       "platform": "unknown",
       "careers_url": "https://www.teixeiraduarte.pt",
       "active": true,
-      "notes": "Portuguese construction"
+      "notes": "Portuguese construction",
+      "hrEmail": "careers@teixeira-duarte.com",
+      "type": "tech"
     },
     {
       "name": "Soares da Costa",
@@ -2068,7 +2432,9 @@
       "platform": "unknown",
       "careers_url": "https://www.soaresdacosta.com",
       "active": true,
-      "notes": "Portuguese construction"
+      "notes": "Portuguese construction",
+      "hrEmail": "careers@soares-da-costa.com",
+      "type": "tech"
     },
     {
       "name": "Conduril",
@@ -2079,7 +2445,9 @@
       "platform": "unknown",
       "careers_url": "https://www.conduril.com",
       "active": true,
-      "notes": "Portuguese construction"
+      "notes": "Portuguese construction",
+      "hrEmail": "careers@conduril.com",
+      "type": "tech"
     },
     {
       "name": "Vodafone",
@@ -2090,7 +2458,9 @@
       "platform": "unknown",
       "careers_url": "https://www.vodafone.com/careers",
       "active": true,
-      "notes": "Global telecom"
+      "notes": "Global telecom",
+      "hrEmail": "careers@vodafone.com",
+      "type": "corporate"
     },
     {
       "name": "Orange",
@@ -2101,7 +2471,9 @@
       "platform": "unknown",
       "careers_url": "https://www.orange.com/en/careers",
       "active": true,
-      "notes": "Global telecom"
+      "notes": "Global telecom",
+      "hrEmail": "careers@orange.com",
+      "type": "corporate"
     },
     {
       "name": "Telefonica",
@@ -2112,7 +2484,9 @@
       "platform": "unknown",
       "careers_url": "https://www.telefonica.com/en/communication/careers",
       "active": true,
-      "notes": "Global telecom"
+      "notes": "Global telecom",
+      "hrEmail": "careers@telefonica.com",
+      "type": "corporate"
     },
     {
       "name": "T-Mobile",
@@ -2123,7 +2497,9 @@
       "platform": "unknown",
       "careers_url": "https://www.t-mobile.com/careers",
       "active": true,
-      "notes": "US telecom"
+      "notes": "US telecom",
+      "hrEmail": "careers@t-mobile.com",
+      "type": "corporate"
     },
     {
       "name": "Verizon",
@@ -2134,7 +2510,9 @@
       "platform": "unknown",
       "careers_url": "https://www.verizon.com/about/careers",
       "active": true,
-      "notes": "US telecom"
+      "notes": "US telecom",
+      "hrEmail": "careers@verizon.com",
+      "type": "corporate"
     },
     {
       "name": "AT&T",
@@ -2145,7 +2523,9 @@
       "platform": "unknown",
       "careers_url": "https://www.att.com/careers",
       "active": true,
-      "notes": "US telecom"
+      "notes": "US telecom",
+      "hrEmail": "careers@at-t.com",
+      "type": "corporate"
     },
     {
       "name": "Ericsson",
@@ -2156,7 +2536,9 @@
       "platform": "unknown",
       "careers_url": "https://www.ericsson.com/en/careers",
       "active": true,
-      "notes": "Telecom equipment"
+      "notes": "Telecom equipment",
+      "hrEmail": "careers@ericsson.com",
+      "type": "corporate"
     },
     {
       "name": "Nokia",
@@ -2167,7 +2549,9 @@
       "platform": "unknown",
       "careers_url": "https://www.nokia.com/careers",
       "active": true,
-      "notes": "Telecom equipment"
+      "notes": "Telecom equipment",
+      "hrEmail": "careers@nokia.com",
+      "type": "corporate"
     },
     {
       "name": "Huawei",
@@ -2178,7 +2562,9 @@
       "platform": "unknown",
       "careers_url": "https://www.huawei.com/en/careers",
       "active": true,
-      "notes": "Telecom equipment"
+      "notes": "Telecom equipment",
+      "hrEmail": "careers@huawei.com",
+      "type": "corporate"
     },
     {
       "name": "ZTE",
@@ -2189,7 +2575,9 @@
       "platform": "unknown",
       "careers_url": "https://www.zte.com.cn/global/about/careers",
       "active": true,
-      "notes": "Telecom equipment"
+      "notes": "Telecom equipment",
+      "hrEmail": "careers@zte.com",
+      "type": "corporate"
     },
     {
       "name": "Corning",
@@ -2200,7 +2588,9 @@
       "platform": "unknown",
       "careers_url": "https://www.corning.com/worldwide/en/careers.html",
       "active": true,
-      "notes": "Materials science"
+      "notes": "Materials science",
+      "hrEmail": "careers@corning.com",
+      "type": "tech"
     },
     {
       "name": "NOWO",
@@ -2211,7 +2601,9 @@
       "platform": "unknown",
       "careers_url": "https://www.nowo.pt",
       "active": true,
-      "notes": "Portuguese telecom"
+      "notes": "Portuguese telecom",
+      "hrEmail": "careers@nowo.com",
+      "type": "corporate"
     },
     {
       "name": "Oni Telecom",
@@ -2222,7 +2614,9 @@
       "platform": "unknown",
       "careers_url": "https://www.oni.pt",
       "active": true,
-      "notes": "Portuguese telecom"
+      "notes": "Portuguese telecom",
+      "hrEmail": "careers@oni-telecom.com",
+      "type": "corporate"
     },
     {
       "name": "Twitter",
@@ -2233,7 +2627,9 @@
       "platform": "unknown",
       "careers_url": "https://careers.twitter.com",
       "active": true,
-      "notes": "Ireland office, social media"
+      "notes": "Ireland office, social media",
+      "hrEmail": "careers@twitter.com",
+      "type": "tech"
     },
     {
       "name": "LinkedIn",
@@ -2244,7 +2640,9 @@
       "platform": "unknown",
       "careers_url": "https://careers.linkedin.com",
       "active": true,
-      "notes": "Ireland office, professional network"
+      "notes": "Ireland office, professional network",
+      "hrEmail": "careers@linkedin.com",
+      "type": "tech"
     },
     {
       "name": "TikTok",
@@ -2255,7 +2653,9 @@
       "platform": "unknown",
       "careers_url": "https://careers.tiktok.com",
       "active": true,
-      "notes": "Ireland office, social media"
+      "notes": "Ireland office, social media",
+      "hrEmail": "careers@tiktok.com",
+      "type": "tech"
     },
     {
       "name": "Workday",
@@ -2266,7 +2666,9 @@
       "platform": "unknown",
       "careers_url": "https://www.workday.com/careers",
       "active": true,
-      "notes": "Ireland office, enterprise SaaS"
+      "notes": "Ireland office, enterprise SaaS",
+      "hrEmail": "careers@workday.com",
+      "type": "tech"
     },
     {
       "name": "Indeed",
@@ -2277,7 +2679,9 @@
       "platform": "unknown",
       "careers_url": "https://www.indeed.com/careers",
       "active": true,
-      "notes": "Ireland office, job search"
+      "notes": "Ireland office, job search",
+      "hrEmail": "careers@indeed.com",
+      "type": "tech"
     },
     {
       "name": "Intercom",
@@ -2288,7 +2692,9 @@
       "platform": "unknown",
       "careers_url": "https://www.intercom.com/careers",
       "active": true,
-      "notes": "Ireland HQ, messaging SaaS"
+      "notes": "Ireland HQ, messaging SaaS",
+      "hrEmail": "careers@intercom.com",
+      "type": "tech"
     },
     {
       "name": "Snap",
@@ -2299,7 +2705,9 @@
       "platform": "unknown",
       "careers_url": "https://careers.snap.com",
       "active": true,
-      "notes": "Ireland office, social media"
+      "notes": "Ireland office, social media",
+      "hrEmail": "careers@snap.com",
+      "type": "tech"
     },
     {
       "name": "Zalando",
@@ -2310,7 +2718,9 @@
       "platform": "unknown",
       "careers_url": "https://jobs.zalando.com",
       "active": true,
-      "notes": "Ireland office, fashion e-commerce"
+      "notes": "Ireland office, fashion e-commerce",
+      "hrEmail": "careers@zalando.com",
+      "type": "tech"
     },
     {
       "name": "Personio",
@@ -2321,7 +2731,9 @@
       "platform": "unknown",
       "careers_url": "https://www.personio.de/careers",
       "active": true,
-      "notes": "Ireland office, HR tech"
+      "notes": "Ireland office, HR tech",
+      "hrEmail": "careers@personio.com",
+      "type": "tech"
     },
     {
       "name": "Bunq",
@@ -2332,7 +2744,9 @@
       "platform": "unknown",
       "careers_url": "https://www.bunq.com/careers",
       "active": true,
-      "notes": "Ireland office, neobank"
+      "notes": "Ireland office, neobank",
+      "hrEmail": "careers@bunq.com",
+      "type": "fintech"
     },
     {
       "name": "Fenergo",
@@ -2343,7 +2757,9 @@
       "platform": "unknown",
       "careers_url": "https://www.fenergo.com/careers",
       "active": true,
-      "notes": "Irish fintech, CLM"
+      "notes": "Irish fintech, CLM",
+      "hrEmail": "careers@fenergo.com",
+      "type": "fintech"
     },
     {
       "name": "FINEOS",
@@ -2354,7 +2770,9 @@
       "platform": "unknown",
       "careers_url": "https://www.fineos.com/careers",
       "active": true,
-      "notes": "Irish fintech, insurance"
+      "notes": "Irish fintech, insurance",
+      "hrEmail": "careers@fineos.com",
+      "type": "fintech"
     },
     {
       "name": "Vilocys",
@@ -2365,7 +2783,9 @@
       "platform": "unknown",
       "careers_url": "https://www.vilocys.com",
       "active": true,
-      "notes": "Irish fintech"
+      "notes": "Irish fintech",
+      "hrEmail": "careers@vilocys.com",
+      "type": "fintech"
     },
     {
       "name": "Poppulo",
@@ -2376,7 +2796,9 @@
       "platform": "unknown",
       "careers_url": "https://www.poppulo.com/careers",
       "active": true,
-      "notes": "Irish employee communications"
+      "notes": "Irish employee communications",
+      "hrEmail": "careers@poppulo.com",
+      "type": "tech"
     },
     {
       "name": "TransferMate",
@@ -2387,7 +2809,9 @@
       "platform": "unknown",
       "careers_url": "https://www.transfermate.com/careers",
       "active": true,
-      "notes": "Irish B2B payments"
+      "notes": "Irish B2B payments",
+      "hrEmail": "careers@transfermate.com",
+      "type": "fintech"
     },
     {
       "name": "Fexco",
@@ -2398,7 +2822,9 @@
       "platform": "unknown",
       "careers_url": "https://www.fexco.com/careers",
       "active": true,
-      "notes": "Irish fintech/payments"
+      "notes": "Irish fintech/payments",
+      "hrEmail": "careers@fexco.com",
+      "type": "fintech"
     },
     {
       "name": "Ding",
@@ -2409,7 +2835,9 @@
       "platform": "unknown",
       "careers_url": "https://www.ding.com/careers",
       "active": true,
-      "notes": "Irish mobile top-up"
+      "notes": "Irish mobile top-up",
+      "hrEmail": "careers@ding.com",
+      "type": "fintech"
     },
     {
       "name": "AssureHedge",
@@ -2420,7 +2848,9 @@
       "platform": "unknown",
       "careers_url": "https://www.assurehedge.com",
       "active": true,
-      "notes": "Irish FX risk"
+      "notes": "Irish FX risk",
+      "hrEmail": "careers@assurehedge.com",
+      "type": "fintech"
     },
     {
       "name": "PMD Solutions",
@@ -2431,7 +2861,9 @@
       "platform": "unknown",
       "careers_url": "https://www.pmd-solutions.com",
       "active": true,
-      "notes": "Irish medtech"
+      "notes": "Irish medtech",
+      "hrEmail": "careers@pmd-solutions.com",
+      "type": "tech"
     },
     {
       "name": "Nuritas",
@@ -2442,7 +2874,9 @@
       "platform": "unknown",
       "careers_url": "https://www.nuritas.com",
       "active": true,
-      "notes": "Irish biotech"
+      "notes": "Irish biotech",
+      "hrEmail": "careers@nuritas.com",
+      "type": "tech"
     },
     {
       "name": "Dell",
@@ -2453,7 +2887,9 @@
       "platform": "unknown",
       "careers_url": "https://www.dell.com/careers",
       "active": true,
-      "notes": "Ireland office, hardware/IT"
+      "notes": "Ireland office, hardware/IT",
+      "hrEmail": "careers@dell.com",
+      "type": "tech"
     },
     {
       "name": "Cubic Telecom",
@@ -2464,7 +2900,9 @@
       "platform": "unknown",
       "careers_url": "https://www.cubictelecom.com/careers",
       "active": true,
-      "notes": "Irish IoT/telecom"
+      "notes": "Irish IoT/telecom",
+      "hrEmail": "careers@cubic-telecom.com",
+      "type": "corporate"
     },
     {
       "name": "Hostelworld",
@@ -2475,7 +2913,9 @@
       "platform": "unknown",
       "careers_url": "https://www.hostelworld.com/careers",
       "active": true,
-      "notes": "Irish travel marketplace"
+      "notes": "Irish travel marketplace",
+      "hrEmail": "careers@hostelworld.com",
+      "type": "tech"
     },
     {
       "name": "CarTrawler",
@@ -2486,7 +2926,9 @@
       "platform": "unknown",
       "careers_url": "https://www.cartrawler.com/careers",
       "active": true,
-      "notes": "Irish travel tech"
+      "notes": "Irish travel tech",
+      "hrEmail": "careers@cartrawler.com",
+      "type": "tech"
     },
     {
       "name": "Ryanair",
@@ -2497,7 +2939,9 @@
       "platform": "unknown",
       "careers_url": "https://www.ryanair.com/careers",
       "active": true,
-      "notes": "Irish airline"
+      "notes": "Irish airline",
+      "hrEmail": "careers@ryanair.com",
+      "type": "tech"
     },
     {
       "name": "Aer Lingus",
@@ -2508,7 +2952,9 @@
       "platform": "unknown",
       "careers_url": "https://www.aerlingus.com/careers",
       "active": true,
-      "notes": "Irish airline"
+      "notes": "Irish airline",
+      "hrEmail": "careers@aer-lingus.com",
+      "type": "tech"
     },
     {
       "name": "Kingspan",
@@ -2519,7 +2965,9 @@
       "platform": "unknown",
       "careers_url": "https://www.kingspan.com/careers",
       "active": true,
-      "notes": "Irish building materials"
+      "notes": "Irish building materials",
+      "hrEmail": "careers@kingspan.com",
+      "type": "tech"
     },
     {
       "name": "CRH",
@@ -2530,7 +2978,9 @@
       "platform": "unknown",
       "careers_url": "https://www.crh.com/careers",
       "active": true,
-      "notes": "Irish building materials"
+      "notes": "Irish building materials",
+      "hrEmail": "careers@crh.com",
+      "type": "tech"
     },
     {
       "name": "Musgrave",
@@ -2541,7 +2991,9 @@
       "platform": "unknown",
       "careers_url": "https://www.musgravegroup.com/careers",
       "active": true,
-      "notes": "Irish retail group"
+      "notes": "Irish retail group",
+      "hrEmail": "careers@musgrave.com",
+      "type": "tech"
     },
     {
       "name": "Greencore",
@@ -2552,7 +3004,9 @@
       "platform": "unknown",
       "careers_url": "https://www.greencore.com/careers",
       "active": true,
-      "notes": "Irish food producer"
+      "notes": "Irish food producer",
+      "hrEmail": "careers@greencore.com",
+      "type": "tech"
     },
     {
       "name": "Glanbia",
@@ -2563,7 +3017,9 @@
       "platform": "unknown",
       "careers_url": "https://www.glanbia.com/careers",
       "active": true,
-      "notes": "Irish nutrition/food"
+      "notes": "Irish nutrition/food",
+      "hrEmail": "careers@glanbia.com",
+      "type": "tech"
     },
     {
       "name": "Kerry Group",
@@ -2574,7 +3030,9 @@
       "platform": "unknown",
       "careers_url": "https://www.kerrygroup.com/careers",
       "active": true,
-      "notes": "Irish food/nutrition"
+      "notes": "Irish food/nutrition",
+      "hrEmail": "careers@kerry-group.com",
+      "type": "tech"
     },
     {
       "name": "Smurfit Kappa",
@@ -2585,7 +3043,9 @@
       "platform": "unknown",
       "careers_url": "https://www.smurfitkappa.com/careers",
       "active": true,
-      "notes": "Irish packaging"
+      "notes": "Irish packaging",
+      "hrEmail": "careers@smurfit-kappa.com",
+      "type": "tech"
     },
     {
       "name": "Keywords Studios",
@@ -2596,7 +3056,9 @@
       "platform": "unknown",
       "careers_url": "https://www.keywordsstudios.com/careers",
       "active": true,
-      "notes": "Irish gaming services"
+      "notes": "Irish gaming services",
+      "hrEmail": "careers@keywords-studios.com",
+      "type": "tech"
     },
     {
       "name": "Digit Game Studios",
@@ -2607,7 +3069,9 @@
       "platform": "unknown",
       "careers_url": "https://www.digitgaming.com",
       "active": true,
-      "notes": "Irish game studio"
+      "notes": "Irish game studio",
+      "hrEmail": "careers@digit-game-studios.com",
+      "type": "tech"
     },
     {
       "name": "Romero Games",
@@ -2618,7 +3082,9 @@
       "platform": "unknown",
       "careers_url": "https://www.romerogames.com",
       "active": true,
-      "notes": "Irish game studio"
+      "notes": "Irish game studio",
+      "hrEmail": "careers@romero-games.com",
+      "type": "tech"
     },
     {
       "name": "Demonware",
@@ -2629,7 +3095,9 @@
       "platform": "unknown",
       "careers_url": "https://www.demonware.net",
       "active": true,
-      "notes": "Irish game middleware"
+      "notes": "Irish game middleware",
+      "hrEmail": "careers@demonware.com",
+      "type": "tech"
     },
     {
       "name": "Havok",
@@ -2640,7 +3108,9 @@
       "platform": "unknown",
       "careers_url": "https://www.havok.com",
       "active": true,
-      "notes": "Irish game middleware"
+      "notes": "Irish game middleware",
+      "hrEmail": "careers@havok.com",
+      "type": "tech"
     },
     {
       "name": "StoryToys",
@@ -2651,7 +3121,9 @@
       "platform": "unknown",
       "careers_url": "https://www.storytoys.com",
       "active": true,
-      "notes": "Irish kids apps/games"
+      "notes": "Irish kids apps/games",
+      "hrEmail": "careers@storytoys.com",
+      "type": "tech"
     },
     {
       "name": "Teamwork",
@@ -2662,7 +3134,9 @@
       "platform": "unknown",
       "careers_url": "https://www.teamwork.com/careers",
       "active": true,
-      "notes": "Irish project management SaaS"
+      "notes": "Irish project management SaaS",
+      "hrEmail": "careers@teamwork.com",
+      "type": "tech"
     },
     {
       "name": "Keelvar",
@@ -2673,7 +3147,9 @@
       "platform": "unknown",
       "careers_url": "https://www.keelvar.com/careers",
       "active": true,
-      "notes": "Irish sourcing software"
+      "notes": "Irish sourcing software",
+      "hrEmail": "careers@keelvar.com",
+      "type": "tech"
     },
     {
       "name": "Altada",
@@ -2684,7 +3160,9 @@
       "platform": "unknown",
       "careers_url": "https://www.altada.ai",
       "active": true,
-      "notes": "Irish AI"
+      "notes": "Irish AI",
+      "hrEmail": "careers@altada.com",
+      "type": "tech"
     },
     {
       "name": "Clavis Insight",
@@ -2695,7 +3173,9 @@
       "platform": "unknown",
       "careers_url": "https://www.clavisinsight.com",
       "active": true,
-      "notes": "Irish e-commerce analytics"
+      "notes": "Irish e-commerce analytics",
+      "hrEmail": "careers@clavis-insight.com",
+      "type": "tech"
     },
     {
       "name": "SoapBox Labs",
@@ -2706,7 +3186,9 @@
       "platform": "unknown",
       "careers_url": "https://www.soapboxlabs.com",
       "active": true,
-      "notes": "Irish voice AI"
+      "notes": "Irish voice AI",
+      "hrEmail": "careers@soapbox-labs.com",
+      "type": "tech"
     },
     {
       "name": "LearnUpon",
@@ -2717,7 +3199,9 @@
       "platform": "unknown",
       "careers_url": "https://www.learnupon.com/careers",
       "active": true,
-      "notes": "Irish LMS"
+      "notes": "Irish LMS",
+      "hrEmail": "careers@learnupon.com",
+      "type": "tech"
     },
     {
       "name": "Brightflag",
@@ -2728,7 +3212,9 @@
       "platform": "unknown",
       "careers_url": "https://www.brightflag.com",
       "active": true,
-      "notes": "Irish legal tech"
+      "notes": "Irish legal tech",
+      "hrEmail": "careers@brightflag.com",
+      "type": "tech"
     },
     {
       "name": "Paddy Power Betfair",
@@ -2739,7 +3225,9 @@
       "platform": "unknown",
       "careers_url": "https://www.paddypowerbetfair.com/careers",
       "active": true,
-      "notes": "Irish betting"
+      "notes": "Irish betting",
+      "hrEmail": "careers@paddy-power-betfair.com",
+      "type": "tech"
     },
     {
       "name": "Flutter Entertainment",
@@ -2750,7 +3238,9 @@
       "platform": "unknown",
       "careers_url": "https://www.flutter.com/careers",
       "active": true,
-      "notes": "Irish betting/entertainment"
+      "notes": "Irish betting/entertainment",
+      "hrEmail": "careers@flutter-entertainment.com",
+      "type": "tech"
     },
     {
       "name": "DraftKings",
@@ -2761,7 +3251,9 @@
       "platform": "unknown",
       "careers_url": "https://www.draftkings.com/careers",
       "active": true,
-      "notes": "Ireland office, sports betting"
+      "notes": "Ireland office, sports betting",
+      "hrEmail": "careers@draftkings.com",
+      "type": "tech"
     },
     {
       "name": "Nine Lives Media",
@@ -2772,7 +3264,9 @@
       "platform": "unknown",
       "careers_url": "https://www.ninelivesmedia.ie",
       "active": true,
-      "notes": "Irish media"
+      "notes": "Irish media",
+      "hrEmail": "careers@nine-lives-media.com",
+      "type": "tech"
     },
     {
       "name": "Sugru",
@@ -2783,7 +3277,9 @@
       "platform": "unknown",
       "careers_url": "https://sugru.com",
       "active": true,
-      "notes": "Irish/UK adhesive products"
+      "notes": "Irish/UK adhesive products",
+      "hrEmail": "careers@sugru.com",
+      "type": "tech"
     },
     {
       "name": "AIB",
@@ -2794,7 +3290,9 @@
       "platform": "unknown",
       "careers_url": "https://www.aib.ie/careers",
       "active": true,
-      "notes": "Irish bank"
+      "notes": "Irish bank",
+      "hrEmail": "careers@aib.com",
+      "type": "banking"
     },
     {
       "name": "Bank of Ireland",
@@ -2805,7 +3303,9 @@
       "platform": "unknown",
       "careers_url": "https://www.bankofireland.com/careers",
       "active": true,
-      "notes": "Irish bank"
+      "notes": "Irish bank",
+      "hrEmail": "careers@bank-of-ireland.com",
+      "type": "banking"
     },
     {
       "name": "Ulster Bank",
@@ -2816,7 +3316,9 @@
       "platform": "unknown",
       "careers_url": "https://www.ulsterbank.ie",
       "active": true,
-      "notes": "Irish bank"
+      "notes": "Irish bank",
+      "hrEmail": "careers@ulster-bank.com",
+      "type": "banking"
     },
     {
       "name": "Permanent TSB",
@@ -2827,7 +3329,9 @@
       "platform": "unknown",
       "careers_url": "https://www.permanenttsb.ie",
       "active": true,
-      "notes": "Irish bank"
+      "notes": "Irish bank",
+      "hrEmail": "careers@permanent-tsb.com",
+      "type": "banking"
     }
   ]
 }

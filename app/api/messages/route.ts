@@ -36,58 +36,55 @@ export async function POST(req: Request) {
     company_name: body.company_name || "Unknown Company",
     subject: body.subject || "",
     body: body.body || "",
-    type: body.type || "response",
+    type: body.type || "company_reply",
     status: body.status || "unread",
-    from: body.from || "system",
+    from: body.from || "ApplyWise <applications@applywise.org>",
+    from_name: body.from_name || null,
+    to_email: body.to_email || null,
+    to_name: body.to_name || null,
     sent_at: body.sent_at || new Date().toISOString(),
+    reference_number: body.reference_number || null,
+    ats_score: body.ats_score || null,
+    is_imported: body.is_imported ?? false,
+    import_source: body.import_source || null,
+    has_reply: body.has_reply ?? false,
   };
 
-  const { data, error } = await supabase
-    .from("messages")
-    .insert(insert)
-    .select()
-    .single();
+  const { data, error } = await supabase.from("messages").insert(insert).select().single();
 
   if (error) {
     console.error("[Messages POST] error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Send real email for company responses and important system notifications
+  // Optional: notify the user by email for important company replies
   try {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("email, full_name")
+      .select("email, personal_email, full_name")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    const userEmail = profile?.email;
-    const sender = data.from || "system";
-    const isCompany = sender === "company";
-    const isInterview = data.type === "interview_invite";
-    const isOffer = data.type === "offer";
-    const isRejection = data.type === "rejection";
+    const userEmail = profile?.personal_email || profile?.email;
+    const isReply = data.type === "company_reply" || data.type === "interview" || data.type === "offer" || data.type === "rejection";
 
-    if (userEmail && (isCompany || isInterview || isOffer || isRejection)) {
-      const fromName = isCompany ? data.company_name : "ApplyFlow";
-      const subject = `${data.subject}`;
+    if (userEmail && isReply) {
+      const subject = `New reply: ${data.subject}`;
       const text =
         `Hi ${profile?.full_name || "there"},\n\n` +
-        `You have a new message from ${fromName} regarding the ${data.job_title} position.\n\n` +
+        `You have a new reply from ${data.company_name} regarding the ${data.job_title} position.\n\n` +
         `${data.body}\n\n` +
-        `View it in your ApplyFlow inbox: ${process.env.NEXT_PUBLIC_APP_URL || ""}/inbox\n\n` +
-        `- ${fromName}`;
+        `View it in your ApplyWise inbox: ${process.env.NEXT_PUBLIC_APP_URL || ""}/inbox\n\n` +
+        `- ApplyWise`;
 
       await sendEmail({
         to: userEmail,
         subject,
         text,
         html: textToHtml(text),
-        from: isCompany
-          ? `${data.company_name} via ApplyFlow <onboarding@resend.dev>`
-          : undefined,
+        from: `${data.company_name} via ApplyWise <applications@applywise.org>`,
       });
     }
   } catch (emailErr) {

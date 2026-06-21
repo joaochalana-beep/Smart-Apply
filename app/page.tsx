@@ -127,7 +127,7 @@ export default function Home() {
               Everything You Need to Get Hired
             </h2>
             <p className="text-zinc-500 text-lg max-w-2xl mx-auto">
-              Stop copy-pasting into dozens of job boards. ApplyFlow automates the boring stuff so you can focus on interviews.
+              Stop copy-pasting into dozens of job boards. ApplyWise automates the boring stuff so you can focus on interviews.
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
@@ -198,7 +198,7 @@ export default function Home() {
                 </ul>
               </div>
               <div className="p-8">
-                <div className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-2">ApplyFlow</div>
+                <div className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-2">ApplyWise</div>
                 <div className="text-3xl font-bold text-zinc-900 mb-1">€0<span className="text-lg text-zinc-400">/mo</span></div>
                 <div className="text-sm text-zinc-500 mb-6">Free while in beta</div>
                 <ul className="space-y-3 text-sm text-zinc-900">
@@ -246,10 +246,10 @@ export default function Home() {
             <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-sm">A</span>
             </div>
-            <span className="font-bold text-lg tracking-tight">ApplyFlow</span>
+            <span className="font-bold text-lg tracking-tight">ApplyWise</span>
           </div>
           <p className="text-sm text-zinc-400">
-            © 2026 ApplyFlow. Built for job seekers, by job seekers.
+            © 2026 ApplyWise. Built for job seekers, by job seekers.
           </p>
         </div>
       </footer>

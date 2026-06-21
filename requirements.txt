@@ -1,4 +1,4 @@
-# Smart Apply — Python Dependencies
+# ApplyWise — Python Dependencies
 # Install: py -m pip install -r requirements.txt
 
 # Core (already installed)

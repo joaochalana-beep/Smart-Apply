@@ -20,6 +20,8 @@ interface Job {
   experience_level: string;
   match_score: number;
   date_posted: string;
+  hr_email?: string;
+  company_type?: string;
 }
 
 interface StoredApplication {
@@ -39,7 +41,7 @@ interface StoredApplication {
   isAutoApplied: boolean;
 }
 
-const APPLICATIONS_STORAGE_KEY = "applyflow-applications";
+const APPLICATIONS_STORAGE_KEY = "applywise-applications";
 
 export default function DiscoverPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -146,6 +148,8 @@ export default function DiscoverPage() {
         experience_level: job.experience_level || "",
         match_score: job.match_score || 0,
         date_posted: job.created_at,
+        hr_email: job.hr_email,
+        company_type: job.company_type,
       }));
 
       setRelaxedFilters(!!data.relaxedFilters);
@@ -212,6 +216,8 @@ export default function DiscoverPage() {
         ats_score: result.atsScore,
         method: isAutoApplied ? "auto" : "one_click",
         status: "sent",
+        hr_email: job.hr_email,
+        company_type: job.company_type,
       }),
     });
 
@@ -246,16 +252,22 @@ export default function DiscoverPage() {
       localStorage.setItem(APPLICATIONS_STORAGE_KEY, JSON.stringify(existing));
     }
 
-    // Add inbox confirmation
+    // Server creates the real application_sent inbox message.
+    // Keep a lightweight local notification for immediate UI feedback.
     addMessage({
       applicationId: saved.id || stored.id,
       jobTitle: job.title,
       companyName: job.company,
-      subject: `Application submitted to ${job.company} for ${job.title}`,
-      body: `Your ATS-optimized application (Score: ${result.atsScore}%) was submitted on ${new Date().toLocaleDateString()}. We will notify you when the employer responds.`,
-      type: "confirmation",
-      status: "unread",
-      from: "system",
+      subject: `Application for ${job.title} — ${job.company}`,
+      body: `Application sent to ${job.company} for ${job.title}. Reference: ${saved.reference_number || "N/A"}.`,
+      type: "application_sent",
+      status: "read",
+      from: `${saved.reference_number ? `ApplyWise <applications@applywise.org>` : "ApplyWise"}`,
+      fromName: "ApplyWise",
+      to: job.company,
+      referenceNumber: saved.reference_number,
+      atsScore: result.atsScore,
+      isImported: false,
     });
 
     return saved;
@@ -277,10 +289,12 @@ export default function DiscoverPage() {
     if (!reviewJob || !reviewResult) return;
     setSubmitting(true);
     try {
-      await saveApplicationToServer(reviewJob, reviewResult, false, editedCV, editedCoverLetter);
+      const saved = await saveApplicationToServer(reviewJob, reviewResult, false, editedCV, editedCoverLetter);
       setReviewJob(null);
       setReviewResult(null);
-      showToast(`Application submitted to ${reviewJob.company}!`);
+      showToast(
+        `Application sent to ${reviewJob.company}! Reference: ${saved.reference_number || "N/A"}. Check your inbox.`
+      );
     } catch (err: unknown) {
       alert("Failed to submit application: " + (err instanceof Error ? err.message : String(err)));
     }

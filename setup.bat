@@ -1,7 +1,7 @@
 
 @echo off
 echo ============================================
-echo Smart Apply — Setup Script
+echo ApplyWise — Setup Script
 echo ============================================
 echo.
 

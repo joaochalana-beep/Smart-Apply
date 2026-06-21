@@ -28,6 +28,8 @@ interface DiscoverJob {
   work_type?: string;
   job_type?: string;
   experience_level?: string;
+  hr_email?: string;
+  company_type?: string;
 }
 
 interface StoredApplication {
@@ -47,7 +49,7 @@ interface StoredApplication {
   isAutoApplied: boolean;
 }
 
-const APPLICATIONS_STORAGE_KEY = "applyflow-applications";
+const APPLICATIONS_STORAGE_KEY = "applywise-applications";
 
 export default function DashboardPage() {
   const { isSignedIn, isLoaded } = useAuth();
@@ -121,6 +123,8 @@ export default function DashboardPage() {
           work_type: job.work_type,
           job_type: job.job_type,
           experience_level: job.experience_level,
+          hr_email: job.hr_email,
+          company_type: job.company_type,
         }));
         setAllJobs(jobs);
       }
@@ -198,6 +202,8 @@ export default function DashboardPage() {
         ats_score: result.atsScore,
         method: isAutoApplied ? "auto" : "one_click",
         status: "sent",
+        hr_email: job.hr_email,
+        company_type: job.company_type,
       }),
     });
 
@@ -231,15 +237,22 @@ export default function DashboardPage() {
       localStorage.setItem(APPLICATIONS_STORAGE_KEY, JSON.stringify(existing));
     }
 
+    // Server creates the real application_sent inbox message.
+    // Keep a lightweight local notification for immediate UI feedback.
     addMessage({
       applicationId: saved.id || stored.id,
       jobTitle: job.title,
       companyName: job.company,
-      subject: `Application submitted to ${job.company} for ${job.title}`,
-      body: `Your ATS-optimized application (Score: ${result.atsScore}%) was submitted on ${new Date().toLocaleDateString()}. We will notify you when the employer responds.`,
-      type: "confirmation",
-      status: "unread",
-      from: "system",
+      subject: `Application for ${job.title} — ${job.company}`,
+      body: `Application sent to ${job.company} for ${job.title}. Reference: ${saved.reference_number || "N/A"}.`,
+      type: "application_sent",
+      status: "read",
+      from: "ApplyWise <applications@applywise.org>",
+      fromName: "ApplyWise",
+      to: job.company,
+      referenceNumber: saved.reference_number,
+      atsScore: result.atsScore,
+      isImported: false,
     });
 
     return saved;
@@ -281,7 +294,7 @@ export default function DashboardPage() {
       }
 
       if (applied > 0) {
-        showToast(`Auto-applied to ${applied} job${applied === 1 ? "" : "s"} today!`);
+        showToast(`Auto-applied to ${applied} job${applied === 1 ? "" : "s"} today! Check your inbox for references.`);
         // Refresh applications
         const appsRes = await fetch("/api/applications");
         if (appsRes.ok) {

@@ -11,7 +11,7 @@ export interface AutoApplySettings {
   lastAutoApplied: { jobTitle: string; companyName: string; timestamp: string } | null;
 }
 
-const STORAGE_KEY = "applyflow-auto-apply";
+const STORAGE_KEY = "applywise-auto-apply";
 const DEFAULT_SETTINGS: AutoApplySettings = {
   enabled: false,
   dailyLimit: 5,

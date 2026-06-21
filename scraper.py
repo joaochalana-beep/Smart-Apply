@@ -1,7 +1,7 @@
 
 """
-Smart Apply — Company Career Page Scraper
-=========================================
+ApplyWise — Company Career Page Scraper
+========================================
 Modular scraper for Greenhouse, Lever, Workday, RSS/Atom feeds.
 Filters out US jobs, normalizes data, integrates with Discover API.
 
@@ -532,7 +532,7 @@ if __name__ == '__main__':
 
     scraper = CompanyScraper(db_path=db_path)
 
-    print("\n🚀 Smart Apply — Company Career Page Scraper")
+    print("\n🚀 ApplyWise — Company Career Page Scraper")
     print("=" * 50)
     print(f"Companies loaded: {len(scraper.companies)}")
     print(f"Platforms: {', '.join(scraper.PARSERS.keys())}")

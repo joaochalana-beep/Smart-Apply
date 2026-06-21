@@ -1,7 +1,7 @@
 
 """
-Smart Apply — Combined Scraper (Phase 1 + Phase 2)
-==================================================
+ApplyWise — Combined Scraper (Phase 1 + Phase 2)
+=================================================
 Outputs jobs in the exact format your Next.js app expects.
 """
 
@@ -24,7 +24,7 @@ api_companies = [c for c in companies if c.get('platform') in ['greenhouse', 'le
 browser_companies = [c for c in companies if c.get('platform') in ['workday', 'smartrecruiters', 'custom', 'unknown'] and c.get('active', True)]
 inactive = [c for c in companies if not c.get('active', True)]
 
-print("🚀 Smart Apply — Combined Scraper (Phase 1 + Phase 2)")
+print("🚀 ApplyWise — Combined Scraper (Phase 1 + Phase 2)")
 print("=" * 60)
 print(f"API scraper (Greenhouse/Lever/RSS): {len(api_companies)} companies")
 print(f"Browser scraper (Workday/SmartRecruiters/Custom): {len(browser_companies)} companies")

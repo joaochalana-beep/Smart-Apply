@@ -1,13 +1,14 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import { ensureApplyWiseEmail } from "@/lib/user-email";
 
 export async function GET() {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("profiles")
     .select("*")
     .eq("user_id", userId)
@@ -24,11 +25,22 @@ export async function GET() {
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(1);
-      return NextResponse.json(rows?.[0] || null);
+      data = rows?.[0] || null;
+    } else {
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  return NextResponse.json(data || null);
+
+  // Auto-generate ApplyWise email if missing
+  const profile = ensureApplyWiseEmail(data || {});
+  if (profile.applywise_email && profile.applywise_email !== (data as any)?.applywise_email) {
+    await supabase
+      .from("profiles")
+      .update({ applywise_email: profile.applywise_email })
+      .eq("id", profile.id);
+  }
+
+  return NextResponse.json(profile);
 }
 
 export async function POST(req: Request) {
@@ -65,12 +77,15 @@ export async function POST(req: Request) {
     existing = existingData;
   }
 
+  // Ensure ApplyWise email is generated from full_name
+  const profileWithEmail = ensureApplyWiseEmail(body);
+
   let result;
   if (existing) {
     // Update the specific existing profile by ID
     result = await supabase
       .from("profiles")
-      .update(body)
+      .update(profileWithEmail)
       .eq("id", existing.id)
       .select()
       .single();
@@ -78,7 +93,7 @@ export async function POST(req: Request) {
     // Insert new
     result = await supabase
       .from("profiles")
-      .insert({ ...body, user_id: userId })
+      .insert({ ...profileWithEmail, user_id: userId })
       .select()
       .single();
   }

@@ -1,4 +1,4 @@
-# Smart Apply — Integration Guide
+# ApplyWise — Integration Guide
 =================================
 
 ## What You Have Now

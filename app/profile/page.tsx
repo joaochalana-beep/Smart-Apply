@@ -323,18 +323,27 @@ export default function ProfilePage() {
           {isEditing ? (
             <div className="grid md:grid-cols-2 gap-4">
               {renderEditInput("Full Name", "full_name")}
-              {renderEditInput("Email", "email", "email")}
+              {renderEditInput("Personal Email (backup)", "personal_email", "email")}
               {renderEditInput("Phone", "phone")}
               {renderEditInput("Location", "location")}
             </div>
           ) : (
             <div className="grid md:grid-cols-2 gap-4">
               {renderField("Full Name", profile?.full_name)}
-              {renderField("Email", profile?.email)}
+              {renderField("Personal Email (backup)", profile?.personal_email)}
               {renderField("Phone", profile?.phone)}
               {renderField("Location", profile?.location)}
             </div>
           )}
+
+          <div className="mt-4 p-4 bg-indigo-900/20 border border-indigo-500/30 rounded-lg">
+            <label className="block text-xs text-indigo-300 uppercase tracking-wider mb-1">Your ApplyWise Email</label>
+            <p className="text-white font-medium">{profile?.applywise_email || "—"}</p>
+            <p className="text-indigo-300/70 text-xs mt-1">
+              All application emails are sent from this address. Company replies arrive in your inbox.
+            </p>
+          </div>
+
           <div className="mt-4">
             {isEditing ? renderEditInput("LinkedIn", "linkedin") : renderField("LinkedIn", profile?.linkedin)}
           </div>

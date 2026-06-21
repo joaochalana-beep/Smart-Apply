@@ -49,7 +49,7 @@ export default function TargetJobPage() {
         }),
       });
       const data = await res.json();
-      alert("Application saved to your tracker!");
+      alert(`Application sent! Reference: ${data.reference_number || "N/A"}. Check your inbox.`);
       router.push("/applications");
     } catch (err) {
       alert("Failed to save application");

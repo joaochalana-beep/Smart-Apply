@@ -3,11 +3,16 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 
 export type MessageType =
+  | "application_sent"
+  | "company_reply"
   | "confirmation"
-  | "response"
-  | "interview_invite"
+  | "interview"
   | "rejection"
   | "offer"
+  | "screening"
+  | "general"
+  | "response"
+  | "interview_invite"
   | "follow_up";
 
 export type MessageStatus = "read" | "unread";
@@ -22,7 +27,15 @@ export interface InboxMessage {
   type: MessageType;
   status: MessageStatus;
   sentAt: string;
-  from: "system" | "company";
+  from: string;
+  fromName: string;
+  to: string;
+  toName?: string;
+  referenceNumber?: string;
+  atsScore?: number;
+  isImported: boolean;
+  importSource?: string | null;
+  hasReply?: boolean;
 }
 
 interface InboxContextValue {
@@ -37,13 +50,13 @@ interface InboxContextValue {
   filter: {
     type: MessageType | "all";
     status: "all" | "read" | "unread";
-    timeframe: "all" | "today" | "week";
+    category: "all" | "application_sent" | "company_reply";
   };
   setFilter: React.Dispatch<
     React.SetStateAction<{
       type: MessageType | "all";
       status: "all" | "read" | "unread";
-      timeframe: "all" | "today" | "week";
+      category: "all" | "application_sent" | "company_reply";
     }>
   >;
   filteredMessages: InboxMessage[];
@@ -58,10 +71,18 @@ function mapApiMessage(row: any): InboxMessage {
     companyName: row.company_name || "Unknown Company",
     subject: row.subject || "",
     body: row.body || "",
-    type: row.type as MessageType,
-    status: row.status as MessageStatus,
+    type: (row.type as MessageType) || "company_reply",
+    status: (row.status as MessageStatus) || "unread",
     sentAt: row.sent_at,
-    from: row.from as "system" | "company",
+    from: row.from || "",
+    fromName: row.from_name || row.from || "",
+    to: row.to_email || "",
+    toName: row.to_name || undefined,
+    referenceNumber: row.reference_number || undefined,
+    atsScore: row.ats_score || undefined,
+    isImported: row.is_imported || false,
+    importSource: row.import_source || null,
+    hasReply: row.has_reply || false,
   };
 }
 
@@ -74,11 +95,11 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
   const [filter, setFilter] = useState<{
     type: MessageType | "all";
     status: "all" | "read" | "unread";
-    timeframe: "all" | "today" | "week";
+    category: "all" | "application_sent" | "company_reply";
   }>({
     type: "all",
     status: "all",
-    timeframe: "all",
+    category: "all",
   });
 
   const fetchMessages = useCallback(async () => {
@@ -94,29 +115,11 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     }
   }, [messages.length]);
 
-  const seedMessages = useCallback(async () => {
-    try {
-      const res = await fetch("/api/messages/seed", { method: "POST" });
-      if (!res.ok) throw new Error("Failed to seed messages");
-      const data = await res.json();
-      return data.seeded as number;
-    } catch (err) {
-      console.error("[Inbox] seedMessages error:", err);
-      return 0;
-    }
-  }, []);
-
   useEffect(() => {
     let cancelled = false;
     async function init() {
       setLoading(true);
-      const count = await fetchMessages();
-      if (!cancelled && count === 0) {
-        const seeded = await seedMessages();
-        if (seeded > 0) {
-          await fetchMessages();
-        }
-      }
+      await fetchMessages();
       setHydrated(true);
       setLoading(false);
     }
@@ -124,7 +127,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [fetchMessages, seedMessages]);
+  }, [fetchMessages]);
 
   const addMessage = useCallback(async (message: Omit<InboxMessage, "id" | "sentAt">) => {
     const tempId = `temp-${Date.now()}`;
@@ -148,7 +151,15 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
           type: message.type,
           status: message.status,
           from: message.from,
+          from_name: message.fromName,
+          to_email: message.to,
+          to_name: message.toName,
           sent_at: optimistic.sentAt,
+          reference_number: message.referenceNumber,
+          ats_score: message.atsScore,
+          is_imported: message.isImported,
+          import_source: message.importSource,
+          has_reply: message.hasReply,
         }),
       });
       if (!res.ok) throw new Error("Failed to add message");
@@ -161,9 +172,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const updateStatus = useCallback(async (id: string, status: MessageStatus) => {
-    setMessages((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, status } : m))
-    );
+    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, status } : m)));
 
     try {
       const res = await fetch(`/api/messages/${id}`, {
@@ -216,15 +225,9 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
   const filteredMessages = messages.filter((m) => {
     if (filter.type !== "all" && m.type !== filter.type) return false;
     if (filter.status !== "all" && m.status !== filter.status) return false;
-    if (filter.timeframe !== "all") {
-      const sent = new Date(m.sentAt).getTime();
-      const now = Date.now();
-      if (filter.timeframe === "today") {
-        const startOfToday = new Date().setHours(0, 0, 0, 0);
-        if (sent < startOfToday) return false;
-      } else if (filter.timeframe === "week") {
-        if (sent < now - 7 * 24 * 60 * 60 * 1000) return false;
-      }
+    if (filter.category !== "all") {
+      if (filter.category === "application_sent" && m.type !== "application_sent") return false;
+      if (filter.category === "company_reply" && m.type === "application_sent") return false;
     }
     return true;
   });

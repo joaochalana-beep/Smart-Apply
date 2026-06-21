@@ -1,4 +1,4 @@
-# Smart Apply — Company Career Page Scraper
+# ApplyWise — Company Career Page Scraper
 
 ## Phase 1: Curated Company Scraper (~65 companies)
 
