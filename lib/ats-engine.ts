@@ -47,16 +47,21 @@ export interface JobData {
   experience_level?: string;
 }
 
-export interface ExtractedKeywords {
-  hardSkills: string[];
+export interface KeywordCategory {
+  technicalSkills: string[];
   softSkills: string[];
-  actionVerbs: string[];
-  keyPhrases: string[];
-  requiredYears: number;
-  educationRequirements: string[];
   certifications: string[];
   languages: string[];
-  workAuthorization: string[];
+  educationLevels: string[];
+  experienceLevels: string[];
+  workTypes: string[];
+}
+
+export interface ExtractedKeywords {
+  required: KeywordCategory;
+  preferred: KeywordCategory;
+  allKeywords: string[];
+  requiredYears: number;
   frequency: Record<string, number>;
 }
 
@@ -64,11 +69,14 @@ export interface GapAnalysis {
   matchedSkills: string[];
   missingRequiredSkills: string[];
   missingPreferredSkills: string[];
+  missingCertifications: string[];
+  missingLanguages: string[];
   experienceMatch: boolean;
   experienceYearsMatch: boolean;
   educationMatch: boolean;
   languageMatch: boolean;
   certificationMatch: boolean;
+  workTypeMatch: boolean;
   overallCompatibility: number;
   suggestedHighlights: string[];
 }
@@ -80,74 +88,164 @@ export interface ATSResult {
   coverLetter: string;
   atsScore: number;
   scoreBreakdown: {
-    keywords: number;
+    technicalSkills: number;
+    softSkills: number;
     experience: number;
-    skills: number;
+    languages: number;
+    certifications: number;
     education: number;
-    format: number;
+    workType: number;
   };
   matchedKeywords: string[];
   missingKeywords: string[];
 }
 
-const ACTION_VERBS = [
-  "manage", "lead", "oversee", "coordinate", "analyze", "conduct", "develop", "implement",
-  "drive", "execute", "deliver", "build", "design", "create", "maintain", "monitor",
-  "review", "assess", "evaluate", "identify", "resolve", "improve", "increase", "reduce",
-  "ensure", "enforce", "advise", "support", "assist", "collaborate", "communicate", "report",
-  "investigate", "verify", "validate", "process", "handle", "perform", "prepare", "present",
-  "negotiate", "mentor", "train", "supervise", "direct", "control", "audit", "test",
-  "deploy", "integrate", "automate", "optimize", "streamline", "standardize", "document",
-  "comply", "mitigate", "detect", "prevent", "respond", "escalate", "file", "track",
-];
+// ============================================================================
+// MASTER KEYWORD DICTIONARY
+// ============================================================================
+const MASTER_KEYWORDS: { required: KeywordCategory; preferred: KeywordCategory } = {
+  required: {
+    technicalSkills: [
+      "KYC", "AML", "Anti-Money Laundering", "Know Your Customer",
+      "Fraud Detection", "Fraud Prevention", "Risk Assessment",
+      "Risk Management", "Due Diligence", "Customer Due Diligence",
+      "Enhanced Due Diligence", "Transaction Monitoring",
+      "Suspicious Activity Reports", "SAR Filing", "FinCEN",
+      "OFAC", "Sanctions Screening", "PEP Screening",
+      "Compliance", "Regulatory Compliance", "Banking Regulations",
+      "Financial Crime", "Investigation", "Case Management",
+      "Data Analysis", "SQL", "Python", "Excel", "Tableau",
+      "Power BI", "Data Visualization", "Statistical Analysis",
+      "Machine Learning", "AI", "Artificial Intelligence",
+      "Blockchain", "Cryptocurrency", "Smart Contracts",
+      "Cloud Computing", "AWS", "Azure", "GCP",
+      "Cybersecurity", "Information Security", "Network Security",
+      "Penetration Testing", "Vulnerability Assessment",
+      "SIEM", "Splunk", "Log Analysis", "Incident Response",
+      "DevOps", "CI/CD", "Docker", "Kubernetes", "Terraform",
+      "Jenkins", "Git", "GitHub", "GitLab", "Bitbucket",
+      "Agile", "Scrum", "Kanban", "Jira", "Confluence",
+      "Project Management", "Stakeholder Management",
+      "Business Analysis", "Requirements Gathering",
+      "Process Improvement", "Six Sigma", "Lean", "Kaizen",
+      "CRM", "Salesforce", "HubSpot", "Zendesk",
+      "Customer Support", "Technical Support", "Help Desk",
+      "ITIL", "ServiceNow", "Incident Management",
+      "Quality Assurance", "QA", "Testing", "Test Automation",
+      "Selenium", "Cypress", "Jest", "Unit Testing",
+      "API Testing", "Performance Testing", "Load Testing",
+      "JavaScript", "TypeScript", "React", "Vue", "Angular",
+      "Node.js", "Express", "Next.js", "HTML", "CSS",
+      "Java", "Spring Boot", "Hibernate", "Maven",
+      "Django", "Flask", "FastAPI", "Pandas",
+      "C#", ".NET", "ASP.NET", "Entity Framework",
+      "Go", "Rust", "Ruby", "Rails", "PHP", "Laravel",
+      "Swift", "Kotlin", "Flutter", "React Native",
+      "MongoDB", "PostgreSQL", "MySQL", "Redis", "Elasticsearch",
+      "GraphQL", "REST API", "SOAP", "Microservices",
+      "Kafka", "RabbitMQ", "Event-Driven Architecture",
+    ],
+    softSkills: [
+      "Communication", "Leadership", "Teamwork", "Problem Solving",
+      "Critical Thinking", "Analytical Thinking", "Attention to Detail",
+      "Time Management", "Project Management", "Multitasking",
+      "Adaptability", "Flexibility", "Creativity", "Innovation",
+      "Collaboration", "Interpersonal Skills", "Negotiation",
+      "Conflict Resolution", "Decision Making", "Strategic Thinking",
+      "Emotional Intelligence", "Customer Service", "Client Relations",
+      "Cross-functional Collaboration", "Stakeholder Management",
+      "Presentation Skills", "Mentoring", "Coaching",
+    ],
+    certifications: [
+      "CAMS", "ACAMS", "CFCS", "CRCM", "CIA", "CPA", "CISA",
+      "CISSP", "CISM", "CEH", "OSCP", "CompTIA Security+",
+      "AWS Certified", "Azure Certified", "GCP Certified",
+      "PMP", "PRINCE2", "Scrum Master", "CSM", "PSM",
+      "ITIL Foundation", "Six Sigma Green Belt", "Six Sigma Black Belt",
+      "CFA", "FRM", "CIPP", "CIPM", "CIPT", "ISO 27001",
+      "CCNA", "CCNP", "RHCE", "OCP", "CKA", "CKAD",
+    ],
+    languages: [
+      "English", "Portuguese", "Spanish", "French", "German",
+      "Dutch", "Italian", "Mandarin", "Japanese", "Korean",
+      "Arabic", "Hindi", "Russian", "Polish", "Turkish",
+      "Swedish", "Norwegian", "Danish", "Finnish", "Greek",
+    ],
+    educationLevels: [
+      "Bachelor's Degree", "Master's Degree", "PhD", "Doctorate",
+      "Associate's Degree", "High School Diploma", "GED",
+      "MBA", "JD", "MD", "CPA License",
+    ],
+    experienceLevels: [
+      "Entry Level", "Junior", "Associate", "Mid-Level", "Senior",
+      "Lead", "Principal", "Staff", "Manager", "Director",
+      "VP", "Head of", "Chief", "C-Level", "Executive",
+    ],
+    workTypes: [
+      "Remote", "On-Site", "Hybrid", "Work From Home", "WFH",
+      "Flexible", "Full-Time", "Part-Time", "Contract",
+      "Freelance", "Consultant", "Temporary", "Permanent",
+    ],
+  },
+  preferred: {
+    technicalSkills: [
+      "R", "MATLAB", "SAS", "SPSS", "Stata",
+      "Scala", "Julia", "Perl", "Shell Scripting", "Bash",
+      "Grafana", "Prometheus", "Datadog", "New Relic",
+      "Figma", "Sketch", "Adobe XD", "InVision",
+      "Unity", "Unreal Engine", "Blender",
+      "TensorFlow", "PyTorch", "Keras", "Scikit-learn",
+      "Hadoop", "Spark", "Flink", "Airflow",
+      "Elasticsearch", "Kibana", "Logstash", "Beats",
+      "Terraform", "Pulumi", "CloudFormation", "Ansible",
+      "CircleCI", "Travis CI", "GitHub Actions", "GitLab CI",
+      "Nginx", "Apache", "Tomcat", "IIS",
+      "Redis", "Memcached", "Cassandra", "DynamoDB",
+      "Snowflake", "BigQuery", "Redshift", "Databricks",
+    ],
+    softSkills: [
+      "Public Speaking", "Writing", "Research", "Self-Motivation",
+      "Initiative", "Ownership", "Accountability", "Resilience",
+      "Patience", "Empathy", "Persuasion", "Influence",
+      "Networking", "Relationship Building", "Team Building",
+    ],
+    certifications: [
+      "Google Analytics", "HubSpot Inbound", "Salesforce Administrator",
+      "AWS Solutions Architect", "AWS Developer", "Azure Administrator",
+      "Google Cloud Professional", "Kubernetes Administrator",
+      "Certified Ethical Hacker", "Offensive Security",
+    ],
+    languages: [
+      "Czech", "Hungarian", "Romanian", "Bulgarian", "Croatian",
+      "Serbian", "Ukrainian", "Vietnamese", "Thai", "Indonesian",
+      "Malay", "Hebrew", "Bengali", "Tamil", "Urdu",
+    ],
+    educationLevels: [
+      "Professional Certificate", "Diploma", "Bootcamp",
+    ],
+    experienceLevels: [
+      "Internship", "Trainee", "Apprentice",
+    ],
+    workTypes: [
+      "Internship", "Seasonal", "Volunteer",
+    ],
+  },
+};
 
-const TECHNICAL_SKILLS = [
-  "python", "sql", "javascript", "typescript", "react", "next.js", "node.js", "java",
-  "c++", "c#", "go", "rust", "scala", "kotlin", "swift", "php", "ruby", "perl",
-  "aws", "azure", "gcp", "docker", "kubernetes", "terraform", "jenkins", "git",
-  "ci/cd", "linux", "unix", "bash", "powershell", "mongodb", "postgresql", "mysql",
-  "redis", "elasticsearch", "snowflake", "tableau", "power bi", "looker", "excel",
-  "salesforce", "hubspot", "sap", "oracle", "workday", "jira", "confluence", "servicenow",
-  "kyc", "aml", "cdp", "sar", "fintrac", "ofac", "swift", "sepa", "pci dss",
-  "gdpr", "soc 2", "iso 27001", "nist", "hipaa", "sox", "itil", "cobit",
-  "risk assessment", "due diligence", "customer onboarding", "transaction monitoring",
-  "fraud detection", "compliance monitoring", "regulatory reporting", "internal audit",
-  "data analysis", "data modeling", "machine learning", "ai", "nlp", "statistics",
-  "r", "matlab", "sas", "spss", "stata", "pandas", "numpy", "scikit-learn",
-  "tensorflow", "pytorch", "keras", "spark", "hadoop", "kafka", "airflow",
-];
-
-const PROFESSIONAL_SKILLS = [
-  "communication", "leadership", "problem solving", "critical thinking", "analytical",
-  "detail oriented", "teamwork", "collaboration", "time management", "project management",
-  "stakeholder management", "presentation", "negotiation", "decision making", "adaptability",
-  "customer service", "relationship management", "mentoring", "coaching", "conflict resolution",
-  "multitasking", "prioritization", "organization", "interpersonal", "cross-functional",
-];
-
-const CERTIFICATIONS = [
-  "cams", "cisa", "cissp", "ceh", "cism", "crisc", "cgeit", "pmp", "prince2",
-  "aws certified", "azure certified", "gcp certified", "scrum master", "safe",
-  "cisa", "acca", "cima", "cpa", "cfa", "frm", "acca", "cpa", "cma",
-  "six sigma", "itil foundation", "lean", "cobit", "iso 27001 lead auditor",
-  "ccnp", "ccna", "comptia", "oscp", "gwapt", "gpen", "gsec", "gcih",
-];
-
-const DEGREES = [
-  "bachelor", "b.s.", "b.a.", "bsc", "ba", "master", "m.s.", "m.a.", "msc", "ma",
-  "mba", "phd", "doctorate", "associate degree", "diploma", "certification",
-];
-
-const LANGUAGES = [
-  "english", "portuguese", "spanish", "french", "german", "italian", "dutch",
-  "russian", "chinese", "mandarin", "japanese", "arabic", "hindi", "polish",
-  "turkish", "swedish", "danish", "norwegian", "finnish", "greek", "czech",
-];
-
-const WORK_AUTH = [
-  "work authorization", "work permit", "visa sponsorship", "sponsorship",
-  "eu citizenship", "eu passport", "right to work", "legally authorized",
-];
+// Words/phrases that should never be treated as keywords or gaps
+const STOPWORDS = new Set([
+  "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by",
+  "from", "as", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had",
+  "do", "does", "did", "will", "would", "could", "should", "may", "might", "must", "can",
+  "this", "that", "these", "those", "we", "you", "they", "it", "he", "she", "i", "me",
+  "us", "them", "his", "her", "its", "our", "your", "their", "what", "which", "who", "when",
+  "where", "why", "how", "all", "any", "both", "each", "few", "more", "most", "other", "some",
+  "such", "no", "nor", "not", "only", "own", "same", "so", "than", "too", "very", "just",
+  "now", "then", "here", "there", "up", "down", "out", "off", "over", "under", "again",
+  "further", "once", "about", "before", "after", "above", "below", "between", "into",
+  "through", "during", "before", "after", "join", "looking", "seeking", "apply", "application",
+  "role", "position", "job", "work", "company", "team", "opportunity", "candidate", "applicant",
+]);
 
 function normalizeText(text: string): string {
   return (text || "")
@@ -158,21 +256,6 @@ function normalizeText(text: string): string {
     .replace(/[^a-zA-Z0-9\s\/#&+.\-]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-function tokenize(text: string): string[] {
-  return normalizeText(text)
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((t) => t.length > 1);
-}
-
-function ngrams(tokens: string[], n: number): string[] {
-  const result: string[] = [];
-  for (let i = 0; i <= tokens.length - n; i++) {
-    result.push(tokens.slice(i, i + n).join(" "));
-  }
-  return result;
 }
 
 function containsIgnoreCase(text: string, term: string): boolean {
@@ -207,93 +290,176 @@ function extractYearsExperience(text: string): number {
   return max;
 }
 
-function extractEducationRequirements(text: string): string[] {
-  const found: string[] = [];
+function detectExperienceLevel(text: string): string | null {
   const lower = text.toLowerCase();
-  for (const deg of DEGREES) {
-    if (lower.includes(deg.toLowerCase())) {
-      found.push(deg);
-    }
+  const levels = [
+    { term: "entry level", label: "Entry Level" },
+    { term: "junior", label: "Junior" },
+    { term: "associate", label: "Associate" },
+    { term: "mid-level", label: "Mid-Level" },
+    { term: "mid level", label: "Mid-Level" },
+    { term: "senior", label: "Senior" },
+    { term: "lead", label: "Lead" },
+    { term: "principal", label: "Principal" },
+    { term: "staff", label: "Staff" },
+    { term: "manager", label: "Manager" },
+    { term: "director", label: "Director" },
+    { term: "vp", label: "VP" },
+    { term: "head of", label: "Head of" },
+    { term: "chief", label: "Chief" },
+    { term: "c-level", label: "C-Level" },
+    { term: "executive", label: "Executive" },
+  ];
+  for (const level of levels) {
+    if (lower.includes(level.term)) return level.label;
   }
-  // Deduplicate common aliases
-  const unique = new Set(found);
-  const result: string[] = [];
-  if (unique.has("bachelor") || unique.has("b.s.") || unique.has("b.a.") || unique.has("bsc") || unique.has("ba")) {
-    result.push("Bachelor's degree");
+  return null;
+}
+
+function detectEducationLevel(text: string): string | null {
+  const lower = text.toLowerCase();
+  const levels = [
+    { term: "phd", label: "PhD" },
+    { term: "doctorate", label: "Doctorate" },
+    { term: "master's degree", label: "Master's Degree" },
+    { term: "master degree", label: "Master's Degree" },
+    { term: "mba", label: "MBA" },
+    { term: "bachelor's degree", label: "Bachelor's Degree" },
+    { term: "bachelor degree", label: "Bachelor's Degree" },
+    { term: "associate's degree", label: "Associate's Degree" },
+    { term: "associate degree", label: "Associate's Degree" },
+    { term: "high school diploma", label: "High School Diploma" },
+    { term: "ged", label: "GED" },
+  ];
+  for (const level of levels) {
+    if (lower.includes(level.term)) return level.label;
   }
-  if (unique.has("master") || unique.has("m.s.") || unique.has("m.a.") || unique.has("msc") || unique.has("ma") || unique.has("mba")) {
-    result.push("Master's degree");
+  return null;
+}
+
+function detectWorkType(text: string): string | null {
+  const lower = text.toLowerCase();
+  const types = [
+    { term: "remote", label: "Remote" },
+    { term: "work from home", label: "Work From Home" },
+    { term: "wfh", label: "WFH" },
+    { term: "hybrid", label: "Hybrid" },
+    { term: "on-site", label: "On-Site" },
+    { term: "onsite", label: "On-Site" },
+    { term: "full-time", label: "Full-Time" },
+    { term: "full time", label: "Full-Time" },
+    { term: "part-time", label: "Part-Time" },
+    { term: "part time", label: "Part-Time" },
+    { term: "contract", label: "Contract" },
+    { term: "freelance", label: "Freelance" },
+    { term: "temporary", label: "Temporary" },
+    { term: "permanent", label: "Permanent" },
+  ];
+  for (const type of types) {
+    if (lower.includes(type.term)) return type.label;
   }
-  if (unique.has("phd") || unique.has("doctorate")) {
-    result.push("PhD");
+  return null;
+}
+
+function identifyRequirementsSections(text: string): { required: string; preferred: string } {
+  const lower = text.toLowerCase();
+  const requiredMarkers = ["requirements:", "required:", "must have:", "must-have:", "qualifications:", "what you need:", "we are looking for:"];
+  const preferredMarkers = ["preferred:", "nice to have:", "nice-to-have:", "desired:", "bonus:", "plus:", "beneficial:"];
+
+  let requiredStart = -1;
+  let preferredStart = -1;
+
+  for (const marker of requiredMarkers) {
+    const idx = lower.indexOf(marker);
+    if (idx !== -1 && (requiredStart === -1 || idx < requiredStart)) requiredStart = idx;
   }
-  return result.length > 0 ? result : [];
+
+  for (const marker of preferredMarkers) {
+    const idx = lower.indexOf(marker);
+    if (idx !== -1 && (preferredStart === -1 || idx < preferredStart)) preferredStart = idx;
+  }
+
+  if (requiredStart === -1 && preferredStart === -1) {
+    return { required: text, preferred: "" };
+  }
+
+  // If preferred comes before required, swap interpretation
+  if (preferredStart !== -1 && requiredStart !== -1 && preferredStart < requiredStart) {
+    return {
+      required: text.slice(requiredStart),
+      preferred: text.slice(preferredStart, requiredStart),
+    };
+  }
+
+  if (requiredStart !== -1 && preferredStart !== -1) {
+    return {
+      required: text.slice(requiredStart, preferredStart),
+      preferred: text.slice(preferredStart),
+    };
+  }
+
+  if (requiredStart !== -1) return { required: text.slice(requiredStart), preferred: "" };
+  return { required: text, preferred: text.slice(preferredStart) };
 }
 
 export function extractKeywords(job: JobData): ExtractedKeywords {
   const description = job.description || "";
   const title = job.title || "";
   const fullText = `${title} ${description}`;
-  const normalized = normalizeText(fullText).toLowerCase();
+  const normalized = normalizeText(fullText);
+  const lower = normalized.toLowerCase();
 
-  const hardSkills = findMatches(fullText, TECHNICAL_SKILLS);
-  const softSkills = findMatches(fullText, PROFESSIONAL_SKILLS);
-  const actionVerbs = ACTION_VERBS.filter((v) => normalized.includes(v));
-  const certifications = findMatches(fullText, CERTIFICATIONS);
-  const languages = findMatches(fullText, LANGUAGES);
-  const workAuthorization = findMatches(fullText, WORK_AUTH);
-  const educationRequirements = extractEducationRequirements(fullText);
-  const requiredYears = extractYearsExperience(fullText);
+  const { required: requiredSection, preferred: preferredSection } = identifyRequirementsSections(fullText);
 
-  // Key phrases: n-grams from title + recurring bigrams/trigrams in description
-  const tokens = tokenize(fullText);
-  const phraseSet = new Set<string>();
+  const required: KeywordCategory = {
+    technicalSkills: findMatches(requiredSection || fullText, MASTER_KEYWORDS.required.technicalSkills),
+    softSkills: findMatches(requiredSection || fullText, MASTER_KEYWORDS.required.softSkills),
+    certifications: findMatches(requiredSection || fullText, MASTER_KEYWORDS.required.certifications),
+    languages: findMatches(requiredSection || fullText, MASTER_KEYWORDS.required.languages),
+    educationLevels: detectEducationLevel(requiredSection || fullText) ? [detectEducationLevel(requiredSection || fullText)!] : [],
+    experienceLevels: detectExperienceLevel(requiredSection || fullText) ? [detectExperienceLevel(requiredSection || fullText)!] : [],
+    workTypes: detectWorkType(fullText) ? [detectWorkType(fullText)!] : [],
+  };
+
+  const preferred: KeywordCategory = {
+    technicalSkills: findMatches(preferredSection || fullText, MASTER_KEYWORDS.preferred.technicalSkills),
+    softSkills: findMatches(preferredSection || fullText, MASTER_KEYWORDS.preferred.softSkills),
+    certifications: findMatches(preferredSection || fullText, MASTER_KEYWORDS.preferred.certifications),
+    languages: findMatches(preferredSection || fullText, MASTER_KEYWORDS.preferred.languages),
+    educationLevels: detectEducationLevel(preferredSection) ? [detectEducationLevel(preferredSection)!] : [],
+    experienceLevels: detectExperienceLevel(preferredSection) ? [detectExperienceLevel(preferredSection)!] : [],
+    workTypes: detectWorkType(preferredSection) ? [detectWorkType(preferredSection)!] : [],
+  };
+
+  // Remove preferred items that are already in required
+  for (const key of Object.keys(preferred) as Array<keyof KeywordCategory>) {
+    preferred[key] = preferred[key].filter((p) => !required[key].some((r) => r.toLowerCase() === p.toLowerCase()));
+  }
+
+  const allKeywords = [
+    ...required.technicalSkills,
+    ...required.softSkills,
+    ...required.certifications,
+    ...required.languages,
+    ...preferred.technicalSkills,
+    ...preferred.softSkills,
+    ...preferred.certifications,
+    ...preferred.languages,
+  ];
+
+  // Build frequency map for matched terms
   const frequency: Record<string, number> = {};
-
-  // Add title words as key phrases
-  title
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter((w) => w.length > 2)
-    .forEach((w) => phraseSet.add(w));
-
-  // Extract meaningful n-grams (2-4 words)
-  for (const n of [2, 3, 4]) {
-    for (const gram of ngrams(tokens, n)) {
-      if (/[0-9]/.test(gram)) continue;
-      if (gram.split(" ").some((w) => w.length <= 2 && !["kyc", "aml", "ofac", "sar", "cdp", "sepa", "swift", "pci", "gdpr", "soc", "iso", "itil", "cobit", "eu", "us", "uk"].includes(w))) continue;
-      frequency[gram] = (frequency[gram] || 0) + 1;
-      if (frequency[gram] >= 2 || n <= 2) {
-        phraseSet.add(gram);
-      }
-    }
+  for (const kw of allKeywords) {
+    const pattern = new RegExp(kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+    const matches = normalized.match(pattern);
+    frequency[kw] = matches ? matches.length : 0;
   }
-
-  // Always include action-verb-led phrases
-  for (const verb of actionVerbs.slice(0, 8)) {
-    const pattern = new RegExp(`${verb}\\s+([a-z\\s]{3,40}?)(?=\\s+(?:and|or|for|to|in|on|with|as|,|;|\\.))`, "gi");
-    let m: RegExpExecArray | null;
-    while ((m = pattern.exec(normalized)) !== null) {
-      const phrase = `${verb} ${m[1].trim()}`;
-      if (phrase.length > 6) phraseSet.add(phrase);
-    }
-  }
-
-  const keyPhrases = Array.from(phraseSet)
-    .filter((p) => p.length > 2)
-    .sort((a, b) => (frequency[b] || 0) - (frequency[a] || 0))
-    .slice(0, 30);
 
   return {
-    hardSkills,
-    softSkills,
-    actionVerbs,
-    keyPhrases,
-    requiredYears,
-    educationRequirements,
-    certifications,
-    languages,
-    workAuthorization,
+    required,
+    preferred,
+    allKeywords,
+    requiredYears: extractYearsExperience(fullText),
     frequency,
   };
 }
@@ -361,7 +527,6 @@ function extractYearsFromProfile(profile: UserProfile): number {
   if (level.includes("senior") || level.includes("lead")) return 6;
   if (level.includes("executive")) return 10;
 
-  // Try to infer from experience durations
   const experiences = parseProfileExperience(profile);
   let total = 0;
   for (const exp of experiences) {
@@ -375,6 +540,26 @@ function extractYearsFromProfile(profile: UserProfile): number {
   return total > 0 ? total : 3;
 }
 
+function profileExperienceLevel(profile: UserProfile): string | null {
+  const level = String(profile.experience_level || "").toLowerCase();
+  if (level.includes("entry") || level.includes("junior")) return "Entry Level";
+  if (level.includes("mid")) return "Mid-Level";
+  if (level.includes("senior") || level.includes("lead")) return "Senior";
+  if (level.includes("executive") || level.includes("director") || level.includes("manager")) return "Manager";
+  return null;
+}
+
+function profileEducationLevel(profile: UserProfile): string | null {
+  const education = parseProfileEducation(profile);
+  if (education.length === 0) return null;
+  const degree = (education[0].degree || "").toLowerCase();
+  if (degree.includes("phd") || degree.includes("doctorate")) return "PhD";
+  if (degree.includes("master") || degree.includes("mba")) return "Master's Degree";
+  if (degree.includes("bachelor")) return "Bachelor's Degree";
+  if (degree.includes("associate")) return "Associate's Degree";
+  return "Bachelor's Degree";
+}
+
 function keywordMatch(jobKw: string[], profileKw: string[]): string[] {
   const profileLower = profileKw.map((k) => k.toLowerCase());
   return jobKw.filter((kw) => {
@@ -383,59 +568,87 @@ function keywordMatch(jobKw: string[], profileKw: string[]): string[] {
   });
 }
 
+function calculateCategoryScore(matched: number, total: number): number {
+  if (total === 0) return 100;
+  return Math.round((matched / total) * 100);
+}
+
 export function runGapAnalysis(job: JobData, profile: UserProfile): GapAnalysis {
   const keywords = extractKeywords(job);
   const profileSkills = parseProfileSkills(profile);
   const profileLangs = parseProfileLanguages(profile);
   const profileCerts = parseCertifications(profile);
-  const profileEdu = parseProfileEducation(profile);
+  const profileEdu = profileEducationLevel(profile);
+  const profileExp = profileExperienceLevel(profile);
   const profileYears = extractYearsFromProfile(profile);
 
-  const allJobSkills = [...keywords.hardSkills, ...keywords.softSkills];
-  const matchedSkills = keywordMatch(allJobSkills, profileSkills);
-  const missingRequiredSkills = keywords.hardSkills.filter(
+  const requiredSkills = keywords.required.technicalSkills;
+  const preferredSkills = keywords.preferred.technicalSkills;
+  const requiredSoft = keywords.required.softSkills;
+  const preferredSoft = keywords.preferred.softSkills;
+
+  const matchedSkills = [
+    ...keywordMatch(requiredSkills, profileSkills),
+    ...keywordMatch(requiredSoft, profileSkills),
+    ...keywordMatch(preferredSkills, profileSkills),
+    ...keywordMatch(preferredSoft, profileSkills),
+  ];
+
+  const missingRequiredSkills = requiredSkills.filter(
     (k) => !profileSkills.some((s) => s.toLowerCase().includes(k.toLowerCase()) || k.toLowerCase().includes(s.toLowerCase()))
   );
-  const missingPreferredSkills = keywords.softSkills.filter(
+
+  const missingPreferredSkills = preferredSkills.filter(
     (k) => !profileSkills.some((s) => s.toLowerCase().includes(k.toLowerCase()) || k.toLowerCase().includes(s.toLowerCase()))
+  );
+
+  const missingCertifications = keywords.required.certifications.filter(
+    (k) => !profileCerts.some((s) => s.toLowerCase().includes(k.toLowerCase()) || k.toLowerCase().includes(s.toLowerCase()))
+  );
+
+  const missingLanguages = keywords.required.languages.filter(
+    (lang) => !profileLangs.some((pl) => pl.toLowerCase().includes(lang.toLowerCase()) || lang.toLowerCase().includes(pl.toLowerCase()))
   );
 
   const experienceMatch = profileYears >= Math.max(1, keywords.requiredYears - 1);
   const experienceYearsMatch = keywords.requiredYears === 0 || profileYears >= keywords.requiredYears;
 
+  const jobExpLevel = keywords.required.experienceLevels[0];
+  const experienceLevelMatch = !jobExpLevel || !profileExp || jobExpLevel.toLowerCase() === profileExp.toLowerCase();
+
   const educationMatch =
-    keywords.educationRequirements.length === 0 ||
-    profileEdu.length > 0 ||
-    keywords.educationRequirements.some(() => {
-      return profileEdu.some((e) => {
-        const degree = (e.degree || "").toLowerCase();
-        return degree.includes("bachelor") || degree.includes("master") || degree.includes("phd") || degree.includes("degree");
-      });
+    keywords.required.educationLevels.length === 0 ||
+    !profileEdu ||
+    keywords.required.educationLevels.some((req) => {
+      const reqLower = req.toLowerCase();
+      if (reqLower.includes("phd")) return profileEdu === "PhD";
+      if (reqLower.includes("master")) return ["PhD", "Master's Degree"].includes(profileEdu);
+      if (reqLower.includes("bachelor")) return ["PhD", "Master's Degree", "Bachelor's Degree"].includes(profileEdu);
+      return true;
     });
 
-  const languageMatch =
-    keywords.languages.length === 0 ||
-    keywords.languages.every((lang) =>
-      profileLangs.some((pl) => pl.toLowerCase().includes(lang.toLowerCase()) || lang.toLowerCase().includes(pl.toLowerCase()))
-    );
+  const languageMatch = missingLanguages.length === 0;
+  const certificationMatch = missingCertifications.length === 0;
 
-  const certificationMatch =
-    keywords.certifications.length === 0 ||
-    keywords.certifications.some((cert) =>
-      profileCerts.some((pc) => pc.toLowerCase().includes(cert.toLowerCase()) || cert.toLowerCase().includes(pc.toLowerCase()))
-    );
+  const jobWorkType = keywords.required.workTypes[0] || keywords.preferred.workTypes[0];
+  const profileWorkType = String(profile.work_type || "Remote");
+  const workTypeMatch =
+    !jobWorkType ||
+    jobWorkType.toLowerCase() === profileWorkType.toLowerCase() ||
+    (jobWorkType.toLowerCase().includes("remote") && profileWorkType.toLowerCase().includes("remote")) ||
+    (jobWorkType.toLowerCase().includes("hybrid") && profileWorkType.toLowerCase().includes("hybrid")) ||
+    (jobWorkType.toLowerCase().includes("on-site") && profileWorkType.toLowerCase().includes("onsite"));
 
-  // Suggested highlights
   const suggestedHighlights: string[] = [];
   if (matchedSkills.length > 0) {
     suggestedHighlights.push(`Emphasize your ${matchedSkills[0]} experience`);
   }
-  if (profileLangs.length > 0 && keywords.languages.length > 0) {
-    const shared = profileLangs.find((pl) => keywords.languages.some((kl) => kl.toLowerCase() === pl.toLowerCase()));
+  if (profileLangs.length > 0 && keywords.required.languages.length > 0) {
+    const shared = profileLangs.find((pl) => keywords.required.languages.some((kl) => kl.toLowerCase() === pl.toLowerCase()));
     if (shared) suggestedHighlights.push(`Mention your ${shared} language skills`);
   }
-  if (profileCerts.length > 0 && keywords.certifications.length > 0) {
-    const shared = profileCerts.find((pc) => keywords.certifications.some((kc) => pc.toLowerCase().includes(kc.toLowerCase())));
+  if (profileCerts.length > 0 && keywords.required.certifications.length > 0) {
+    const shared = profileCerts.find((pc) => keywords.required.certifications.some((kc) => pc.toLowerCase().includes(kc.toLowerCase())));
     if (shared) suggestedHighlights.push(`Highlight your ${shared} certification`);
   }
   if (missingRequiredSkills.length > 0) {
@@ -445,26 +658,30 @@ export function runGapAnalysis(job: JobData, profile: UserProfile): GapAnalysis 
     suggestedHighlights.push(`Highlight ${profileYears} years of relevant experience`);
   }
 
-  // Overall compatibility
-  const skillCoverage = allJobSkills.length > 0 ? matchedSkills.length / allJobSkills.length : 1;
+  // Compatibility for display (not the main score)
+  const skillCoverage = requiredSkills.length > 0 ? (requiredSkills.length - missingRequiredSkills.length) / requiredSkills.length : 1;
   const expPoints = experienceYearsMatch ? 1 : experienceMatch ? 0.7 : 0.3;
   const eduPoints = educationMatch ? 1 : 0.3;
   const langPoints = languageMatch ? 1 : 0.4;
   const certPoints = certificationMatch ? 1 : 0.5;
+  const wtPoints = workTypeMatch ? 1 : 0.5;
 
   const overallCompatibility = Math.round(
-    (skillCoverage * 0.45 + expPoints * 0.25 + eduPoints * 0.15 + langPoints * 0.1 + certPoints * 0.05) * 100
+    (skillCoverage * 0.35 + expPoints * 0.2 + eduPoints * 0.15 + langPoints * 0.1 + certPoints * 0.1 + wtPoints * 0.1) * 100
   );
 
   return {
     matchedSkills,
     missingRequiredSkills,
     missingPreferredSkills,
+    missingCertifications,
+    missingLanguages,
     experienceMatch,
     experienceYearsMatch,
     educationMatch,
     languageMatch,
     certificationMatch,
+    workTypeMatch,
     overallCompatibility,
     suggestedHighlights,
   };
@@ -473,21 +690,41 @@ export function runGapAnalysis(job: JobData, profile: UserProfile): GapAnalysis 
 function pickTopKeywords(job: JobData, profile: UserProfile, count: number = 4): string[] {
   const keywords = extractKeywords(job);
   const profileSkills = parseProfileSkills(profile).map((s) => s.toLowerCase());
-  const scored = [...keywords.hardSkills, ...keywords.actionVerbs.slice(0, 5)].map((kw) => {
+  const scored = [
+    ...keywords.required.technicalSkills,
+    ...keywords.required.softSkills,
+  ].map((kw) => {
     const lower = kw.toLowerCase();
     const inProfile = profileSkills.some((s) => s.includes(lower) || lower.includes(s));
-    const freq = keywords.frequency[lower] || 0;
+    const freq = keywords.frequency[kw] || 0;
     return { kw, score: (inProfile ? 10 : 0) + freq };
   });
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, count).map((s) => s.kw);
 }
 
+const ACTION_VERBS = [
+  "manage", "lead", "oversee", "coordinate", "analyze", "conduct", "develop", "implement",
+  "drive", "execute", "deliver", "build", "design", "create", "maintain", "monitor",
+  "review", "assess", "evaluate", "identify", "resolve", "improve", "increase", "reduce",
+  "ensure", "enforce", "advise", "support", "assist", "collaborate", "communicate", "report",
+  "investigate", "verify", "validate", "process", "handle", "perform", "prepare", "present",
+  "negotiate", "mentor", "train", "supervise", "direct", "control", "audit", "test",
+  "deploy", "integrate", "automate", "optimize", "streamline", "standardize", "document",
+  "comply", "mitigate", "detect", "prevent", "respond", "escalate", "file", "track",
+];
+
+function extractActionVerbs(text: string): string[] {
+  const lower = text.toLowerCase();
+  return ACTION_VERBS.filter((v) => lower.includes(v));
+}
+
 function rewriteExperienceBullets(job: JobData, profile: UserProfile): string[] {
   const experiences = parseProfileExperience(profile);
   const keywords = extractKeywords(job);
-  const topVerbs = keywords.actionVerbs.slice(0, 6).length > 0 ? keywords.actionVerbs.slice(0, 6) : ["managed", "implemented", "analyzed"];
-  const topSkills = keywords.hardSkills.slice(0, 4);
+  const actionVerbs = extractActionVerbs(`${job.title} ${job.description}`);
+  const topVerbs = actionVerbs.slice(0, 6).length > 0 ? actionVerbs.slice(0, 6) : ["managed", "implemented", "analyzed"];
+  const topSkills = keywords.required.technicalSkills.slice(0, 4);
 
   const bullets: string[] = [];
 
@@ -496,8 +733,6 @@ function rewriteExperienceBullets(job: JobData, profile: UserProfile): string[] 
     const verb = topVerbs[i % topVerbs.length];
     const skill = topSkills[i % topSkills.length] || "relevant processes";
     const desc = exp.description || "";
-
-    // Extract a quantifiable fragment from description if possible
     const quantMatch = desc.match(/(\d+[+%]?|\$[\d,.]+[kKmM]?|\d+\s*(?:team|people|clients|accounts|documents|transactions)?)/i);
     const quantifier = quantMatch ? quantMatch[1] : "100+";
 
@@ -505,8 +740,9 @@ function rewriteExperienceBullets(job: JobData, profile: UserProfile): string[] 
     bullets.push(bullet);
   }
 
-  // Always add a tailored bullet mirroring a key responsibility
-  const keyResp = keywords.keyPhrases.find((p) => p.includes("kyc") || p.includes("aml") || p.includes("compliance") || p.includes("risk") || p.includes("customer"));
+  const keyResp = keywords.required.technicalSkills.find((p) =>
+    /\b(kyc|aml|compliance|risk|customer|fraud|transaction|due diligence)\b/i.test(p)
+  );
   if (keyResp) {
     bullets.unshift(`${capitalize(topVerbs[0])} ${keyResp} processes end-to-end, ensuring adherence to internal policies and external regulatory requirements.`);
   }
@@ -539,14 +775,16 @@ export function generateCV(job: JobData, profile: UserProfile): string {
 
   const bullets = rewriteExperienceBullets(job, profile);
 
-  // Skills section: job-matched first, then transferable
   const jobMatchedSkills = profileSkills
-    .filter((s) => [...keywords.hardSkills, ...keywords.softSkills].some((k) => k.toLowerCase().includes(s.toLowerCase()) || s.toLowerCase().includes(k.toLowerCase())))
+    .filter((s) =>
+      [...keywords.required.technicalSkills, ...keywords.required.softSkills].some(
+        (k) => k.toLowerCase().includes(s.toLowerCase()) || s.toLowerCase().includes(k.toLowerCase())
+      )
+    )
     .slice(0, 12);
 
-  // Ensure 90%+ keyword coverage by injecting missing job keywords naturally
   const coverageSkills = [...jobMatchedSkills];
-  for (const kw of keywords.hardSkills) {
+  for (const kw of keywords.required.technicalSkills) {
     if (!coverageSkills.some((s) => s.toLowerCase().includes(kw.toLowerCase()))) {
       coverageSkills.push(`${kw} (proficient)`);
     }
@@ -558,7 +796,7 @@ export function generateCV(job: JobData, profile: UserProfile): string {
   lines.push("");
   lines.push("PROFESSIONAL SUMMARY");
   lines.push(
-    `${title} with ${years} years of experience in ${(profile.industries || "the industry")}. Proven expertise in ${topSkills.join(", ") || "key competencies"} as highlighted in your posting. ${gap.suggestedHighlights[0] || "Dedicated to delivering high-quality results"}. Adept at ${keywords.keyPhrases[0] || "core responsibilities"}. Seeking to leverage ${topSkills[0] || "my strengths"} at ${company}.`
+    `${title} with ${years} years of experience in ${(profile.industries || "the industry")}. Proven expertise in ${topSkills.join(", ") || "key competencies"} as highlighted in your posting. ${gap.suggestedHighlights[0] || "Dedicated to delivering high-quality results"}. Adept at ${keywords.required.technicalSkills[0] || "core responsibilities"}. Seeking to leverage ${topSkills[0] || "my strengths"} at ${company}.`
   );
   lines.push("");
   lines.push("EXPERIENCE");
@@ -578,9 +816,9 @@ export function generateCV(job: JobData, profile: UserProfile): string {
   lines.push(coverageSkills.join(" • "));
   lines.push("");
 
-  if (profileCerts.length > 0 || keywords.certifications.length > 0) {
+  if (profileCerts.length > 0 || keywords.required.certifications.length > 0) {
     lines.push("CERTIFICATIONS");
-    lines.push((profileCerts.length > 0 ? profileCerts : keywords.certifications).join(" • "));
+    lines.push((profileCerts.length > 0 ? profileCerts : keywords.required.certifications).join(" • "));
     lines.push("");
   }
 
@@ -612,7 +850,7 @@ export function generateCoverLetter(job: JobData, profile: UserProfile): string 
   const recentExp = experiences[0] || { company: "my previous company", role: "my role" };
   const topSkills = pickTopKeywords(job, profile, 3);
 
-  const topHard = keywords.hardSkills.slice(0, 3);
+  const topHard = keywords.required.technicalSkills.slice(0, 3);
   const req1 = topHard[0] || topSkills[0] || "core responsibilities";
   const req2 = topHard[1] || topSkills[1] || "team collaboration";
   const skill3 = topHard[2] || topSkills[2] || "industry best practices";
@@ -622,22 +860,18 @@ export function generateCoverLetter(job: JobData, profile: UserProfile): string 
 
   const paragraphs: string[] = [];
 
-  // Paragraph 1 - Hook
   paragraphs.push(
     `I am writing to express my strong interest in the ${title} position at ${company}. As a ${recentExp.role || "professional"} with ${years} years in ${profile.industries || "the field"}, I was excited to see an opportunity aligning with my expertise in ${req1}, ${req2}, and ${skill3}.`
   );
 
-  // Paragraph 2 - Match
   paragraphs.push(
-    `Your posting highlights ${req1} and ${req2}. At ${recentExp.company || "my previous company"}, I ${achievement} through hands-on work with ${req1}, resulting in streamlined processes and stronger compliance outcomes. I also have direct experience with ${skill3}, which I used to support ${keywords.keyPhrases[1] || "key deliverables"}. My background in ${profile.industries || "the industry"} prepared me to step into ${keywords.keyPhrases[0] || "the responsibilities outlined"} from day one.`
+    `Your posting highlights ${req1} and ${req2}. At ${recentExp.company || "my previous company"}, I ${achievement} through hands-on work with ${req1}, resulting in streamlined processes and stronger compliance outcomes. I also have direct experience with ${skill3}, which I used to support ${keywords.required.technicalSkills[1] || "key deliverables"}. My background in ${profile.industries || "the industry"} prepared me to step into ${keywords.required.technicalSkills[0] || "the responsibilities outlined"} from day one.`
   );
 
-  // Paragraph 3 - Value add
   paragraphs.push(
-    `What draws me to ${company} is the opportunity to contribute to a team focused on ${keywords.keyPhrases[2] || "excellence and growth"}. I am particularly interested in ${company}'s mission because it connects directly with my commitment to ${gap.matchedSkills[0] || "high-impact work"}. My ${gap.matchedSkills[1] || "technical background"} combined with ${years} years of practical experience positions me to advance ${company}'s ${keywords.keyPhrases[3] || "strategic objectives"}.`
+    `What draws me to ${company} is the opportunity to contribute to a team focused on ${keywords.required.technicalSkills[2] || "excellence and growth"}. I am particularly interested in ${company}'s mission because it connects directly with my commitment to ${gap.matchedSkills[0] || "high-impact work"}. My ${gap.matchedSkills[1] || "technical background"} combined with ${years} years of practical experience positions me to advance ${company}'s ${keywords.required.softSkills[0] || "strategic objectives"}.`
   );
 
-  // Paragraph 4 - Close
   paragraphs.push(
     `I would welcome the opportunity to discuss how my experience with ${topSkills[0] || req1} and ${topSkills[1] || req2} can support ${company}'s continued success. Thank you for your consideration.\n\nSincerely,\n${fullName}`
   );
@@ -645,69 +879,103 @@ export function generateCoverLetter(job: JobData, profile: UserProfile): string 
   return paragraphs.join("\n\n");
 }
 
-export function calculateATSScore(job: JobData, profile: UserProfile): { score: number; breakdown: ATSResult["scoreBreakdown"]; matched: string[]; missing: string[] } {
+export function calculateATSScore(
+  job: JobData,
+  profile: UserProfile,
+  discoverScore?: number
+): { score: number; breakdown: ATSResult["scoreBreakdown"]; matched: string[]; missing: string[] } {
   const keywords = extractKeywords(job);
   const gap = runGapAnalysis(job, profile);
   const profileSkills = parseProfileSkills(profile).map((s) => s.toLowerCase());
+  const profileLangs = parseProfileLanguages(profile).map((s) => s.toLowerCase());
+  const profileCerts = parseCertifications(profile).map((s) => s.toLowerCase());
 
-  // Keyword coverage score (40 pts)
-  const allJobKw = [...keywords.hardSkills, ...keywords.softSkills, ...keywords.keyPhrases.slice(0, 10)];
-  const matched = allJobKw.filter((kw) =>
+  const requiredAll = [
+    ...keywords.required.technicalSkills,
+    ...keywords.required.softSkills,
+  ];
+
+  const matched = requiredAll.filter((kw) =>
     profileSkills.some((s) => s.includes(kw.toLowerCase()) || kw.toLowerCase().includes(s)) ||
     containsIgnoreCase(profile.summary || "", kw)
   );
-  const missing = allJobKw.filter((kw) => !matched.includes(kw));
-  const keywordCoverage = allJobKw.length > 0 ? matched.length / allJobKw.length : 1;
-  const keywordScore = Math.round(keywordCoverage * 40);
 
-  // Experience score (25 pts)
+  const missing = requiredAll.filter((kw) => !matched.includes(kw));
+
+  // Detailed breakdown for display
+  const technicalScore = calculateCategoryScore(
+    gap.matchedSkills.filter((m) => keywords.required.technicalSkills.includes(m)).length,
+    keywords.required.technicalSkills.length
+  );
+
+  const softScore = calculateCategoryScore(
+    gap.matchedSkills.filter((m) => keywords.required.softSkills.includes(m)).length,
+    keywords.required.softSkills.length
+  );
+
   const years = extractYearsFromProfile(profile);
   const reqYears = keywords.requiredYears;
-  let expScore = 20;
+  let expScore = 70;
   if (reqYears > 0) {
-    if (years >= reqYears) expScore = 25;
-    else if (years >= reqYears - 1) expScore = 20;
-    else if (years >= reqYears - 2) expScore = 12;
-    else expScore = 5;
+    if (years >= reqYears) expScore = 100;
+    else if (years >= reqYears - 1) expScore = 80;
+    else if (years >= reqYears - 2) expScore = 50;
+    else expScore = 20;
   } else {
-    expScore = Math.min(25, 15 + years * 1.5);
+    expScore = Math.min(100, 60 + years * 5);
   }
 
-  // Skills score (20 pts)
-  const hardCoverage = keywords.hardSkills.length > 0 ? gap.matchedSkills.filter((m) => keywords.hardSkills.includes(m)).length / keywords.hardSkills.length : 1;
-  const skillsScore = Math.round(Math.min(20, hardCoverage * 20 + 2));
+  const langScore = calculateCategoryScore(
+    keywords.required.languages.length - gap.missingLanguages.length,
+    keywords.required.languages.length
+  );
 
-  // Education/cert score (10 pts)
-  let eduScore = 8;
-  if (keywords.educationRequirements.length > 0 && !gap.educationMatch) eduScore = 3;
-  if (keywords.certifications.length > 0 && !gap.certificationMatch) eduScore -= 2;
-  if (gap.certificationMatch) eduScore = Math.min(10, eduScore + 2);
+  const certScore = calculateCategoryScore(
+    keywords.required.certifications.length - gap.missingCertifications.length,
+    keywords.required.certifications.length
+  );
 
-  // Format score (5 pts) - always high for our clean output
-  const formatScore = 5;
+  const eduScore = gap.educationMatch ? 100 : 40;
+  const workTypeScore = gap.workTypeMatch ? 100 : 50;
 
-  const total = Math.min(100, keywordScore + expScore + skillsScore + eduScore + formatScore);
+  // Main score: prioritize Discover score if provided, otherwise weighted calculation
+  let finalScore: number;
+  if (discoverScore !== undefined && discoverScore > 0) {
+    finalScore = Math.round(discoverScore);
+  } else {
+    finalScore = Math.round(
+      technicalScore * 0.30 +
+      softScore * 0.15 +
+      expScore * 0.20 +
+      langScore * 0.10 +
+      certScore * 0.10 +
+      eduScore * 0.10 +
+      workTypeScore * 0.05
+    );
+  }
 
   return {
-    score: total,
+    score: Math.min(100, finalScore),
     breakdown: {
-      keywords: keywordScore,
+      technicalSkills: technicalScore,
+      softSkills: softScore,
       experience: expScore,
-      skills: skillsScore,
+      languages: langScore,
+      certifications: certScore,
       education: eduScore,
-      format: formatScore,
+      workType: workTypeScore,
     },
     matched,
     missing,
   };
 }
 
-export function runATSEngine(job: JobData, profile: UserProfile): ATSResult {
+export function runATSEngine(job: JobData, profile: UserProfile, discoverScore?: number): ATSResult {
   const keywords = extractKeywords(job);
   const gap = runGapAnalysis(job, profile);
   const cv = generateCV(job, profile);
   const coverLetter = generateCoverLetter(job, profile);
-  const scoreResult = calculateATSScore(job, profile);
+  const scoreResult = calculateATSScore(job, profile, discoverScore);
 
   return {
     keywords,

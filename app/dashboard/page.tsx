@@ -175,8 +175,16 @@ export default function DashboardPage() {
     nextTargetLabel = `Find ${role} roles`;
   }
 
-  async function saveApplicationToServer(job: DiscoverJob, result: ReturnType<typeof runATSEngine>, isAutoApplied = false) {
+  async function saveApplicationToServer(
+    job: DiscoverJob,
+    result: ReturnType<typeof runATSEngine>,
+    isAutoApplied = false,
+    editedCV?: string,
+    editedCoverLetter?: string
+  ) {
     const cleanId = cleanJobId(job.id);
+    const finalCV = editedCV || result.cv;
+    const finalCoverLetter = editedCoverLetter || result.coverLetter;
     const appRes = await fetch("/api/applications", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -185,8 +193,8 @@ export default function DashboardPage() {
         company: job.company,
         role: job.title,
         job_url: job.url,
-        resume_text: result.cv,
-        cover_letter: result.coverLetter,
+        resume_text: finalCV,
+        cover_letter: finalCoverLetter,
         ats_score: result.atsScore,
         method: isAutoApplied ? "auto" : "one_click",
         status: "sent",
@@ -207,8 +215,8 @@ export default function DashboardPage() {
       companyName: job.company,
       companyId: cleanId,
       location: job.location,
-      coverLetter: result.coverLetter,
-      cvContent: result.cv,
+      coverLetter: finalCoverLetter,
+      cvContent: finalCV,
       atsScore: result.atsScore,
       status: "applied",
       appliedAt: new Date().toISOString(),
@@ -266,7 +274,7 @@ export default function DashboardPage() {
           url: job.url,
           match_score: job.match_score,
         };
-        const result = runATSEngine(jobData, profile as UserProfile);
+        const result = runATSEngine(jobData, profile as UserProfile, job.match_score);
         await saveApplicationToServer(job, result, true);
         incrementAutoApply(job.title, job.company);
         applied++;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, FileText, PenTool, Rocket, CheckCircle } from "lucide-react";
+import { X, FileText, PenTool, Rocket, CheckCircle, Copy, RotateCcw } from "lucide-react";
 import { ATSResult } from "@/lib/ats-engine";
 import { downloadText, downloadPDF, downloadDOCX } from "@/lib/document-export";
 
@@ -11,7 +11,7 @@ interface ATSReviewModalProps {
   jobTitle: string;
   companyName: string;
   result: ATSResult;
-  onSubmit: () => void;
+  onSubmit: (editedCV: string, editedCoverLetter: string) => void;
   submitting?: boolean;
 }
 
@@ -27,6 +27,10 @@ function progressColor(score: number): string {
   return "bg-red-500";
 }
 
+function wordCount(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
 export function ATSReviewModal({
   isOpen,
   onClose,
@@ -37,6 +41,8 @@ export function ATSReviewModal({
   submitting = false,
 }: ATSReviewModalProps) {
   const [activeTab, setActiveTab] = useState<"score" | "cv" | "cover">("score");
+  const [editedCV, setEditedCV] = useState(result.cv);
+  const [editedCoverLetter, setEditedCoverLetter] = useState(result.coverLetter);
 
   if (!isOpen) return null;
 
@@ -45,6 +51,24 @@ export function ATSReviewModal({
   const totalJobKw = Math.max(1, result.matchedKeywords.length + result.missingKeywords.length);
   const matchedCount = result.matchedKeywords.length;
   const matchPercent = Math.round((matchedCount / totalJobKw) * 100);
+
+  const realGaps = [
+    ...result.gapAnalysis.missingRequiredSkills.slice(0, 4),
+    ...result.gapAnalysis.missingCertifications.slice(0, 3),
+    ...result.gapAnalysis.missingLanguages.slice(0, 3),
+  ];
+
+  function handleCopy(text: string) {
+    navigator.clipboard.writeText(text);
+  }
+
+  function handleResetCV() {
+    setEditedCV(result.cv);
+  }
+
+  function handleResetCoverLetter() {
+    setEditedCoverLetter(result.coverLetter);
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
@@ -107,20 +131,28 @@ export function ATSReviewModal({
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-zinc-800/50 rounded-xl p-4">
-                  <p className="text-xs text-zinc-500 uppercase">Keywords</p>
-                  <p className="text-lg font-bold text-white">{result.scoreBreakdown.keywords}/40</p>
+                  <p className="text-xs text-zinc-500 uppercase">Technical Skills</p>
+                  <p className="text-lg font-bold text-white">{result.scoreBreakdown.technicalSkills}%</p>
+                </div>
+                <div className="bg-zinc-800/50 rounded-xl p-4">
+                  <p className="text-xs text-zinc-500 uppercase">Soft Skills</p>
+                  <p className="text-lg font-bold text-white">{result.scoreBreakdown.softSkills}%</p>
                 </div>
                 <div className="bg-zinc-800/50 rounded-xl p-4">
                   <p className="text-xs text-zinc-500 uppercase">Experience</p>
-                  <p className="text-lg font-bold text-white">{result.scoreBreakdown.experience}/25</p>
+                  <p className="text-lg font-bold text-white">{result.scoreBreakdown.experience}%</p>
                 </div>
                 <div className="bg-zinc-800/50 rounded-xl p-4">
-                  <p className="text-xs text-zinc-500 uppercase">Skills</p>
-                  <p className="text-lg font-bold text-white">{result.scoreBreakdown.skills}/20</p>
+                  <p className="text-xs text-zinc-500 uppercase">Education</p>
+                  <p className="text-lg font-bold text-white">{result.scoreBreakdown.education}%</p>
                 </div>
                 <div className="bg-zinc-800/50 rounded-xl p-4">
-                  <p className="text-xs text-zinc-500 uppercase">Education & Format</p>
-                  <p className="text-lg font-bold text-white">{result.scoreBreakdown.education + result.scoreBreakdown.format}/15</p>
+                  <p className="text-xs text-zinc-500 uppercase">Languages</p>
+                  <p className="text-lg font-bold text-white">{result.scoreBreakdown.languages}%</p>
+                </div>
+                <div className="bg-zinc-800/50 rounded-xl p-4">
+                  <p className="text-xs text-zinc-500 uppercase">Certifications</p>
+                  <p className="text-lg font-bold text-white">{result.scoreBreakdown.certifications}%</p>
                 </div>
               </div>
 
@@ -133,11 +165,11 @@ export function ATSReviewModal({
                 </p>
               </div>
 
-              {missing.length > 0 && (
+              {realGaps.length > 0 && (
                 <div className="bg-amber-900/20 border border-amber-900/40 rounded-xl p-4">
                   <p className="text-sm font-medium text-amber-400 mb-2">⚠️ Gaps to Address</p>
                   <ul className="text-xs text-amber-200/80 space-y-1">
-                    {missing.map((m, i) => (
+                    {realGaps.map((m, i) => (
                       <li key={i}>• {m} — add if you have it</li>
                     ))}
                   </ul>
@@ -157,63 +189,99 @@ export function ATSReviewModal({
 
           {activeTab === "cv" && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-zinc-400">Preview your ATS-optimized CV</p>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <p className="text-sm text-zinc-400">Edit your ATS-optimized CV</p>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => downloadText(result.cv, `${companyName}_${jobTitle}_CV.txt`)}
+                    onClick={handleResetCV}
+                    className="flex items-center gap-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded transition"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    Reset
+                  </button>
+                  <button
+                    onClick={() => handleCopy(editedCV)}
+                    className="flex items-center gap-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded transition"
+                  >
+                    <Copy className="w-3 h-3" />
+                    Copy
+                  </button>
+                  <button
+                    onClick={() => downloadText(editedCV, `${companyName}_${jobTitle}_CV.txt`)}
                     className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded transition"
                   >
                     .txt
                   </button>
                   <button
-                    onClick={() => downloadPDF(result.cv, `${companyName}_${jobTitle}_CV.pdf`)}
+                    onClick={() => downloadPDF(editedCV, `${companyName}_${jobTitle}_CV.pdf`)}
                     className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded transition"
                   >
                     .pdf
                   </button>
                   <button
-                    onClick={() => downloadDOCX(result.cv, `${companyName}_${jobTitle}_CV.docx`)}
+                    onClick={() => downloadDOCX(editedCV, `${companyName}_${jobTitle}_CV.docx`)}
                     className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded transition"
                   >
                     .docx
                   </button>
                 </div>
               </div>
-              <pre className="whitespace-pre-wrap text-sm text-zinc-300 bg-zinc-950 border border-zinc-800 rounded-xl p-4 font-mono leading-relaxed">
-                {result.cv}
-              </pre>
+              <textarea
+                value={editedCV}
+                onChange={(e) => setEditedCV(e.target.value)}
+                className="w-full h-96 bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 font-mono leading-relaxed focus:outline-none focus:border-zinc-600 resize-none"
+                spellCheck={false}
+              />
+              <p className="text-xs text-zinc-500 text-right">Words: {wordCount(editedCV)}</p>
             </div>
           )}
 
           {activeTab === "cover" && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-zinc-400">Preview your cover letter</p>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <p className="text-sm text-zinc-400">Edit your cover letter</p>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => downloadText(result.coverLetter, `${companyName}_${jobTitle}_Cover_Letter.txt`)}
+                    onClick={handleResetCoverLetter}
+                    className="flex items-center gap-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded transition"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    Reset
+                  </button>
+                  <button
+                    onClick={() => handleCopy(editedCoverLetter)}
+                    className="flex items-center gap-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded transition"
+                  >
+                    <Copy className="w-3 h-3" />
+                    Copy
+                  </button>
+                  <button
+                    onClick={() => downloadText(editedCoverLetter, `${companyName}_${jobTitle}_Cover_Letter.txt`)}
                     className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded transition"
                   >
                     .txt
                   </button>
                   <button
-                    onClick={() => downloadPDF(result.coverLetter, `${companyName}_${jobTitle}_Cover_Letter.pdf`)}
+                    onClick={() => downloadPDF(editedCoverLetter, `${companyName}_${jobTitle}_Cover_Letter.pdf`)}
                     className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded transition"
                   >
                     .pdf
                   </button>
                   <button
-                    onClick={() => downloadDOCX(result.coverLetter, `${companyName}_${jobTitle}_Cover_Letter.docx`)}
+                    onClick={() => downloadDOCX(editedCoverLetter, `${companyName}_${jobTitle}_Cover_Letter.docx`)}
                     className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded transition"
                   >
                     .docx
                   </button>
                 </div>
               </div>
-              <pre className="whitespace-pre-wrap text-sm text-zinc-300 bg-zinc-950 border border-zinc-800 rounded-xl p-4 font-mono leading-relaxed">
-                {result.coverLetter}
-              </pre>
+              <textarea
+                value={editedCoverLetter}
+                onChange={(e) => setEditedCoverLetter(e.target.value)}
+                className="w-full h-96 bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 font-mono leading-relaxed focus:outline-none focus:border-zinc-600 resize-none"
+                spellCheck={false}
+              />
+              <p className="text-xs text-zinc-500 text-right">Words: {wordCount(editedCoverLetter)}</p>
             </div>
           )}
         </div>
@@ -227,7 +295,7 @@ export function ATSReviewModal({
             Cancel
           </button>
           <button
-            onClick={onSubmit}
+            onClick={() => onSubmit(editedCV, editedCoverLetter)}
             disabled={submitting}
             className="flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-medium bg-white text-zinc-900 hover:bg-zinc-200 transition disabled:opacity-50"
           >

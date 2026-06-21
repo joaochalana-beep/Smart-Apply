@@ -186,11 +186,19 @@ export default function DiscoverPage() {
       url: job.url,
       match_score: job.match_score,
     };
-    return runATSEngine(jobData, ensureProfile());
+    return runATSEngine(jobData, ensureProfile(), job.match_score);
   }
 
-  async function saveApplicationToServer(job: Job, result: ATSResult, isAutoApplied = false) {
+  async function saveApplicationToServer(
+    job: Job,
+    result: ATSResult,
+    isAutoApplied = false,
+    editedCV?: string,
+    editedCoverLetter?: string
+  ) {
     const cleanId = cleanJobId(job.id);
+    const finalCV = editedCV || result.cv;
+    const finalCoverLetter = editedCoverLetter || result.coverLetter;
     const appRes = await fetch("/api/applications", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -199,8 +207,8 @@ export default function DiscoverPage() {
         company: job.company,
         role: job.title,
         job_url: job.url,
-        resume_text: result.cv,
-        cover_letter: result.coverLetter,
+        resume_text: finalCV,
+        cover_letter: finalCoverLetter,
         ats_score: result.atsScore,
         method: isAutoApplied ? "auto" : "one_click",
         status: "sent",
@@ -222,8 +230,8 @@ export default function DiscoverPage() {
       companyName: job.company,
       companyId: cleanId,
       location: job.location,
-      coverLetter: result.coverLetter,
-      cvContent: result.cv,
+      coverLetter: finalCoverLetter,
+      cvContent: finalCV,
       atsScore: result.atsScore,
       status: "applied",
       appliedAt: new Date().toISOString(),
@@ -265,11 +273,11 @@ export default function DiscoverPage() {
     setGeneratingFor(null);
   }
 
-  async function submitApplication() {
+  async function submitApplication(editedCV: string, editedCoverLetter: string) {
     if (!reviewJob || !reviewResult) return;
     setSubmitting(true);
     try {
-      await saveApplicationToServer(reviewJob, reviewResult, false);
+      await saveApplicationToServer(reviewJob, reviewResult, false, editedCV, editedCoverLetter);
       setReviewJob(null);
       setReviewResult(null);
       showToast(`Application submitted to ${reviewJob.company}!`);
