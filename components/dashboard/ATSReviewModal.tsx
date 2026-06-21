@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { X, FileText, PenTool, Rocket, CheckCircle, Copy, RotateCcw } from "lucide-react";
+import { X, FileText, PenTool, Rocket, CheckCircle, Copy, RotateCcw, Edit3, Eye } from "lucide-react";
 import { ATSResult } from "@/lib/ats-engine";
-import { downloadText, downloadPDF, downloadDOCX } from "@/lib/document-export";
+import { downloadText, downloadPDF, downloadDOCX, downloadCV_PDF } from "@/lib/document-export";
 
 interface ATSReviewModalProps {
   isOpen: boolean;
@@ -31,6 +31,146 @@ function wordCount(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
+function sanitizeFilename(name: string): string {
+  return name.replace(/[^a-z0-9]/gi, "_").substring(0, 40);
+}
+
+interface CVSection {
+  title: string;
+  lines: string[];
+}
+
+function parseCV(cvText: string): {
+  name: string;
+  contacts: string[];
+  sections: CVSection[];
+} {
+  const lines = cvText.split("\n").map((l) => l.trim());
+  const name = lines[0] || "";
+  const contacts = lines[1]
+    ? lines[1].split("|").map((s) => s.trim()).filter(Boolean)
+    : [];
+
+  const sections: CVSection[] = [];
+  let current: CVSection | null = null;
+
+  for (let i = 2; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line) continue;
+
+    // Section header: all-caps, no bullet, no pipe, short
+    if (
+      /^[A-Z][A-Z\s&\-]+$/.test(line) &&
+      line.length < 40 &&
+      !line.startsWith("•") &&
+      !line.includes("|")
+    ) {
+      current = { title: line, lines: [] };
+      sections.push(current);
+      continue;
+    }
+
+    if (current) {
+      current.lines.push(line);
+    }
+  }
+
+  return { name, contacts, sections };
+}
+
+function FormattedCV({ cvText, jobTitle }: { cvText: string; jobTitle: string }) {
+  const { name, contacts, sections } = parseCV(cvText);
+
+  return (
+    <div className="bg-white rounded-xl overflow-hidden text-zinc-900 shadow-sm border border-zinc-200">
+      {/* Header */}
+      <div className="bg-slate-800 px-6 py-6 text-white">
+        <h3 className="text-2xl font-bold">{name || "Your Name"}</h3>
+        <p className="text-slate-300 text-sm mt-1">{jobTitle || "Professional"}</p>
+        {contacts.length > 0 && (
+          <p className="text-slate-400 text-xs mt-2">{contacts.join("  |  ")}</p>
+        )}
+      </div>
+
+      {/* Body */}
+      <div className="px-6 py-5 space-y-5">
+        {sections.map((section, idx) => (
+          <div key={idx}>
+            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider border-b border-slate-300 pb-1 mb-2">
+              {section.title}
+            </h4>
+            <div className="space-y-1.5">
+              {section.lines.map((line, lidx) => {
+                if (line.startsWith("•")) {
+                  return (
+                    <div key={lidx} className="flex gap-2 text-sm text-zinc-700">
+                      <span className="text-slate-500 mt-1.5">•</span>
+                      <span>{line.replace(/^•\s*/, "")}</span>
+                    </div>
+                  );
+                }
+                // Experience header line: Role | Company | Duration
+                if (line.includes("|") && !line.includes(":") && section.title === "EXPERIENCE") {
+                  const parts = line.split("|").map((s) => s.trim());
+                  return (
+                    <div key={lidx} className="text-sm">
+                      <span className="font-semibold text-zinc-900">{parts[0]}</span>
+                      {parts[1] && <span className="text-zinc-600"> · {parts[1]}</span>}
+                      {parts[2] && <span className="text-zinc-500 text-xs ml-2">{parts[2]}</span>}
+                    </div>
+                  );
+                }
+                // Education line: Degree - School, Year
+                if (section.title === "EDUCATION" && line.includes("-")) {
+                  const [degree, rest] = line.split("-").map((s) => s.trim());
+                  return (
+                    <div key={lidx} className="text-sm text-zinc-700">
+                      <span className="font-medium text-zinc-900">{degree}</span>
+                      {rest && <span> — {rest}</span>}
+                    </div>
+                  );
+                }
+                return (
+                  <p key={lidx} className="text-sm text-zinc-700 leading-relaxed">
+                    {line}
+                  </p>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FormattedCoverLetter({ text }: { text: string }) {
+  const paragraphs = text
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  return (
+    <div className="bg-white rounded-xl p-8 text-zinc-900 shadow-sm border border-zinc-200">
+      <div className="space-y-4">
+        {paragraphs.map((para, idx) => {
+          const lines = para.split("\n").map((l) => l.trim()).filter(Boolean);
+          return (
+            <p key={idx} className="text-sm leading-7 text-zinc-800">
+              {lines.map((line, lineIdx) => (
+                <span key={lineIdx}>
+                  {line}
+                  {lineIdx < lines.length - 1 && <br />}
+                </span>
+              ))}
+            </p>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function ATSReviewModal({
   isOpen,
   onClose,
@@ -43,6 +183,8 @@ export function ATSReviewModal({
   const [activeTab, setActiveTab] = useState<"score" | "cv" | "cover">("score");
   const [editedCV, setEditedCV] = useState(result.cv);
   const [editedCoverLetter, setEditedCoverLetter] = useState(result.coverLetter);
+  const [cvEditMode, setCvEditMode] = useState(false);
+  const [coverEditMode, setCoverEditMode] = useState(false);
 
   if (!isOpen) return null;
 
@@ -69,6 +211,9 @@ export function ATSReviewModal({
   function handleResetCoverLetter() {
     setEditedCoverLetter(result.coverLetter);
   }
+
+  const cvFilenameBase = `${sanitizeFilename(companyName)}_${sanitizeFilename(jobTitle)}`;
+  const coverFilenameBase = `${sanitizeFilename(companyName)}_${sanitizeFilename(jobTitle)}_Cover_Letter`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
@@ -189,98 +334,140 @@ export function ATSReviewModal({
 
           {activeTab === "cv" && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <p className="text-sm text-zinc-400">Edit your ATS-optimized CV</p>
-                <div className="flex gap-2">
+              {/* Toolbar */}
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm text-zinc-400 truncate">
+                  {cvEditMode ? "Edit your ATS-optimized CV" : "Your ATS-optimized CV"}
+                </p>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    onClick={() => setCvEditMode((v) => !v)}
+                    className="flex items-center gap-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-2.5 py-1.5 rounded transition"
+                    title={cvEditMode ? "Preview" : "Edit"}
+                  >
+                    {cvEditMode ? <Eye className="w-3 h-3" /> : <Edit3 className="w-3 h-3" />}
+                    {cvEditMode ? "Preview" : "Edit"}
+                  </button>
                   <button
                     onClick={handleResetCV}
-                    className="flex items-center gap-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded transition"
+                    className="flex items-center gap-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-2.5 py-1.5 rounded transition"
+                    title="Reset"
                   >
                     <RotateCcw className="w-3 h-3" />
                     Reset
                   </button>
                   <button
                     onClick={() => handleCopy(editedCV)}
-                    className="flex items-center gap-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded transition"
+                    className="flex items-center gap-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-2.5 py-1.5 rounded transition"
+                    title="Copy"
                   >
                     <Copy className="w-3 h-3" />
                     Copy
                   </button>
                   <button
-                    onClick={() => downloadText(editedCV, `${companyName}_${jobTitle}_CV.txt`)}
-                    className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded transition"
+                    onClick={() => downloadText(editedCV, `${cvFilenameBase}_CV.txt`)}
+                    className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-2.5 py-1.5 rounded transition"
                   >
                     .txt
                   </button>
                   <button
-                    onClick={() => downloadPDF(editedCV, `${companyName}_${jobTitle}_CV.pdf`)}
-                    className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded transition"
+                    onClick={() => downloadCV_PDF(editedCV, `${cvFilenameBase}_CV.pdf`, jobTitle)}
+                    className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-2.5 py-1.5 rounded transition"
                   >
                     .pdf
                   </button>
                   <button
-                    onClick={() => downloadDOCX(editedCV, `${companyName}_${jobTitle}_CV.docx`)}
-                    className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded transition"
+                    onClick={() => downloadDOCX(editedCV, `${cvFilenameBase}_CV.docx`)}
+                    className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-2.5 py-1.5 rounded transition"
                   >
                     .docx
                   </button>
                 </div>
               </div>
-              <textarea
-                value={editedCV}
-                onChange={(e) => setEditedCV(e.target.value)}
-                className="w-full h-96 bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 font-mono leading-relaxed focus:outline-none focus:border-zinc-600 resize-none"
-                spellCheck={false}
-              />
+
+              {cvEditMode ? (
+                <textarea
+                  value={editedCV}
+                  onChange={(e) => setEditedCV(e.target.value)}
+                  className="w-full h-[28rem] bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 font-mono leading-relaxed focus:outline-none focus:border-zinc-600 resize-none"
+                  spellCheck={false}
+                />
+              ) : (
+                <div className="max-h-[28rem] overflow-y-auto rounded-xl">
+                  <FormattedCV cvText={editedCV} jobTitle={jobTitle} />
+                </div>
+              )}
+
               <p className="text-xs text-zinc-500 text-right">Words: {wordCount(editedCV)}</p>
             </div>
           )}
 
           {activeTab === "cover" && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <p className="text-sm text-zinc-400">Edit your cover letter</p>
-                <div className="flex gap-2">
+              {/* Toolbar */}
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm text-zinc-400 truncate">
+                  {coverEditMode ? "Edit your cover letter" : "Your cover letter"}
+                </p>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    onClick={() => setCoverEditMode((v) => !v)}
+                    className="flex items-center gap-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-2.5 py-1.5 rounded transition"
+                    title={coverEditMode ? "Preview" : "Edit"}
+                  >
+                    {coverEditMode ? <Eye className="w-3 h-3" /> : <Edit3 className="w-3 h-3" />}
+                    {coverEditMode ? "Preview" : "Edit"}
+                  </button>
                   <button
                     onClick={handleResetCoverLetter}
-                    className="flex items-center gap-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded transition"
+                    className="flex items-center gap-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-2.5 py-1.5 rounded transition"
+                    title="Reset"
                   >
                     <RotateCcw className="w-3 h-3" />
                     Reset
                   </button>
                   <button
                     onClick={() => handleCopy(editedCoverLetter)}
-                    className="flex items-center gap-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded transition"
+                    className="flex items-center gap-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-2.5 py-1.5 rounded transition"
+                    title="Copy"
                   >
                     <Copy className="w-3 h-3" />
                     Copy
                   </button>
                   <button
-                    onClick={() => downloadText(editedCoverLetter, `${companyName}_${jobTitle}_Cover_Letter.txt`)}
-                    className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded transition"
+                    onClick={() => downloadText(editedCoverLetter, `${coverFilenameBase}.txt`)}
+                    className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-2.5 py-1.5 rounded transition"
                   >
                     .txt
                   </button>
                   <button
-                    onClick={() => downloadPDF(editedCoverLetter, `${companyName}_${jobTitle}_Cover_Letter.pdf`)}
-                    className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded transition"
+                    onClick={() => downloadPDF(editedCoverLetter, `${coverFilenameBase}.pdf`)}
+                    className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-2.5 py-1.5 rounded transition"
                   >
                     .pdf
                   </button>
                   <button
-                    onClick={() => downloadDOCX(editedCoverLetter, `${companyName}_${jobTitle}_Cover_Letter.docx`)}
-                    className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded transition"
+                    onClick={() => downloadDOCX(editedCoverLetter, `${coverFilenameBase}.docx`)}
+                    className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-2.5 py-1.5 rounded transition"
                   >
                     .docx
                   </button>
                 </div>
               </div>
-              <textarea
-                value={editedCoverLetter}
-                onChange={(e) => setEditedCoverLetter(e.target.value)}
-                className="w-full h-96 bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 font-mono leading-relaxed focus:outline-none focus:border-zinc-600 resize-none"
-                spellCheck={false}
-              />
+
+              {coverEditMode ? (
+                <textarea
+                  value={editedCoverLetter}
+                  onChange={(e) => setEditedCoverLetter(e.target.value)}
+                  className="w-full h-[28rem] bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 font-mono leading-relaxed focus:outline-none focus:border-zinc-600 resize-none"
+                  spellCheck={false}
+                />
+              ) : (
+                <div className="max-h-[28rem] overflow-y-auto rounded-xl">
+                  <FormattedCoverLetter text={editedCoverLetter} />
+                </div>
+              )}
+
               <p className="text-xs text-zinc-500 text-right">Words: {wordCount(editedCoverLetter)}</p>
             </div>
           )}
