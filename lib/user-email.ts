@@ -1,10 +1,10 @@
 import { CONFIG } from "./config";
 
 /**
- * Auto-generate an @applywise.org email address from the user's full name.
+ * Auto-generate an @applywise.site email address from the user's full name.
  * Examples:
- *   "João Chalana" → joao.chalana@applywise.org
- *   "Maria Silva"  → maria.silva@applywise.org
+ *   "João Chalana" → joao.chalana@applywise.site
+ *   "Maria Silva"  → maria.silva@applywise.site
  */
 export function generateUserEmail(name: string): string {
   const clean = name

@@ -23,6 +23,8 @@ export function NavLinks() {
             </span>
           )}
         </Link>
+        <Link href="/pricing" className="text-zinc-400 hover:text-white transition-colors">Pricing</Link>
+        <Link href="/account/subscription" className="text-zinc-400 hover:text-white transition-colors">Account</Link>
         <Link href="/profile" className="text-zinc-400 hover:text-white transition-colors">Profile</Link>
       </>
     );
@@ -31,7 +33,7 @@ export function NavLinks() {
   return (
     <>
       <a href="#features" className="text-zinc-400 hover:text-white transition-colors">Features</a>
-      <a href="#pricing" className="text-zinc-400 hover:text-white transition-colors">Pricing</a>
+      <Link href="/pricing" className="text-zinc-400 hover:text-white transition-colors">Pricing</Link>
       <a href="#faq" className="text-zinc-400 hover:text-white transition-colors">FAQ</a>
     </>
   );

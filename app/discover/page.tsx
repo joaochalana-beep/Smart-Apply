@@ -262,7 +262,7 @@ export default function DiscoverPage() {
       body: `Application sent to ${job.company} for ${job.title}. Reference: ${saved.reference_number || "N/A"}.`,
       type: "application_sent",
       status: "read",
-      from: `${saved.reference_number ? `ApplyWise <applications@applywise.org>` : "ApplyWise"}`,
+      from: `${saved.reference_number ? `ApplyWise <applications@applywise.site>` : "ApplyWise"}`,
       fromName: "ApplyWise",
       to: job.company,
       referenceNumber: saved.reference_number,

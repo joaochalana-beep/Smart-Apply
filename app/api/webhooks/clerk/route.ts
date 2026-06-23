@@ -6,7 +6,7 @@ import { generateUserEmail } from "@/lib/user-email";
 
 /**
  * Clerk webhook: automatically create a Supabase profile with an
- * @applywise.org email address as soon as a user signs up.
+ * @applywise.site email address as soon as a user signs up.
  */
 export async function POST(req: NextRequest) {
   const webhookSecret = process.env.CLERK_WEBHOOK_SECRET;

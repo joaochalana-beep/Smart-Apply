@@ -1,10 +1,10 @@
 # ApplyWise Domain & Email Setup Checklist
 
-This file tracks everything needed to go from **mock email mode** to **real `@applywise.org` emails**.
+This file tracks everything needed to go from **mock email mode** to **real `@applywise.site` emails**.
 
 ## Current state
 
-- Domain reserved: `applywise.org`
+- Domain reserved: `applywise.site`
 - Email provider: [Resend](https://resend.com)
 - Sending status: `MOCK` (see `lib/config.ts` → `emailSendingEnabled: false`)
 - Inbound email webhook: built at `/api/webhooks/email`
@@ -12,9 +12,9 @@ This file tracks everything needed to go from **mock email mode** to **real `@ap
 
 ---
 
-## 1. Verify `applywise.org` domain
+## 1. Verify `applywise.site` domain
 
-- [ ] Buy/transfer `applywise.org` if not already owned
+- [ ] Buy/transfer `applywise.site` if not already owned
 - [ ] Add DNS records in your registrar:
   - Resend will give you **SPF**, **DKIM**, and **DMARC** records
   - Clerk will give you a **CNAME** or DNS record for the webhook endpoint (if using a custom domain, not required for webhooks)
@@ -28,27 +28,27 @@ This file tracks everything needed to go from **mock email mode** to **real `@ap
 - [ ] Add to `.env.local`:
   ```env
   RESEND_API_KEY=re_xxxxxxxx
-  FROM_EMAIL=ApplyWise <applications@applywise.org>
+  FROM_EMAIL=ApplyWise <applications@applywise.site>
   ```
-- [ ] Verify `applications@applywise.org` and `no-reply@applywise.org` as sender addresses
+- [ ] Verify `applications@applywise.site` and `no-reply@applywise.site` as sender addresses
 - [ ] Enable inbound email routing in Resend:
-  - Set the **inbound domain** to `applywise.org`
+  - Set the **inbound domain** to `applywise.site`
   - Set the webhook URL to:
     ```
-    https://applywise.org/api/webhooks/email?token=YOUR_WEBHOOK_SECRET
+    https://applywise.site/api/webhooks/email?token=YOUR_WEBHOOK_SECRET
     ```
   - Choose **JSON** payload format
 
 ## 3. Clerk webhook configuration
 
 - [ ] In Clerk Dashboard → Webhooks, add an endpoint:
-  - URL: `https://applywise.org/api/webhooks/clerk`
+  - URL: `https://applywise.site/api/webhooks/clerk`
   - Events: `user.created`
 - [ ] Copy the **Signing Secret** and add to `.env.local`:
   ```env
   CLERK_WEBHOOK_SECRET=whsec_xxxxxxxx
   ```
-- [ ] This webhook auto-creates a Supabase profile and `@applywise.org` email immediately on signup
+- [ ] This webhook auto-creates a Supabase profile and `@applywise.site` email immediately on signup
 
 ## 4. Environment variables
 
@@ -71,11 +71,11 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 
 # Resend
 RESEND_API_KEY=re_...
-FROM_EMAIL=ApplyWise <applications@applywise.org>
+FROM_EMAIL=ApplyWise <applications@applywise.site>
 WEBHOOK_SECRET=your-random-secret-here
 
 # Public URL
-NEXT_PUBLIC_APP_URL=https://applywise.org
+NEXT_PUBLIC_APP_URL=https://applywise.site
 ```
 
 ## 5. Supabase migrations
@@ -121,7 +121,7 @@ emailSendingEnabled: process.env.EMAIL_SENDING_ENABLED === "true",
 
 ## 9. Optional: custom reply addresses
 
-If you want each user to receive replies at their own `@applywise.org` address (e.g. `joao.chalana@applywise.org`), configure Resend inbound routing to catch all `*@applywise.org` and forward to the webhook.
+If you want each user to receive replies at their own `@applywise.site` address (e.g. `joao.chalana@applywise.site`), configure Resend inbound routing to catch all `*@applywise.site` and forward to the webhook.
 
 ---
 

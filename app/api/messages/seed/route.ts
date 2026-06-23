@@ -53,7 +53,7 @@ export async function POST() {
         }\n\nWe will notify you when the employer responds.`,
         type: "application_sent",
         status: "read",
-        from: "ApplyWise <applications@applywise.org>",
+        from: "ApplyWise <applications@applywise.site>",
         from_name: "ApplyWise",
         sent_at: app.sent_at || new Date().toISOString(),
         reference_number: app.reference_number || null,

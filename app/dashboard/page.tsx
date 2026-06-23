@@ -14,6 +14,14 @@ import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { RecommendedJobs } from "@/components/dashboard/RecommendedJobs";
 import { AutoApply, getAutoApplySettings, incrementAutoApply } from "@/components/dashboard/AutoApply";
 import { useInbox } from "@/context/InboxContext";
+import { useSubscription } from "@/context/SubscriptionContext";
+import {
+  UpgradeBanner,
+  UsageWarning,
+  PostApplicationNudge,
+} from "@/components/subscription/UpgradeBanner";
+import { FeatureGateModal } from "@/components/subscription/FeatureGateModal";
+import { canUseFeature, PLANS, PlanTier } from "@/lib/subscription";
 import { runATSEngine, cleanJobId, JobData, UserProfile } from "@/lib/ats-engine";
 
 interface DiscoverJob {
@@ -56,6 +64,7 @@ export default function DashboardPage() {
   const { user } = useUser();
   const router = useRouter();
   const { addMessage } = useInbox();
+  const { tier, applicationsRemaining, incrementApplicationsUsed, subscription } = useSubscription();
   const [applications, setApplications] = useState<any[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [profileCompletion, setProfileCompletion] = useState(75);
@@ -64,6 +73,12 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [autoApplyRunning, setAutoApplyRunning] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [showNudge, setShowNudge] = useState(false);
+  const [featureGate, setFeatureGate] = useState<{ open: boolean; feature: string; requiredTier: PlanTier }>({
+    open: false,
+    feature: "",
+    requiredTier: "starter",
+  });
 
   const loadStoredApplications = useCallback(() => {
     if (typeof window === "undefined") return [];
@@ -247,7 +262,7 @@ export default function DashboardPage() {
       body: `Application sent to ${job.company} for ${job.title}. Reference: ${saved.reference_number || "N/A"}.`,
       type: "application_sent",
       status: "read",
-      from: "ApplyWise <applications@applywise.org>",
+      from: "ApplyWise <applications@applywise.site>",
       fromName: "ApplyWise",
       to: job.company,
       referenceNumber: saved.reference_number,
@@ -255,11 +270,21 @@ export default function DashboardPage() {
       isImported: false,
     });
 
+    // Increment subscription usage and show upgrade nudge for free users
+    await incrementApplicationsUsed();
+    if (tier === "free") {
+      setShowNudge(true);
+    }
+
     return saved;
   }
 
   const runAutoApply = useCallback(async () => {
     if (autoApplyRunning) return;
+    if (!canUseFeature(tier, "autoApply")) {
+      setFeatureGate({ open: true, feature: "Auto-apply", requiredTier: "starter" });
+      return;
+    }
     const settings = getAutoApplySettings();
     if (!settings.enabled) return;
     if (!profile) return;
@@ -336,7 +361,16 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout>
+      <UpgradeBanner />
+
       <WelcomeHeader />
+
+      <UsageWarning
+        usage={subscription.applicationsUsedThisMonth}
+        limit={PLANS[tier].monthlyApplications}
+      />
+
+      {showNudge && <PostApplicationNudge onDismiss={() => setShowNudge(false)} />}
 
       <AutoApply onAutoApply={runAutoApply} />
 
@@ -370,6 +404,14 @@ export default function DashboardPage() {
           {toast}
         </div>
       )}
+
+      <FeatureGateModal
+        featureName={featureGate.feature}
+        requiredTier={featureGate.requiredTier}
+        currentTier={tier}
+        isOpen={featureGate.open}
+        onClose={() => setFeatureGate((g) => ({ ...g, open: false }))}
+      />
     </DashboardLayout>
   );
 }

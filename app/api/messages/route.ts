@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     body: body.body || "",
     type: body.type || "company_reply",
     status: body.status || "unread",
-    from: body.from || "ApplyWise <applications@applywise.org>",
+    from: body.from || "ApplyWise <applications@applywise.site>",
     from_name: body.from_name || null,
     to_email: body.to_email || null,
     to_name: body.to_name || null,
@@ -84,7 +84,7 @@ export async function POST(req: Request) {
         subject,
         text,
         html: textToHtml(text),
-        from: `${data.company_name} via ApplyWise <applications@applywise.org>`,
+        from: `${data.company_name} via ApplyWise <applications@applywise.site>`,
       });
     }
   } catch (emailErr) {

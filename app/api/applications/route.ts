@@ -67,7 +67,7 @@ export async function POST(req: Request) {
     .maybeSingle();
 
   const candidateName = profile?.full_name || "Candidate";
-  const candidateEmail = profile?.applywise_email || `${userId}@applywise.org`;
+  const candidateEmail = profile?.applywise_email || `${userId}@applywise.site`;
   const candidatePhone = profile?.phone || undefined;
 
   // Clean job id

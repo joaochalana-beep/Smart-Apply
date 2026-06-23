@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
+import { Check, Shield } from "lucide-react";
+import { FAQ } from "@/components/faq/FAQ";
+import { PLANS, getPlanFeatures, formatPrice, getAnnualSavingsPercent } from "@/lib/subscription";
 
 function FeatureCard({ 
   icon, 
@@ -39,6 +42,122 @@ function FeatureCard({
     <Link href={href} className="block">
       {content}
     </Link>
+  );
+}
+
+function HomePricingCard({
+  tier,
+  billing,
+}: {
+  tier: "free" | "starter" | "pro";
+  billing: "monthly" | "annual";
+}) {
+  const plan = PLANS[tier];
+  const price = billing === "monthly" ? plan.priceMonthly : plan.priceAnnual;
+  const features = getPlanFeatures(tier).filter((f) => f.included);
+  const isPopular = tier === "pro";
+
+  return (
+    <div
+      className={`relative bg-white rounded-3xl border p-8 flex flex-col ${
+        isPopular
+          ? "border-indigo-500 shadow-xl shadow-indigo-500/10"
+          : "border-zinc-200"
+      }`}
+    >
+      {isPopular && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+          <span className="bg-indigo-500 text-white text-xs font-bold px-4 py-1 rounded-full">
+            Most Popular
+          </span>
+        </div>
+      )}
+
+      <div className="mb-6">
+        <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
+        <div className="flex items-baseline gap-1">
+          <span className="text-4xl font-bold">{formatPrice(price)}</span>
+          <span className="text-zinc-400">/{billing === "monthly" ? "mo" : "yr"}</span>
+        </div>
+        {tier === "free" && <p className="text-sm text-zinc-400 mt-1">Forever free</p>}
+        {tier === "starter" && <p className="text-sm text-zinc-400 mt-1">or €{plan.priceAnnual}/yr</p>}
+        {tier === "pro" && <p className="text-sm text-zinc-400 mt-1">or €{plan.priceAnnual}/yr</p>}
+      </div>
+
+      <ul className="space-y-3 mb-8 flex-1">
+        {features.map((feature, i) => (
+          <li key={i} className="flex items-start gap-3 text-sm">
+            <Check className="w-4 h-4 mt-0.5 flex-shrink-0 text-green-500" />
+            <span className="text-zinc-700">{feature.label}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function HomePricing() {
+  const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
+  const planOrder: ("free" | "starter" | "pro")[] = ["free", "starter", "pro"];
+
+  return (
+    <div>
+      <div className="text-center mb-12">
+        <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">
+          Simple Pricing
+        </h2>
+        <p className="text-zinc-500 text-lg max-w-2xl mx-auto">
+          Start free. Upgrade when you&apos;re ready.
+        </p>
+      </div>
+
+      {/* Billing Toggle */}
+      <div className="flex justify-center mb-10">
+        <div className="inline-flex items-center gap-2 bg-zinc-200 rounded-full p-1">
+          <button
+            onClick={() => setBilling("monthly")}
+            className={`px-5 py-2 rounded-full text-sm font-medium transition ${
+              billing === "monthly"
+                ? "bg-white text-zinc-900 shadow-sm"
+                : "text-zinc-500 hover:text-zinc-900"
+            }`}
+          >
+            Monthly
+          </button>
+          <button
+            onClick={() => setBilling("annual")}
+            className={`px-5 py-2 rounded-full text-sm font-medium transition ${
+              billing === "annual"
+                ? "bg-white text-zinc-900 shadow-sm"
+                : "text-zinc-500 hover:text-zinc-900"
+            }`}
+          >
+            Annual — Save {getAnnualSavingsPercent()}%
+          </button>
+        </div>
+      </div>
+
+      {/* Pricing Cards */}
+      <div className="grid md:grid-cols-3 gap-6 mb-8">
+        {planOrder.map((tier) => (
+          <HomePricingCard key={tier} tier={tier} billing={billing} />
+        ))}
+      </div>
+
+      {/* Trust & CTA */}
+      <div className="text-center space-y-6">
+        <p className="text-sm text-zinc-500 flex items-center justify-center gap-2">
+          <Shield className="w-4 h-4" />
+          14-day money-back guarantee on all paid plans. Cancel anytime.
+        </p>
+        <Link
+          href="/pricing"
+          className="inline-block bg-zinc-900 text-white px-8 py-3 rounded-full font-medium hover:bg-zinc-800 transition"
+        >
+          View Full Comparison
+        </Link>
+      </div>
+    </div>
   );
 }
 
@@ -173,45 +292,15 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Comparison Section */}
+      {/* Pricing Section */}
       <section className="py-24 px-6 bg-zinc-50">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">
-              Why Pay More for Less?
-            </h2>
-            <p className="text-zinc-500 text-lg">
-              Most platforms hide their best features behind expensive paywalls and credit systems. We think that's unfair.
-            </p>
-          </div>
-          <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden">
-            <div className="grid md:grid-cols-2">
-              <div className="p-8 border-b md:border-b-0 md:border-r border-zinc-200">
-                <div className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-2">Other Platforms</div>
-                <div className="text-3xl font-bold text-zinc-900 mb-1">€25-35<span className="text-lg text-zinc-400">/mo</span></div>
-                <div className="text-sm text-zinc-500 mb-6">+ extra credits for auto-apply</div>
-                <ul className="space-y-3 text-sm text-zinc-500">
-                  <li className="flex items-center gap-2">❌ Limited resume generations</li>
-                  <li className="flex items-center gap-2">❌ Pay per application</li>
-                  <li className="flex items-center gap-2">❌ Generic cover letters</li>
-                  <li className="flex items-center gap-2">❌ No job discovery</li>
-                </ul>
-              </div>
-              <div className="p-8">
-                <div className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-2">ApplyWise</div>
-                <div className="text-3xl font-bold text-zinc-900 mb-1">€0<span className="text-lg text-zinc-400">/mo</span></div>
-                <div className="text-sm text-zinc-500 mb-6">Free while in beta</div>
-                <ul className="space-y-3 text-sm text-zinc-900">
-                  <li className="flex items-center gap-2">✅ Unlimited AI resumes</li>
-                  <li className="flex items-center gap-2">✅ Tailored cover letters</li>
-                  <li className="flex items-center gap-2">✅ Job discovery & matching</li>
-                  <li className="flex items-center gap-2">✅ Full application tracker</li>
-                </ul>
-              </div>
-            </div>
-          </div>
+        <div className="max-w-6xl mx-auto">
+          <HomePricing />
         </div>
       </section>
+
+      {/* FAQ Section */}
+      <FAQ />
 
       {/* CTA Section */}
       <section className="py-24 px-6">
@@ -247,6 +336,12 @@ export default function Home() {
               <span className="text-white font-bold text-sm">A</span>
             </div>
             <span className="font-bold text-lg tracking-tight">ApplyWise</span>
+          </div>
+          <div className="flex items-center gap-6 text-sm text-zinc-500">
+            <Link href="/pricing" className="hover:text-zinc-900">Pricing</Link>
+            <Link href="/terms" className="hover:text-zinc-900">Terms & Conditions</Link>
+            <Link href="#" className="hover:text-zinc-900">Privacy Policy</Link>
+            <Link href="mailto:support@applywise.site" className="hover:text-zinc-900">Contact</Link>
           </div>
           <p className="text-sm text-zinc-400">
             © 2026 ApplyWise. Built for job seekers, by job seekers.

@@ -120,7 +120,7 @@ export function buildApplicationEmail({
     • Company: ${companyName}<br>
     • Reference: ${referenceNumber}<br>
     • ATS Optimization Score: ${atsScore}%<br>
-    • Applied via: ApplyWise (applywise.org)
+    • Applied via: ApplyWise (applywise.site)
   </p>
 
   <p style="font-size: 14px; color: #666;">
